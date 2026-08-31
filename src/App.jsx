@@ -406,6 +406,110 @@ function IconJobEtc({ size = 18 }) {
     </svg>
   );
 }
+/* ===== 단과대학 아이콘 10종 (24×24, stroke 1.9, round — 직무 아이콘 문법 재활용) ===== */
+function IconColSw({ size = 16 }) {
+  // SW융합대학: 코드 브래킷 + 칩
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="5" width="14" height="14" rx="2.5" />
+      <path d="M9 2.5V5 M15 2.5V5 M9 19v2.5 M15 19v2.5 M2.5 9H5 M2.5 15H5 M19 9h2.5 M19 15h2.5" />
+      <polyline points="10.6 9.6 8.6 12 10.6 14.4" />
+      <polyline points="13.4 9.6 15.4 12 13.4 14.4" />
+    </svg>
+  );
+}
+function IconColEng({ size = 16 }) {
+  // 공과대학: 기어
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2.2" />
+      <path d="M12 3v3 M12 18v3 M3 12h3 M18 12h3 M5.6 5.6l2.2 2.2 M16.2 16.2l2.2 2.2 M18.4 5.6l-2.2 2.2 M7.8 16.2l-2.2 2.2" />
+    </svg>
+  );
+}
+function IconColArt({ size = 16 }) {
+  // 디자인·아트대학: 팔레트 + 붓
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 21.5a9.5 9.5 0 1 1 9.5-9.9c.1 1.9-1.3 3.4-3.2 3.4h-2c-1.2 0-1.9 1.2-1.4 2.3.5 1.2-.3 4.2-2.9 4.2z" />
+      <circle cx="7.8" cy="10.4" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="16.2" cy="10.4" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function IconColHealth({ size = 16 }) {
+  // 보건의료과학대학: 라운드 십자
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9.5 3.5h5a1 1 0 0 1 1 1v3h3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-3v3a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-3h-3a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h3v-3a1 1 0 0 1 1-1z" />
+    </svg>
+  );
+}
+function IconColKmed({ size = 16 }) {
+  // 한의과대학: 잎(약초)
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20.5 3.5c-8.5 0-14.5 4-14.5 11 0 3.3 2.2 5.5 5.5 5.5 7 0 9-8.5 9-16.5z" />
+      <path d="M4 21c3-6.5 7.5-10.5 13-13.5" />
+    </svg>
+  );
+}
+function IconColSoc({ size = 16 }) {
+  // 사회과학대학: 저울
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="12" y1="4" x2="12" y2="20" />
+      <path d="M8.5 20.5h7" />
+      <line x1="5.3" y1="7" x2="18.7" y2="7" />
+      <path d="m5.3 7-2.8 6.8a4.3 4.3 0 0 0 5.6 0L5.3 7z" />
+      <path d="m18.7 7-2.8 6.8a4.3 4.3 0 0 0 5.6 0L18.7 7z" />
+    </svg>
+  );
+}
+function IconColBiz({ size = 16 }) {
+  // 경영대학: 상승 막대 차트
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 3.5v17h17" />
+      <line x1="8" y1="20.5" x2="8" y2="15" />
+      <line x1="12.5" y1="20.5" x2="12.5" y2="11" />
+      <line x1="17" y1="20.5" x2="17" y2="7" />
+    </svg>
+  );
+}
+function IconColLib({ size = 16 }) {
+  // 혜화리버럴아츠칼리지: 펼친 책
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 6C10.5 4.4 8 3.8 5.5 3.8c-1 0-2 .1-3 .4v14.6c1-.3 2-.4 3-.4 2.5 0 5 .6 6.5 2.1 1.5-1.5 4-2.1 6.5-2.1 1 0 2 .1 3 .4V4.2c-1-.3-2-.4-3-.4-2.5 0-5 .6-6.5 2.2z" />
+      <line x1="12" y1="6" x2="12" y2="20.5" />
+    </svg>
+  );
+}
+function IconColFuture({ size = 16 }) {
+  // 미래인재융합대학: 로켓
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2.5c2.9 2.3 4.3 5.6 4.3 9.4 0 1.5-.3 2.9-.9 4.1H8.6a10.6 10.6 0 0 1-.9-4.1c0-3.8 1.4-7.1 4.3-9.4z" />
+      <circle cx="12" cy="9.8" r="1.9" />
+      <path d="M8.6 13.5 6 17h3.2 M15.4 13.5 18 17h-3.2" />
+      <path d="M12 18.5v3" />
+    </svg>
+  );
+}
+function IconColComm({ size = 16 }) {
+  // 혜화커뮤니티칼리지: 사람 2명
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="8.5" r="3.2" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M15.8 5.6a3.2 3.2 0 0 1 0 5.8" />
+      <path d="M17.6 14.3a6.5 6.5 0 0 1 3.9 5.7" />
+    </svg>
+  );
+}
 function IconUser({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -424,6 +528,21 @@ function IconGauge({ bars = 1, size = 20 }) {
     </svg>
   );
 }
+
+/* 단과대학명(departments.js college 문자열) → 칩 아이콘 매핑. 미등록 단과대는 학사모 폴백 */
+const COLLEGE_ICON = {
+  "SW융합대학": <IconColSw />,
+  "공과대학": <IconColEng />,
+  "디자인·아트대학": <IconColArt />,
+  "보건의료과학대학": <IconColHealth />,
+  "한의과대학": <IconColKmed />,
+  "사회과학대학": <IconColSoc />,
+  "경영대학": <IconColBiz />,
+  "혜화리버럴아츠칼리지": <IconColLib />,
+  "미래인재융합대학": <IconColFuture />,
+  "혜화커뮤니티칼리지": <IconColComm />,
+};
+const COLLEGE_ICON_FALLBACK = <IconJobEdu size={16} />;
 
 /* 직무명(/api/jobs 응답 키) → 아이콘/파스텔 톤/태그라인 매핑. 미등록 직무는 폴백 사용 */
 const JOB_META = {
@@ -2523,7 +2642,9 @@ export default function App() {
                         aria-pressed={active}
                         onClick={() => setDeptCollege(c)}
                       >
-                        {active && <IconCheck size={10} />}{c}
+                        {active && <IconCheck size={10} />}
+                        <span className="co-chip-ic" aria-hidden="true">{COLLEGE_ICON[c] || COLLEGE_ICON_FALLBACK}</span>
+                        {c}
                       </button>
                     );
                   })}

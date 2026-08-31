@@ -80,7 +80,7 @@ export const DEPARTMENTS = [
     ] },
   { college: "공과대학", name: "소방방재학과",
     careers: [
-      { label: "소방공무원", job: "공공·행정", sub: "행정직" },
+      { label: "소방공무원", job: "공공·행정", sub: "경찰·소방" },
       { label: "산업안전 관리자", job: "연구·엔지니어링", sub: "연구개발" },
       { label: "소방설비 엔지니어", job: "연구·엔지니어링", sub: "기계" },
       { label: "안전 관련 공기업", job: "공공·행정", sub: "공기업" },
@@ -178,11 +178,12 @@ export const DEPARTMENTS = [
     careers: [
       { label: "직업군인(장교)", job: "공공·행정", sub: "군인·국방" },
       { label: "군무원", job: "공공·행정", sub: "행정직" },
+      { label: "군사경찰·경호 분야", job: "공공·행정", sub: "경찰·소방" },
       { label: "방위산업체 연구원", job: "연구·엔지니어링", sub: "연구개발" },
     ] },
   { college: "사회과학대학", name: "경찰학과",
     careers: [
-      { label: "경찰공무원", job: "공공·행정", sub: "행정직" },
+      { label: "경찰공무원", job: "공공·행정", sub: "경찰·소방" },
       { label: "국방·수사기관 요원", job: "공공·행정", sub: "군인·국방" },
       { label: "기업 산업보안 담당자", job: "경영사무", sub: "총무" },
     ] },

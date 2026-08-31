@@ -781,6 +781,8 @@ button { font-family: inherit; }
   background: var(--primary-soft); border-color: var(--primary); color: var(--primary);
   font-weight: 700; box-shadow: 0 4px 10px rgba(90, 108, 243, .14);
 }
+/* 단과대학 칩 좌측 아이콘: currentColor 상속이라 active 시 칩 글자색과 함께 반전됨 */
+.co-chip-ic { display: inline-flex; flex-shrink: 0; }
 .company-input {
   position: relative;
   display: flex; align-items: center; gap: 8px;
