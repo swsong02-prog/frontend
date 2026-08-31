@@ -768,6 +768,8 @@ button { font-family: inherit; }
 
 /* 2.5 지원 회사: 빠른 선택 칩 + 직접 입력 */
 .company-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+/* 학과로 찾기: 단과대학 → 학과 계층 탐색 라벨 */
+.dc-label { font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 8px; }
 .co-chip {
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--bg); border: 1.5px solid transparent; border-radius: 999px;

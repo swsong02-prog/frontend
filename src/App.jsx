@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import Auth from "./Auth";
 import Growth from "./Growth";
 import { COMPANIES, searchCompanies } from "./companies";
+import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 
 /* 면접 설정 화면 표시용 상수 (상태 key는 기존 그대로: 하/중/상, 신입/경력) */
 const SETUP_LEVELS = [
@@ -19,6 +20,13 @@ const LEVEL_LABEL = { "하": "쉬움", "중": "보통", "상": "어려움" };
 
 /* 지원 회사: 빠른 선택 칩 8개 */
 const COMPANY_QUICK = ["삼성전자", "네이버", "카카오", "LG전자", "현대자동차", "SK하이닉스", "쿠팡", "토스"];
+
+/* 대전대 학과로 찾기: 단과대학 표시 순서 (관심 단과대 우선, 나머지는 departments.js 데이터 순) */
+const COLLEGE_PRIORITY = ["SW융합대학", "공과대학", "디자인·아트대학"];
+const COLLEGE_ORDER = [
+  ...COLLEGE_PRIORITY.filter((c) => COLLEGES.includes(c)),
+  ...COLLEGES.filter((c) => !COLLEGE_PRIORITY.includes(c)),
+];
 
 /* companies.js 데이터셋 기반 워드마크 조회 (이름·별칭 정확 일치, 공백 무시·대소문자 무시) */
 const BRAND_LOOKUP = (() => {
@@ -1225,6 +1233,12 @@ export default function App() {
   const [company, setCompany] = useState(""); // 지원 회사 (선택, 표시용 부가 정보)
   const [coOpen, setCoOpen] = useState(false); // 지원 회사 자동완성 드롭다운 표시 여부
   const [coIdx, setCoIdx] = useState(-1); // 자동완성 키보드 하이라이트 인덱스
+  const [jobTab, setJobTab] = useState("dept"); // 직무 선택 탭: dept(학과로 찾기) | job(직무로 찾기)
+  const [deptQuery, setDeptQuery] = useState(""); // 학과 검색어
+  const [deptOpen, setDeptOpen] = useState(false); // 학과 자동완성 드롭다운 표시 여부
+  const [deptIdx, setDeptIdx] = useState(-1); // 학과 자동완성 키보드 하이라이트 인덱스
+  const [deptPick, setDeptPick] = useState(null); // 표시용: { dept: 학과 객체, careerLabel: 선택한 진로명 | null } (저장 payload와 무관)
+  const [deptCollege, setDeptCollege] = useState(COLLEGE_ORDER[0]); // 단과대학 탐색: 선택된 단과대 (기본 SW융합대학)
   const [resumeTab, setResumeTab] = useState("text");
   const [resumeText, setResumeText] = useState("");
   const [resumeFileMsg, setResumeFileMsg] = useState("");
@@ -1297,6 +1311,7 @@ export default function App() {
   const resumeFileRef = useRef(null);
   const countdownRef = useRef(null);
   const companyBoxRef = useRef(null); // 지원 회사 입력 + 자동완성 드롭다운 컨테이너
+  const deptBoxRef = useRef(null); // 학과 검색 입력 + 자동완성 드롭다운 컨테이너
 
   // 지원 회사 자동완성: 결과 계산 + 바깥 클릭 시 닫기
   const coQuery = company.trim();
@@ -1314,6 +1329,63 @@ export default function App() {
     setCompany(name);
     setCoOpen(false);
     setCoIdx(-1);
+  }
+
+  // 학과 자동완성: 결과 계산 + 바깥 클릭 시 닫기 (지원 회사 자동완성과 동일 패턴)
+  const deptQ = deptQuery.trim();
+  const deptResults = deptOpen && deptQ ? searchDepartments(deptQ) : [];
+  useEffect(() => {
+    if (!deptOpen) return;
+    function onDocDown(e) {
+      if (deptBoxRef.current && !deptBoxRef.current.contains(e.target)) setDeptOpen(false);
+    }
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [deptOpen]);
+
+  // 학과 선택: 진로 카드 목록을 펼친다 (표시용 상태만 변경, 직무 저장 로직과 무관)
+  function pickDept(dept) {
+    setDeptPick({ dept, careerLabel: null });
+    setDeptCollege(dept.college); // 검색으로 골라도 해당 단과대 칩이 active 되도록 동기화
+    setDeptQuery("");
+    setDeptOpen(false);
+    setDeptIdx(-1);
+  }
+  // 진로 카드 선택: 기존 직무 엔진에 연결 (selectJob + 세부직무 설정, 저장 payload는 기존 그대로)
+  function pickCareer(c) {
+    selectJob(c.job);
+    setSub(c.sub);
+    setDeptPick((p) => (p ? { ...p, careerLabel: c.label } : p));
+  }
+  function handleDeptKey(e) {
+    if (!deptOpen || !deptQ) {
+      if (e.key === "ArrowDown" && deptQ) {
+        e.preventDefault();
+        setDeptOpen(true);
+        setDeptIdx(0);
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setDeptIdx((p) => (deptResults.length ? (p + 1) % deptResults.length : -1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setDeptIdx((p) => (deptResults.length ? (p <= 0 ? deptResults.length - 1 : p - 1) : -1));
+    } else if (e.key === "Enter") {
+      if (deptIdx >= 0 && deptResults[deptIdx]) {
+        e.preventDefault();
+        pickDept(deptResults[deptIdx]);
+      } else if (deptResults.length > 0) {
+        e.preventDefault();
+        pickDept(deptResults[0]);
+      } else {
+        setDeptOpen(false);
+      }
+    } else if (e.key === "Escape") {
+      setDeptOpen(false);
+      setDeptIdx(-1);
+    }
   }
   function handleCompanyKey(e) {
     if (!coOpen || !coQuery) {
@@ -1524,7 +1596,18 @@ export default function App() {
         if (videoRef.current) videoRef.current.srcObject = stream;
         // 녹화/타이머는 준비 화면에서 [면접 시작] → 카운트다운 이후에 시작한다
       } catch (e) {
-        setCamError("카메라/마이크를 켤 수 없습니다. 권한 요청 시 '허용'을 눌러주세요. (주소창 왼쪽 자물쇠 아이콘에서도 변경할 수 있습니다)");
+        const name = e && e.name;
+        let msg;
+        if (name === "NotAllowedError" || name === "SecurityError") {
+          msg = "카메라·마이크 권한이 차단되어 있어요. 주소창 왼쪽 아이콘 → 카메라·마이크를 '허용'으로 바꾸고 새로고침해주세요.";
+        } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+          msg = "카메라 또는 마이크 장치를 찾을 수 없어요. 웹캠·마이크가 연결되어 있는지 확인해주세요.";
+        } else if (name === "NotReadableError" || name === "AbortError") {
+          msg = "다른 프로그램(줌·디스코드·OBS 등)이 카메라를 사용 중이에요. 해당 프로그램을 끄고 새로고침해주세요.";
+        } else {
+          msg = `카메라/마이크를 켤 수 없습니다. (원인: ${name || "알 수 없음"}) 브라우저 권한과 장치 연결을 확인해주세요.`;
+        }
+        setCamError(msg);
       }
     })();
     return () => {
@@ -2355,7 +2438,7 @@ export default function App() {
           <section className="setup-hero rise" style={{ "--ri": 0 }}>
             <div className="sh-text">
               <h2>어떤 면접을 준비할까요?</h2>
-              <p>직무와 난이도를 고르면 맞춤 질문을 만들어드려요.</p>
+              <p>{jobTab === "dept" ? "학과를 고르면 우리 과 선배들이 가는 진로로 안내해드려요." : "직무와 난이도를 고르면 맞춤 질문을 만들어드려요."}</p>
               <div className="sh-chips">
                 {company.trim() && <span className="shc">{company.trim()}</span>}
                 <span className={"shc" + (job ? "" : " empty")}>{job || "직무"}</span>
@@ -2372,53 +2455,184 @@ export default function App() {
             <div className="sec-head">
               <span className="sec-chip lav"><IconJobEtc size={17} /></span>
               <div className="sec-tt">지원 직무 분야</div>
-              <span className="sec-hint">원하는 분야 1개를 골라주세요</span>
+              <span className="sec-hint">
+                {jobTab === "dept" ? "대전대학교 학과를 고르면 진로를 추천해드려요" : "원하는 분야 1개를 골라주세요"}
+              </span>
             </div>
-            <div className="job2-grid">
-              {jobNames.map((name) => {
-                const m = jobMeta(name);
-                return (
+            <div className="setup-seg">
+              <button type="button" className={"segb" + (jobTab === "dept" ? " active" : "")} onClick={() => setJobTab("dept")}>
+                학과로 찾기
+              </button>
+              <button type="button" className={"segb" + (jobTab === "job" ? " active" : "")} onClick={() => setJobTab("job")}>
+                직무로 찾기
+              </button>
+            </div>
+
+            {jobTab === "dept" ? (
+              <>
+                {/* 학과 검색 + 자동완성 (지원 회사 자동완성 문법 재활용) */}
+                <div className="company-input" ref={deptBoxRef}>
+                  <input
+                    type="text"
+                    value={deptQuery}
+                    maxLength={30}
+                    placeholder="학과명으로 검색해보세요 (예: 정보통신공학과)"
+                    onChange={(e) => { setDeptQuery(e.target.value); setDeptOpen(true); setDeptIdx(-1); }}
+                    onFocus={() => setDeptOpen(true)}
+                    onKeyDown={handleDeptKey}
+                    role="combobox"
+                    aria-expanded={deptOpen && deptQ !== ""}
+                    aria-autocomplete="list"
+                  />
+                  {deptQuery.trim() !== "" && (
+                    <button type="button" className="co-clear" onClick={() => { setDeptQuery(""); setDeptOpen(false); setDeptIdx(-1); }}>지우기</button>
+                  )}
+                  {deptOpen && deptQ !== "" && (
+                    <div className="co-suggest" role="listbox">
+                      {deptResults.length > 0 ? (
+                        deptResults.map((d, i) => (
+                          <div
+                            key={d.name}
+                            className={"co-sug-row" + (i === deptIdx ? " active" : "")}
+                            role="option"
+                            aria-selected={i === deptIdx}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => pickDept(d)}
+                            onMouseEnter={() => setDeptIdx(i)}
+                          >
+                            <span className="co-sug-name">{markMatch(d.name, deptQ)}</span>
+                            <span className="co-sug-ind">{d.college}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="co-sug-empty">'{deptQ}'와 일치하는 학과가 없어요. 직무로 찾기 탭을 이용해보세요</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* 단과대학 → 학과 계층 탐색 (지원 회사 칩 문법 재활용) */}
+                <div className="dc-label">단과대학</div>
+                <div className="company-chips">
+                  {COLLEGE_ORDER.map((c) => {
+                    const active = deptCollege === c;
+                    return (
+                      <button
+                        type="button"
+                        key={c}
+                        className={"co-chip" + (active ? " active" : "")}
+                        aria-pressed={active}
+                        onClick={() => setDeptCollege(c)}
+                      >
+                        {active && <IconCheck size={10} />}{c}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="dc-label">{deptCollege} 학과</div>
+                <div className="company-chips">
+                  {DEPARTMENTS.filter((d) => d.college === deptCollege).map((d) => {
+                    const active = deptPick && deptPick.dept.name === d.name;
+                    return (
+                      <button
+                        type="button"
+                        key={d.name}
+                        className={"co-chip" + (active ? " active" : "")}
+                        aria-pressed={!!active}
+                        onClick={() => {
+                          if (active) { setDeptPick(null); return; }
+                          pickDept(d);
+                        }}
+                      >
+                        {active && <IconCheck size={10} />}{d.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* 선택한 학과의 주요 진로 카드 (기존 파스텔 직무 카드 문법 재활용) */}
+                {deptPick ? (
                   <div
-                    key={name}
-                    className={"job2" + (job === name ? " active" : "")}
-                    style={{ "--jc": `var(--${m.tone})`, "--jc-ink": `var(--${m.tone}-ink)` }}
-                    onClick={() => selectJob(name)}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={job === name}
-                    onKeyDown={keyActivate(() => selectJob(name))}
+                    key={deptPick.dept.name}
+                    className="setup-subjob"
+                    style={{ "--jc": `var(--${selMeta.tone})`, "--jc-ink": `var(--${selMeta.tone}-ink)` }}
                   >
-                    <span className="setup-chk"><IconCheck /></span>
-                    <span className="job2-ic">{m.icon}</span>
-                    <span className="job2-nm">{name}</span>
-                    <span className="job2-tag">{m.tag}</span>
+                    <div className="ss-label">{deptPick.dept.name} 선배들의 주요 진로예요. 진로를 고르면 직무가 설정돼요</div>
+                    <div className="job2-grid">
+                      {deptPick.dept.careers.map((c) => {
+                        const m = jobMeta(c.job);
+                        const active = deptPick.careerLabel === c.label && job === c.job && sub === c.sub;
+                        return (
+                          <div
+                            key={c.label + c.job + c.sub}
+                            className={"job2" + (active ? " active" : "")}
+                            style={{ "--jc": `var(--${m.tone})`, "--jc-ink": `var(--${m.tone}-ink)` }}
+                            onClick={() => pickCareer(c)}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={active}
+                            onKeyDown={keyActivate(() => pickCareer(c))}
+                          >
+                            <span className="setup-chk"><IconCheck /></span>
+                            <span className="job2-ic">{m.icon}</span>
+                            <span className="job2-nm">{c.label}</span>
+                            <span className="job2-tag">{c.job} · {c.sub}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-            <div
-              key={job}
-              className="setup-subjob"
-              style={{ "--jc": `var(--${selMeta.tone})`, "--jc-ink": `var(--${selMeta.tone}-ink)` }}
-            >
-              <div className="ss-label">세부 직무를 선택하면 더 정확한 질문이 나와요</div>
-              <div className="ss-tags">
-                {jobData[job].subs.map((s, i) => (
-                  <div
-                    key={s}
-                    className={"ss-tag" + (sub === s ? " active" : "")}
-                    style={{ "--i": i }}
-                    onClick={() => setSub(s)}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={sub === s}
-                    onKeyDown={keyActivate(() => setSub(s))}
-                  >
-                    {sub === s && <IconCheck size={10} />}{s}
+                ) : (
+                  <div className="upload-desc">학과를 선택하면 우리 과 선배들이 가는 진로가 여기에 표시돼요</div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="job2-grid">
+                  {jobNames.map((name) => {
+                    const m = jobMeta(name);
+                    return (
+                      <div
+                        key={name}
+                        className={"job2" + (job === name ? " active" : "")}
+                        style={{ "--jc": `var(--${m.tone})`, "--jc-ink": `var(--${m.tone}-ink)` }}
+                        onClick={() => selectJob(name)}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={job === name}
+                        onKeyDown={keyActivate(() => selectJob(name))}
+                      >
+                        <span className="setup-chk"><IconCheck /></span>
+                        <span className="job2-ic">{m.icon}</span>
+                        <span className="job2-nm">{name}</span>
+                        <span className="job2-tag">{m.tag}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div
+                  key={job}
+                  className="setup-subjob"
+                  style={{ "--jc": `var(--${selMeta.tone})`, "--jc-ink": `var(--${selMeta.tone}-ink)` }}
+                >
+                  <div className="ss-label">세부 직무를 선택하면 더 정확한 질문이 나와요</div>
+                  <div className="ss-tags">
+                    {jobData[job].subs.map((s, i) => (
+                      <div
+                        key={s}
+                        className={"ss-tag" + (sub === s ? " active" : "")}
+                        style={{ "--i": i }}
+                        onClick={() => setSub(s)}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={sub === s}
+                        onKeyDown={keyActivate(() => setSub(s))}
+                      >
+                        {sub === s && <IconCheck size={10} />}{s}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              </>
+            )}
           </section>
 
           {/* 2.5 지원 회사 (선택) */}
@@ -2604,6 +2818,12 @@ export default function App() {
             <div className="dcard rail-card">
               <div className="rail-t">내 면접 요약</div>
               <div className="rail-rows">
+                {deptPick && (
+                  <div className="rail-row">
+                    <span className="rk">학과</span>
+                    <span className="rv">{deptPick.dept.name}</span>
+                  </div>
+                )}
                 <div className="rail-row">
                   <span className="rk">직무</span>
                   {job ? (
