@@ -1,0 +1,393 @@
+import { useState, useEffect, useRef } from "react";
+import { COMPANIES } from "./companies";
+
+/* ============================================================
+   공용 표시 프리미티브 (App.jsx / Growth.jsx 공유)
+   - 모션·게이지·카운트업, 기록 로고 칩, 등급 뱃지, 날짜 포맷, 라인 차트
+   - 라이브러리 미사용, 인라인 SVG
+   ============================================================ */
+
+/* ===== 모션 환경 감지 (prefers-reduced-motion이면 JS 애니메이션도 건너뜀) ===== */
+export function prefersReducedMotion() {
+  return typeof window !== "undefined" && !!window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/* 숫자 카운트업: 결과 게이지·대시보드 도넛 중앙 숫자 (0 → 목표치, ease-out) */
+export function CountUp({ value, duration = 800, suffix = "" }) {
+  const [disp, setDisp] = useState(() => (prefersReducedMotion() ? value : 0));
+  useEffect(() => {
+    if (typeof value !== "number") return;
+    if (prefersReducedMotion()) { setDisp(value); return; }
+    let raf;
+    const t0 = performance.now();
+    const tick = (t) => {
+      const p = Math.min((t - t0) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisp(Math.round(eased * value));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  if (typeof value !== "number") return "-";
+  return <>{disp}{suffix}</>;
+}
+
+/* 원형 게이지 진행 호: 마운트 후 0 → 목표치로 차오름 (stroke-dashoffset transition) */
+export function ArcProgress({ value, max = 100, r, strokeWidth, size, rotated = false, track = "var(--lav)", color = "var(--primary)" }) {
+  const [on, setOn] = useState(prefersReducedMotion);
+  useEffect(() => {
+    if (on) return;
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
+    return () => cancelAnimationFrame(raf);
+  }, [on]);
+  const CIRC = 2 * Math.PI * r;
+  const frac = typeof value === "number" ? Math.max(0, Math.min(1, value / max)) : 0;
+  const offset = on ? CIRC * (1 - frac) : CIRC;
+  const c = size / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+      <circle cx={c} cy={c} r={r} fill="none" stroke={track} strokeWidth={strokeWidth} />
+      {typeof value === "number" && value > 0 && (
+        <circle
+          cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={offset}
+          className="arc-anim"
+          {...(rotated ? { transform: `rotate(-90 ${c} ${c})` } : {})}
+        />
+      )}
+    </svg>
+  );
+}
+
+/* 가로 미니 바: 마운트 후 0 → 목표 width (기존 width transition 활용) */
+export function AnimatedBar({ pct, className, style }) {
+  const [on, setOn] = useState(prefersReducedMotion);
+  useEffect(() => {
+    if (on) return;
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
+    return () => cancelAnimationFrame(raf);
+  }, [on]);
+  const w = Math.max(0, Math.min(100, pct || 0));
+  return <div className={className} style={{ ...style, width: (on ? w : 0) + "%" }} />;
+}
+
+/* 키보드 접근성: 클릭형 div를 Enter/Space로도 조작 */
+export const keyActivate = (fn) => (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+};
+
+/* 점수 뱃지: 80↑ 우수(민트) / 60↑ 보통(블루) / 미만 개선 필요(피치) */
+export function scoreGrade(score) {
+  if (typeof score !== "number") return null;
+  return score >= 80
+    ? { cls: "good", label: "우수" }
+    : score >= 60
+      ? { cls: "mid", label: "보통" }
+      : { cls: "low", label: "개선 필요" };
+}
+export function ScoreBadge({ score }) {
+  const grade = scoreGrade(score);
+  if (!grade) return null;
+  return <span className={"score-badge " + grade.cls}>{grade.label}</span>;
+}
+
+/* companies.js 데이터셋 기반 워드마크 조회 (이름·별칭 정확 일치, 공백 무시·대소문자 무시) */
+export const BRAND_LOOKUP = (() => {
+  const norm = (s) => String(s).toLowerCase().replace(/\s+/g, "");
+  const map = new Map();
+  for (const c of COMPANIES) for (const a of c.aliases) map.set(norm(a), c); // 별칭 (예: "토스" → 비바리퍼블리카)
+  for (const c of COMPANIES) map.set(norm(c.name), c); // 정식 이름이 별칭보다 우선
+  return map;
+})();
+
+/* 기록 리스트/상세용 로고 칩: 브랜드 워드마크 → 회사 이니셜 → 직무 이니셜 순 폴백 */
+export function RecordLogo({ company, job, idx = 0 }) {
+  const name = company != null ? String(company).trim() : "";
+  const brand = name ? BRAND_LOOKUP.get(name.toLowerCase().replace(/\s+/g, "")) : null;
+  if (brand) {
+    return (
+      <span
+        className="rlogo brand"
+        style={{ background: brand.bg || "#FFFFFF", color: brand.color }}
+        title={name}
+      >
+        {brand.mark}
+      </span>
+    );
+  }
+  const base = name || job || "면";
+  return <span className={"rlogo c" + (idx % 4)}>{base.charAt(0)}</span>;
+}
+
+/* 세션 명칭 통일 규칙: "{회사} {직무} 면접" / 회사 없으면 "{직무} 면접" (직무 없으면 "모의면접") */
+export function sessionTitle(s) {
+  const company = s && s.company != null ? String(s.company).trim() : "";
+  const job = s && s.job != null ? String(s.job).trim() : "";
+  if (!job) return company ? `${company} 모의면접` : "모의면접";
+  return company ? `${company} ${job} 면접` : `${job} 면접`;
+}
+
+export function fmtDate(s) {
+  if (!s) return "";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/* 최근 기록 리스트용 YYYY.MM.DD */
+export function fmtDateDot(s) {
+  if (!s) return "";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/* 차트 x축 보조 라벨용 M/D */
+export function fmtMD(s) {
+  if (!s) return "";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+/* 이번 주(월요일 00:00) 시작 시각 */
+export function weekStartDate(base = new Date()) {
+  const d = new Date(base);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
+
+/* ===== 공용 소형 아이콘 ===== */
+export function IconCheck({ size = 11 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+export function IconChevron({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+export function IconArrowR({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="12" x2="19" y2="12" />
+      <polyline points="13 6 19 12 13 18" />
+    </svg>
+  );
+}
+export function IconTrendUp({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 17 9 11 13 15 21 7" /><polyline points="15 7 21 7 21 13" />
+    </svg>
+  );
+}
+export function IconTrendDown({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 7 9 13 13 9 21 17" /><polyline points="15 17 21 17 21 11" />
+    </svg>
+  );
+}
+export function IconTrendFlat({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="12" x2="20" y2="12" /><polyline points="15 7 20 12 15 17" />
+    </svg>
+  );
+}
+export function IconTrophy({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 21h8" /><path d="M12 17v4" />
+      <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
+      <path d="M7 6H4.5a1.5 1.5 0 0 0 0 3H7" /><path d="M17 6h2.5a1.5 1.5 0 0 1 0 3H17" />
+    </svg>
+  );
+}
+export function IconCalendarSm({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="3" />
+      <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+export function IconTarget({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+export function IconPlay({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+      <path d="M7 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 7 5.5z" />
+    </svg>
+  );
+}
+
+/* ============================================================
+   라인 차트 (회차별 점수) — 인라인 SVG
+   points: [{ round, created_at?, [seriesKey]: number }]
+   series: [{ key, label, color, area? }]  (첫 계열이 주계열: 값 라벨·면 채움)
+   goal:   기준선 값 (예: 80 = "우수")
+   ============================================================ */
+export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", ariaLabel = "회차별 점수 추이", height = 280, valueLabels = true }) {
+  const W = 760, H = height;
+  const PL = 44, PR = 22, PT = 26, PB = 44;
+  const iw = W - PL - PR, ih = H - PT - PB;
+  const n = points.length;
+  const x = (i) => (n === 1 ? PL + iw / 2 : PL + (i / (n - 1)) * iw);
+  const y = (v) => PT + ih - (Math.max(0, Math.min(100, typeof v === "number" ? v : 0)) / 100) * ih;
+
+  const [hover, setHover] = useState(null);
+  const svgRef = useRef(null);
+  const [drawn, setDrawn] = useState(prefersReducedMotion);
+  useEffect(() => {
+    if (drawn) return;
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setDrawn(true)));
+    return () => cancelAnimationFrame(raf);
+  }, [drawn]);
+
+  const pathOf = (key) =>
+    points.map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(p[key]).toFixed(1)}`).join(" ");
+  const primary = series[0];
+  const areaPath = n > 1 && primary
+    ? `${pathOf(primary.key)} L ${x(n - 1).toFixed(1)} ${(PT + ih).toFixed(1)} L ${x(0).toFixed(1)} ${(PT + ih).toFixed(1)} Z`
+    : "";
+
+  const onMove = (e) => {
+    const svg = svgRef.current;
+    if (!svg || n === 0) return;
+    const rect = svg.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * W;
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < n; i++) {
+      const d = Math.abs(x(i) - px);
+      if (d < bd) { bd = d; best = i; }
+    }
+    setHover(best);
+  };
+
+  const showLabels = valueLabels && n <= 12;
+  const gridVals = [0, 20, 40, 60, 80, 100];
+  const gradId = "lc-area-" + (primary ? primary.key : "p");
+
+  // 툴팁 박스
+  let tip = null;
+  if (hover != null && points[hover]) {
+    const p = points[hover];
+    const rows = series.filter((s) => typeof p[s.key] === "number");
+    const tw = 132, th = 16 + rows.length * 18 + 8;
+    let tx = x(hover) + 14;
+    if (tx + tw > W - PR) tx = x(hover) - tw - 14;
+    const anchorY = y(p[primary.key]);
+    let ty = anchorY - th / 2;
+    ty = Math.max(PT - 10, Math.min(ty, PT + ih - th));
+    tip = (
+      <g className="lc-tip" pointerEvents="none">
+        <line x1={x(hover)} y1={PT} x2={x(hover)} y2={PT + ih} stroke="var(--primary)" strokeOpacity="0.28" strokeWidth="1.2" strokeDasharray="3 3" />
+        <rect x={tx} y={ty} width={tw} height={th} rx="10" fill="#FFFFFF" stroke="var(--border)" />
+        <text x={tx + 12} y={ty + 16} fontSize="11.5" fontWeight="700" fill="var(--muted)">
+          {p.round}회차{p.created_at ? ` · ${fmtMD(p.created_at)}` : ""}
+        </text>
+        {rows.map((s, i) => (
+          <g key={s.key}>
+            <circle cx={tx + 16} cy={ty + 30 + i * 18} r="3.5" fill={s.color} />
+            <text x={tx + 26} y={ty + 34 + i * 18} fontSize="12" fill="var(--text)">{s.label}</text>
+            <text x={tx + tw - 12} y={ty + 34 + i * 18} fontSize="12.5" fontWeight="800" fill={s.color} textAnchor="end">{p[s.key]}</text>
+          </g>
+        ))}
+      </g>
+    );
+  }
+
+  return (
+    <div className="chart-wrap lc-wrap">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel}
+        onMouseMove={onMove} onMouseLeave={() => setHover(null)}
+      >
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={primary ? primary.color : "var(--primary)"} stopOpacity="0.22" />
+            <stop offset="1" stopColor={primary ? primary.color : "var(--primary)"} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* 격자 + y축 */}
+        {gridVals.map((v) => (
+          <g key={v}>
+            <line x1={PL} y1={y(v)} x2={W - PR} y2={y(v)}
+              stroke="var(--border)" strokeWidth={v === 0 ? 1.5 : 1}
+              strokeDasharray={v === 0 ? "none" : "3 4"} />
+            <text x={PL - 10} y={y(v) + 4} textAnchor="end" fontSize="11" fill="var(--muted)">{v}</text>
+          </g>
+        ))}
+
+        {/* 목표선 */}
+        {typeof goal === "number" && (
+          <g>
+            <line x1={PL} y1={y(goal)} x2={W - PR} y2={y(goal)} stroke="var(--mint-deep)" strokeWidth="1.6" strokeDasharray="6 5" />
+            <rect x={PL + 4} y={y(goal) - 20} width="62" height="18" rx="9" fill="var(--mint)" />
+            <text x={PL + 35} y={y(goal) - 7.5} textAnchor="middle" fontSize="10.5" fontWeight="800" fill="var(--mint-ink)">{goalLabel}</text>
+          </g>
+        )}
+
+        {/* 면 채움 (주계열) */}
+        {areaPath && <path d={areaPath} fill={`url(#${gradId})`} className={"lc-area" + (drawn ? " on" : "")} />}
+
+        {/* 라인 */}
+        {n > 1 && series.map((s, si) => (
+          <path key={s.key} d={pathOf(s.key)} fill="none" stroke={s.color}
+            strokeWidth={si === 0 ? 3 : 2.2} strokeLinecap="round" strokeLinejoin="round"
+            pathLength="1" strokeDasharray="1" strokeDashoffset={drawn ? 0 : 1}
+            className="lc-line" style={{ transitionDelay: `${si * 120}ms` }}
+            opacity={si === 0 ? 1 : 0.9} />
+        ))}
+
+        {/* 점 + 라벨 */}
+        {points.map((p, i) => {
+          const last = i === n - 1;
+          return (
+            <g key={p.round ?? i}>
+              {series.map((s, si) => (
+                typeof p[s.key] === "number" && (
+                  <g key={s.key}>
+                    {last && si === 0 && <circle cx={x(i)} cy={y(p[s.key])} r="11" fill={s.color} opacity="0.16" className="lc-halo" />}
+                    <circle cx={x(i)} cy={y(p[s.key])}
+                      r={last && si === 0 ? 5.5 : hover === i ? 5 : 4}
+                      fill={last && si === 0 ? s.color : "#FFFFFF"} stroke={s.color} strokeWidth="2.4">
+                      <title>{`${p.round}회차 ${s.label} ${p[s.key]}점`}</title>
+                    </circle>
+                  </g>
+                )
+              ))}
+              {showLabels && primary && typeof p[primary.key] === "number" && (
+                <text x={x(i)} y={y(p[primary.key]) - 13} textAnchor="middle" fontSize="12" fontWeight="800"
+                  fill={last ? primary.color : "var(--text)"}>{p[primary.key]}</text>
+              )}
+              <text x={x(i)} y={H - 22} textAnchor="middle" fontSize="11.5" fontWeight="700" fill={last ? "var(--text)" : "var(--muted)"}>{p.round}회</text>
+              {p.created_at && n <= 12 && (
+                <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="var(--muted)">{fmtMD(p.created_at)}</text>
+              )}
+            </g>
+          );
+        })}
+
+        {tip}
+      </svg>
+    </div>
+  );
+}

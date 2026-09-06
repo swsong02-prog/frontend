@@ -1,8 +1,45 @@
 import { useState, useRef, useEffect } from "react";
 import Auth from "./Auth";
 import Growth from "./Growth";
-import { COMPANIES, searchCompanies } from "./companies";
+import { searchCompanies } from "./companies";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
+import {
+  prefersReducedMotion, CountUp, ArcProgress, AnimatedBar, keyActivate,
+  ScoreBadge, RecordLogo, fmtDate, fmtDateDot, LineChart, sessionTitle,
+  IconCheck, IconChevron, IconArrowR, IconTarget,
+} from "./ui";
+
+/* 마지막으로 고른 직무·세부직무 (면접 설정 ↔ 자기소개서 화면 공유, localStorage) */
+const LAST_JOB_KEY = "cc_last_job";
+function loadLastJob(jobData) {
+  try {
+    const raw = localStorage.getItem(LAST_JOB_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || typeof o.job !== "string" || !jobData || !jobData[o.job]) return null;
+    const subs = Array.isArray(jobData[o.job].subs) ? jobData[o.job].subs : [];
+    return { job: o.job, sub: typeof o.sub === "string" && subs.includes(o.sub) ? o.sub : (subs[0] || "") };
+  } catch (e) { return null; }
+}
+function saveLastJob(job, sub) {
+  try { localStorage.setItem(LAST_JOB_KEY, JSON.stringify({ job, sub })); } catch (e) {}
+}
+
+/* 예상 소요 시간: 문항수 × 2~3분 (레일·준비 화면 공통 계산식) */
+const EXPECT_Q = 6;
+function estDuration(n) {
+  const q = Number.isFinite(n) && n > 0 ? n : EXPECT_Q;
+  return `약 ${q * 2}~${q * 3}분`;
+}
+
+/* 인사말 표시 이름: 이메일 로컬파트에서 "sim_" 접두·숫자 접미 제거, 12자 초과 시 말줄임 */
+function displayNameFromEmail(email) {
+  const local = email ? String(email).split("@")[0].trim() : "";
+  if (!local) return "회원";
+  let name = local.replace(/^sim[_.-]?/i, "").replace(/[\d_.-]+$/, "");
+  if (!name) name = local;
+  return name.length > 12 ? name.slice(0, 12) + "…" : name;
+}
 
 /* 면접 설정 화면 표시용 상수 (상태 key는 기존 그대로: 하/중/상, 신입/경력) */
 const SETUP_LEVELS = [
@@ -28,15 +65,6 @@ const COLLEGE_ORDER = [
   ...COLLEGES.filter((c) => !COLLEGE_PRIORITY.includes(c)),
 ];
 
-/* companies.js 데이터셋 기반 워드마크 조회 (이름·별칭 정확 일치, 공백 무시·대소문자 무시) */
-const BRAND_LOOKUP = (() => {
-  const norm = (s) => String(s).toLowerCase().replace(/\s+/g, "");
-  const map = new Map();
-  for (const c of COMPANIES) for (const a of c.aliases) map.set(norm(a), c); // 별칭 (예: "토스" → 비바리퍼블리카)
-  for (const c of COMPANIES) map.set(norm(c.name), c); // 정식 이름이 별칭보다 우선
-  return map;
-})();
-
 /* 검색어와 일치하는 부분을 굵게 표시 (자동완성 행 회사명용) */
 function markMatch(name, query) {
   const q = String(query || "").trim().toLowerCase();
@@ -48,25 +76,6 @@ function markMatch(name, query) {
       {name.slice(0, idx)}<b>{name.slice(idx, idx + q.length)}</b>{name.slice(idx + q.length)}
     </>
   );
-}
-
-/* 기록 리스트/상세용 로고 칩: 브랜드 워드마크 → 회사 이니셜 → 직무 이니셜 순 폴백 */
-function RecordLogo({ company, job, idx = 0 }) {
-  const name = company != null ? String(company).trim() : "";
-  const brand = name ? BRAND_LOOKUP.get(name.toLowerCase().replace(/\s+/g, "")) : null;
-  if (brand) {
-    return (
-      <span
-        className="rlogo brand"
-        style={{ background: brand.bg || "#FFFFFF", color: brand.color }}
-        title={name}
-      >
-        {brand.mark}
-      </span>
-    );
-  }
-  const base = name || job || "면";
-  return <span className={"rlogo c" + (idx % 4)}>{base.charAt(0)}</span>;
 }
 
 const TIPS = [
@@ -104,16 +113,81 @@ const CHECKLIST_ITEMS = [
 ];
 const CHECKLIST_KEY = "cc_checklist";
 
+/* 저장된 자기소개서 (localStorage, { text, updatedAt }) */
+const RESUME_KEY = "cc_resume";
+function loadSavedResume() {
+  try {
+    const raw = localStorage.getItem(RESUME_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (o && typeof o.text === "string" && o.text.trim()) {
+      return { text: o.text, updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : null };
+    }
+    return null;
+  } catch (e) { return null; }
+}
+
+/* 피드백 분석: 저장된 feedback 텍스트("라벨: 내용" 줄 단위)를 파싱 */
+function parseFeedbackLines(fb) {
+  if (!fb || typeof fb !== "string") return [];
+  return fb
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const m = l.match(/^([^:：]{1,24})[:：]\s*(.+)$/);
+      return m ? { label: m[1].trim(), text: m[2].trim() } : { label: "", text: l };
+    });
+}
+const FB_STRENGTH_LABEL = /잘한|강점|좋은/;
+const FB_IMPROVE_LABEL = /아쉬|개선|보완|주의|부족/;
+/* 라벨이 평가축(논리성·구체성 등)인 실저장 형식 대응: 문장 내용으로 강점/개선 판별 */
+const FB_IMPROVE_TEXT = /하면 |이면 |좋겠|아쉽|보완|부족|필요합|필요해|추가하|권장|주의|해보세요|해 보세요|줄이|연결하면|덧붙이|낫습니다|나았을|다소 |미흡|약합니다|약한 편|떨어집|않았습니다|모호|불분명|장황|산만/;
+/* 긍정 어미("잘 ~되어 있습니다", "좋습니다", "적절합니다" 등)를 강점으로 인식 */
+const FB_STRENGTH_TEXT = /좋습니다|좋았습니다|좋아요|훌륭|완벽|뛰어나|강점|증명|명확|안정적|우수|모범|신뢰|완성형|돋보|인상적|흠잡을|가치가 큽|시야가 넓|보여줍니다|보여주었습니다|적절합니다|적절하게|적절히|충분합니다|충분히|구체적입니다|구체적으로|잘 [가-힣 ]{0,12}(되어|돼|되어져) ?있|잘 [가-힣 ]{0,12}(했|하였|드러|전달|설명|정리|구성|제시|연결|표현|활용)|설득력|논리적입니다|논리적으로|체계적|일관성 있|긍정적|자연스럽|풍부/;
+/* feedback 한 줄을 strength / improve / null 로 분류 (라벨 우선, 없으면 문장 단서) */
+function classifyFeedbackLine(ln) {
+  if (FB_IMPROVE_LABEL.test(ln.label)) return "improve";
+  if (FB_STRENGTH_LABEL.test(ln.label)) return "strength";
+  const text = ln.text || "";
+  const imp = FB_IMPROVE_TEXT.test(text);
+  const str = FB_STRENGTH_TEXT.test(text);
+  if (imp && str) {
+    // 두 단서가 함께 있으면 문장 뒷부분(결론)에 가까운 쪽을 우선
+    const li = Math.max(...[...text.matchAll(new RegExp(FB_IMPROVE_TEXT.source, "g"))].map((m) => m.index), -1);
+    const ls = Math.max(...[...text.matchAll(new RegExp(FB_STRENGTH_TEXT.source, "g"))].map((m) => m.index), -1);
+    return ls > li ? "strength" : "improve";
+  }
+  if (imp) return "improve";
+  if (str) return "strength";
+  return null;
+}
+
+/* 피드백 분석: 개선 피드백 텍스트에서 세는 이슈 키워드 버킷 (실텍스트 집계, 가짜 수치 없음)
+   tip = 다음 연습에서 바로 해볼 한 줄 코칭 (정적 문구) */
+const FB_ISSUE_BUCKETS = [
+  { key: "시선 처리", words: ["시선", "눈맞춤", "카메라를"], tip: "답변의 첫 문장과 마지막 문장은 카메라 렌즈를 보며 말해보세요." },
+  { key: "표정·미소", words: ["표정", "미소"], tip: "질문을 듣는 동안 입꼬리를 살짝 올린 표정을 유지해보세요." },
+  { key: "자세", words: ["자세", "어깨", "몸이"], tip: "어깨를 펴고 등받이에서 한 뼘 떨어져 앉으면 화면에서 안정적으로 보여요." },
+  { key: "말 속도·전달력", words: ["속도", "빠르게", "천천히", "발음", "전달력"], tip: "문장 끝에서 반 박자 쉬어가면 말 속도와 전달력이 함께 좋아져요." },
+  { key: "필러워드(음·어)", words: ["필러", "군더더기", "추임새"], tip: "'음·어'가 나올 자리에 1초 침묵을 넣어보세요. 침묵이 더 자신 있어 보여요." },
+  { key: "두괄식·논리 구조", words: ["두괄", "결론부터", "논리", "구조", "연결"], tip: "첫 문장에 결론, 이어서 근거 두 가지 순서로 답해보세요." },
+  { key: "구체성·수치 제시", words: ["구체", "수치", "숫자", "정량", "근거", "예시"], tip: "경험마다 숫자 하나(기간·성과·규모)를 붙여 말해보세요." },
+  { key: "직무 연결", words: ["직무", "적합", "회사"], tip: "마지막 문장은 지원 직무·회사에서 하고 싶은 일로 마무리해보세요." },
+  { key: "답변 길이·시간", words: ["시간 안", "길이", "간결", "장황"], tip: "핵심 답변은 60~90초 안에 마치고, 덧붙일 말은 질문을 기다려보세요." },
+];
+const FB_FOCUS_KEY = "cc_fb_focus";
+
+/* 피드백 분석: 3축(논리성·구체성·직무적합도) 라벨 매칭 + 게이지 색 */
+const FB_AXES = [
+  { key: "논리성", match: /논리/, color: "var(--primary)", track: "var(--lav)" },
+  { key: "구체성", match: /구체/, color: "var(--peach-ink)", track: "var(--peach)" },
+  { key: "직무적합도", match: /직무|적합/, color: "var(--mint-ink)", track: "var(--mint)" },
+];
+
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 /* ===== 인라인 SVG 아이콘 (stroke 기반, 라이브러리 미사용) ===== */
-function IconCheck({ size = 11 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
 function IconMark({ size = 16 }) {
   // 로고 마크: 대화(코칭)를 상징하는 말풍선 + 체크
   return (
@@ -186,13 +260,6 @@ function IconEdit({ size = 14 }) {
     </svg>
   );
 }
-function IconChevron({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
 function IconSpark({ size = 15 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -254,15 +321,6 @@ function IconGear({ size = 17 }) {
     </svg>
   );
 }
-function IconArrowR({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="12" x2="19" y2="12" />
-      <polyline points="13 6 19 12 13 18" />
-    </svg>
-  );
-}
-
 /* ===== 직무 아이콘 13종 + 폴백 (24×24, stroke 1.9, round) ===== */
 function IconJobDev({ size = 18 }) {
   // 개발: 코드 브래킷 </>
@@ -989,6 +1047,168 @@ function SetupBearIllust() {
   );
 }
 
+/* ===== AI 면접관 아바타 ===== */
+/* 음성 안내용 스피커/다시 듣기 아이콘 (기존 stroke 아이콘 문법) */
+function IconSoundOn({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6.5 8.5H3v7h3.5L11 19V5z" />
+      <path d="M15 9.3a4.2 4.2 0 0 1 0 5.4" />
+      <path d="M18 7a8 8 0 0 1 0 10" />
+    </svg>
+  );
+}
+function IconSoundOff({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6.5 8.5H3v7h3.5L11 19V5z" />
+      <line x1="15.5" y1="9.5" x2="20.5" y2="14.5" />
+      <line x1="20.5" y1="9.5" x2="15.5" y2="14.5" />
+    </svg>
+  );
+}
+function IconReplay({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
+      <polyline points="3 3 3 8 8 8" />
+    </svg>
+  );
+}
+
+/* 면접관 아바타: 히어로/마스코트와 동일 인물(동일 팔레트)의 정면 상반신.
+   state: idle(미소+깜빡임) | speaking(입 3단계 랜덤 전환+리듬) | done(미소 복귀) */
+function InterviewerAvatar({ state = "idle", size = 132 }) {
+  const [mouth, setMouth] = useState("smile"); // smile(다뭄) | half(반열림) | open(열림)
+  const [blink, setBlink] = useState(false);
+  const [reduced] = useState(prefersReducedMotion);
+
+  // 자연 깜빡임: 3~5초 랜덤 간격, 140ms 감음 (reduced-motion이면 생략)
+  useEffect(() => {
+    if (reduced) return;
+    let alive = true;
+    let t1 = null, t2 = null;
+    const loop = () => {
+      t1 = setTimeout(() => {
+        if (!alive) return;
+        setBlink(true);
+        t2 = setTimeout(() => {
+          if (!alive) return;
+          setBlink(false);
+          loop();
+        }, 140);
+      }, 3000 + Math.random() * 2000);
+    };
+    loop();
+    return () => { alive = false; if (t1) clearTimeout(t1); if (t2) clearTimeout(t2); };
+  }, [reduced]);
+
+  // 말하기: 입 모양 3단계를 80~120ms 랜덤 간격으로 전환 (reduced-motion이면 반열림 고정)
+  useEffect(() => {
+    if (state !== "speaking") { setMouth("smile"); return; }
+    if (reduced) {
+      setMouth("half");
+      return () => setMouth("smile");
+    }
+    let alive = true;
+    let t = null;
+    const shapes = ["smile", "half", "open"];
+    const loop = () => {
+      t = setTimeout(() => {
+        if (!alive) return;
+        setMouth((prev) => {
+          let next = prev;
+          while (next === prev) next = shapes[Math.floor(Math.random() * shapes.length)];
+          return next;
+        });
+        loop();
+      }, 80 + Math.random() * 40);
+    };
+    loop();
+    return () => { alive = false; if (t) clearTimeout(t); setMouth("smile"); };
+  }, [state, reduced]);
+
+  return (
+    <span className={"avatar-box" + (state === "speaking" && !reduced ? " talking" : "")}>
+      <svg width={size} height={size} viewBox="0 0 150 150" fill="none" aria-hidden="true" className="iv-avatar">
+        <defs>
+          <linearGradient id="ccAvSuit" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3B486C" /><stop offset="1" stopColor="#212B4B" />
+          </linearGradient>
+          <radialGradient id="ccAvFace" cx="0.38" cy="0.3" r="1">
+            <stop offset="0" stopColor="#FFE7D3" /><stop offset="1" stopColor="#F4C09B" />
+          </radialGradient>
+          <linearGradient id="ccAvHair" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3D455F" /><stop offset="1" stopColor="#1F2539" />
+          </linearGradient>
+          <linearGradient id="ccAvShirt" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E4E9F7" />
+          </linearGradient>
+          <linearGradient id="ccAvTie" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
+          </linearGradient>
+        </defs>
+        {/* 목 */}
+        <rect x="67" y="78" width="16" height="16" rx="7" fill="#EFB58E" />
+        {/* 몸통(정장, 정면 상반신) */}
+        <path d="M20 150 C20 112 42 96 75 96 C108 96 130 112 130 150 Z" fill="url(#ccAvSuit)" />
+        <ellipse cx="45" cy="110" rx="11" ry="5.5" fill="#FFFFFF" opacity="0.08" transform="rotate(-26 45 110)" />
+        {/* 셔츠 */}
+        <path d="M63 99 L75 126 L87 99 Q75 92 63 99 Z" fill="url(#ccAvShirt)" />
+        {/* 라펠 */}
+        <path d="M63 98 L75 113 L56 111 Z" fill="#182140" />
+        <path d="M87 98 L75 113 L94 111 Z" fill="#182140" />
+        {/* 넥타이 */}
+        <path d="M75 111 L80 118.5 L75 142 L70 118.5 Z" fill="url(#ccAvTie)" />
+        <ellipse cx="73.4" cy="115.5" rx="1.6" ry="2.3" fill="#FFFFFF" opacity="0.35" />
+        {/* 귀 */}
+        <circle cx="46" cy="58" r="5.5" fill="#F2BA92" />
+        <circle cx="104" cy="58" r="5.5" fill="#F2BA92" />
+        {/* 얼굴 */}
+        <circle cx="75" cy="54" r="30" fill="url(#ccAvFace)" />
+        {/* 머리카락 */}
+        <path d="M45 56 C44.4 31 57.5 21 75 21 C92.5 21 105.6 31 105 56 C104 42.5 96.7 34 75 34 C53.3 34 46 42.5 45 56 Z" fill="url(#ccAvHair)" />
+        <ellipse cx="61" cy="28" rx="7.5" ry="3" fill="#FFFFFF" opacity="0.16" transform="rotate(-16 61 28)" />
+        {/* 눈썹 */}
+        <path d="M58 47 q4 -2.5 8 -1" stroke="#2A3148" strokeWidth="2" strokeLinecap="round" fill="none" />
+        <path d="M84 46 q4 -1.5 8 1" stroke="#2A3148" strokeWidth="2" strokeLinecap="round" fill="none" />
+        {/* 눈 (깜빡임: 감은 곡선으로 교체) */}
+        {blink ? (
+          <>
+            <path d="M60 55.5 q3 2.2 6 0" stroke="#2A3148" strokeWidth="2" strokeLinecap="round" fill="none" />
+            <path d="M84 55.5 q3 2.2 6 0" stroke="#2A3148" strokeWidth="2" strokeLinecap="round" fill="none" />
+          </>
+        ) : (
+          <>
+            <circle cx="63" cy="55" r="3" fill="#2A3148" />
+            <circle cx="87" cy="55" r="3" fill="#2A3148" />
+            <circle cx="64" cy="54" r="0.9" fill="#FFFFFF" />
+            <circle cx="88" cy="54" r="0.9" fill="#FFFFFF" />
+          </>
+        )}
+        {/* 입: 3단계 (다뭄 미소 / 반열림 / 열림) */}
+        {mouth === "smile" && (
+          <path d="M66 65 Q75 72.5 84 65" stroke="#C96F4A" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+        )}
+        {mouth === "half" && (
+          <ellipse cx="75" cy="67.5" rx="4.6" ry="2.7" fill="#B0573B" />
+        )}
+        {mouth === "open" && (
+          <g>
+            <ellipse cx="75" cy="68" rx="5.8" ry="4.8" fill="#8E4530" />
+            <ellipse cx="75" cy="70.4" rx="3.4" ry="1.9" fill="#E58A70" />
+          </g>
+        )}
+        {/* 뺨 홍조 */}
+        <ellipse cx="56" cy="63" rx="4.6" ry="3" fill="#FFB9A0" opacity="0.8" />
+        <ellipse cx="94" cy="63" rx="4.6" ry="3" fill="#FFB9A0" opacity="0.8" />
+        {/* 얼굴 하이라이트 */}
+        <ellipse cx="60" cy="41" rx="6" ry="3" fill="#FFFFFF" opacity="0.35" transform="rotate(-20 60 41)" />
+      </svg>
+    </span>
+  );
+}
+
 /* 7. 경력 카드: 신입 새싹 (그라데이션 + 스파클) */
 function SproutIllust() {
   return (
@@ -1090,89 +1310,42 @@ function DocPencilIllust() {
   );
 }
 
-/* 점수 뱃지: 80↑ 우수(민트) / 60↑ 보통(블루) / 미만 개선 필요(피치) */
-function ScoreBadge({ score }) {
-  if (typeof score !== "number") return null;
-  const grade = score >= 80
-    ? { cls: "good", label: "우수" }
-    : score >= 60
-      ? { cls: "mid", label: "보통" }
-      : { cls: "low", label: "개선 필요" };
+/* 10. 피드백 분석 빈 상태: 말풍선 리포트 + 돋보기 (소프트 3D) */
+function FeedbackEmptyIllust() {
   return (
-    <span className={"score-badge " + grade.cls}>{grade.label}</span>
-  );
-}
-
-/* ===== 모션 환경 감지 (prefers-reduced-motion이면 JS 애니메이션도 건너뜀) ===== */
-function prefersReducedMotion() {
-  return typeof window !== "undefined" && !!window.matchMedia
-    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-/* 숫자 카운트업: 결과 게이지·대시보드 도넛 중앙 숫자 (0 → 목표치, ease-out) */
-function CountUp({ value, duration = 800, suffix = "" }) {
-  const [disp, setDisp] = useState(() => (prefersReducedMotion() ? value : 0));
-  useEffect(() => {
-    if (typeof value !== "number") return;
-    if (prefersReducedMotion()) { setDisp(value); return; }
-    let raf;
-    const t0 = performance.now();
-    const tick = (t) => {
-      const p = Math.min((t - t0) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisp(Math.round(eased * value));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
-  if (typeof value !== "number") return "-";
-  return <>{disp}{suffix}</>;
-}
-
-/* 원형 게이지 진행 호: 마운트 후 0 → 목표치로 차오름 (stroke-dashoffset transition) */
-function ArcProgress({ value, max = 100, r, strokeWidth, size, rotated = false, track = "var(--lav)", color = "var(--primary)" }) {
-  const [on, setOn] = useState(prefersReducedMotion);
-  useEffect(() => {
-    if (on) return;
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
-    return () => cancelAnimationFrame(raf);
-  }, [on]);
-  const CIRC = 2 * Math.PI * r;
-  const frac = typeof value === "number" ? Math.max(0, Math.min(1, value / max)) : 0;
-  const offset = on ? CIRC * (1 - frac) : CIRC;
-  const c = size / 2;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-      <circle cx={c} cy={c} r={r} fill="none" stroke={track} strokeWidth={strokeWidth} />
-      {typeof value === "number" && value > 0 && (
-        <circle
-          cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
-          strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={offset}
-          className="arc-anim"
-          {...(rotated ? { transform: `rotate(-90 ${c} ${c})` } : {})}
-        />
-      )}
+    <svg viewBox="0 0 200 150" fill="none" aria-hidden="true" className="gr-empty-illust">
+      <defs>
+        <linearGradient id="ccFbCard" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E9EDFB" /></linearGradient>
+        <linearGradient id="ccFbLens" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#DCEBFF" /><stop offset="1" stopColor="#9CC4F5" /></linearGradient>
+        <linearGradient id="ccFbHandle" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFB25E" /><stop offset="1" stopColor="#F58A2E" /></linearGradient>
+      </defs>
+      <ellipse cx="100" cy="138" rx="78" ry="7" fill="rgba(90,108,243,.13)" />
+      <g fill="#FFFFFF" opacity="0.9"><ellipse cx="160" cy="30" rx="14" ry="7" /><ellipse cx="172" cy="26" rx="9" ry="6" /></g>
+      {/* 리포트 카드 */}
+      <g transform="rotate(-4 90 80)">
+        <rect x="42" y="34" width="96" height="92" rx="12" fill="url(#ccFbCard)" stroke="#CBD5F2" strokeWidth="1.4" />
+        <rect x="56" y="50" width="30" height="7" rx="3.5" fill="#7B8CFF" />
+        <rect x="56" y="66" width="66" height="6" rx="3" fill="#C7D0F1" />
+        <rect x="56" y="78" width="52" height="6" rx="3" fill="#C7D0F1" />
+        <rect x="56" y="96" width="18" height="18" rx="6" fill="#EAF8F1" />
+        <polyline points="60 105 64 109 70 101" stroke="#1D9E77" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <rect x="80" y="96" width="18" height="18" rx="6" fill="#FDF1E7" />
+        <path d="M86 101v7 M86 111v0.5" stroke="#E08A3C" strokeWidth="2.4" strokeLinecap="round" />
+        <rect x="104" y="96" width="18" height="18" rx="6" fill="#EDF1FE" />
+        <path d="M108 109 l4-6 4 4 3-5" stroke="#5A6CF3" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </g>
+      {/* 돋보기 */}
+      <circle cx="136" cy="72" r="24" fill="url(#ccFbLens)" opacity="0.92" />
+      <circle cx="136" cy="72" r="24" stroke="#5A6CF3" strokeWidth="5" fill="none" />
+      <path d="M124 62 A 16 16 0 0 1 134 56" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" opacity="0.8" />
+      <line x1="154" y1="90" x2="176" y2="112" stroke="url(#ccFbHandle)" strokeWidth="11" strokeLinecap="round" />
+      <path d="M22 96v7 M18.5 99.5h7" stroke="#B9C0FF" strokeWidth="2" strokeLinecap="round" />
+      <path d="M30 48v5 M27.5 50.5h5" stroke="#C9CFFF" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
 
-/* 가로 미니 바: 마운트 후 0 → 목표 width (기존 width transition 활용) */
-function AnimatedBar({ pct, className, style }) {
-  const [on, setOn] = useState(prefersReducedMotion);
-  useEffect(() => {
-    if (on) return;
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
-    return () => cancelAnimationFrame(raf);
-  }, [on]);
-  const w = Math.max(0, Math.min(100, pct || 0));
-  return <div className={className} style={{ ...style, width: (on ? w : 0) + "%" }} />;
-}
-
-/* 키보드 접근성: 클릭형 div를 Enter/Space로도 조작 */
-const keyActivate = (fn) => (e) => {
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
-};
+/* (ScoreBadge / CountUp / ArcProgress / AnimatedBar / keyActivate 는 ui.jsx 공용 모듈로 이동) */
 
 /* ===== 토스트 알림 (alert 대체: 성공=민트 / 오류=danger / 정보=블루) ===== */
 function IconToastOk({ size = 14 }) {
@@ -1297,21 +1470,6 @@ function DetailSkeleton() {
   );
 }
 
-function fmtDate(s) {
-  if (!s) return "";
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return "";
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-/* 최근 기록 리스트용 YYYY.MM.DD */
-function fmtDateDot(s) {
-  if (!s) return "";
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
-
 /* 점수 이유(reasons) 포매터: 문자열/객체/배열 모두 안전하게 문자열화
    객체면 "논리성: … / 구체성: …" 형태로 줄 단위 표시 ("[object Object]" 방지) */
 function formatReasons(reasons) {
@@ -1377,6 +1535,21 @@ export default function App() {
   const [analysisSeconds, setAnalysisSeconds] = useState(0); // 분석 경과 시간(초)
   const [phase, setPhase] = useState("ready"); // 면접 화면 단계: ready | countdown | live
   const [countdown, setCountdown] = useState(0); // 3-2-1 카운트다운 숫자
+
+  // AI 면접관 음성(TTS): 지원 여부/음소거/아바타 상태 (표시 레이어 — 녹화·분석 로직과 무관)
+  const ttsSupported =
+    typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  const [ttsMuted, setTtsMuted] = useState(() => {
+    try { return localStorage.getItem("cc_tts_muted") === "1"; } catch (e) { return false; }
+  });
+  const [avatarState, setAvatarState] = useState("idle"); // idle | speaking | done
+  const utterRef = useRef(null); // 현재 발화 utterance (GC로 onend 유실 방지 보관)
+  const audioRef = useRef(null); // 현재 재생 중인 뉴럴 TTS Audio 객체
+  const audioUrlRef = useRef(null); // 현재 Audio의 objectURL (종료·교체 시 revoke)
+  const ttsCacheRef = useRef(new Map()); // 질문 텍스트 → mp3 Blob 캐시 (다시 듣기 즉시 재생)
+  const speakSeqRef = useRef(0); // 낭독 세대 토큰 (fetch 중 질문 전환 시 이전 요청 폐기)
+  const pendingStartRef = useRef(null); // 낭독 대기 중 강제 녹화 시작 훅 (음소거 토글용)
+  const [recPending, setRecPending] = useState(false); // 낭독 종료 대기 중 (녹화 지연 시작)
   const [showGuide, setShowGuide] = useState(false); // 정적 가이드 모달
 
   // 토스트 알림 스택 (alert 대체) + 대시보드 첫 로드 완료 플래그 (스켈레톤 표시 판단 전용)
@@ -1404,6 +1577,31 @@ export default function App() {
   const [historyData, setHistoryData] = useState(null);
   const [coachLine, setCoachLine] = useState("");
   const [coachPoints, setCoachPoints] = useState([]); // 최근 세션의 개선 포인트 (있을 때만)
+
+  // 자기소개서 전용 화면: 저장본 + 예상 질문 미리보기
+  const [rsSaved, setRsSaved] = useState(loadSavedResume);
+  const [rsQuestions, setRsQuestions] = useState([]);
+  const [rsQLoading, setRsQLoading] = useState(false);
+
+  // 피드백 분석 화면: /history + /history/{id} 종합 데이터
+  const [fbData, setFbData] = useState(null); // { list, details }
+  const [fbLoading, setFbLoading] = useState(false);
+  const [fbErr, setFbErr] = useState("");
+  // 피드백 분석 레일 "다음 연습에서 집중할 것" 체크 상태 (버킷 key 배열, localStorage)
+  const [fbFocus, setFbFocus] = useState(() => {
+    try {
+      const raw = localStorage.getItem(FB_FOCUS_KEY);
+      const arr = raw ? JSON.parse(raw) : null;
+      return Array.isArray(arr) ? arr.filter((k) => typeof k === "string") : [];
+    } catch (e) { return []; }
+  });
+  function toggleFbFocus(key) {
+    setFbFocus((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      try { localStorage.setItem(FB_FOCUS_KEY, JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }
 
   // 면접 전 체크리스트: 체크한 항목 인덱스 배열 (localStorage 저장, 실패해도 무해)
   const [checks, setChecks] = useState(() => {
@@ -1553,6 +1751,9 @@ export default function App() {
     setCoachPoints([]);
     setDetailData(null);
     setDetailErr("");
+    setFbData(null);
+    setFbErr("");
+    setRsQuestions([]);
     setScreen("home");
   }
 
@@ -1561,12 +1762,17 @@ export default function App() {
       .then((r) => r.json())
       .then((data) => {
         setJobData(data);
-        const first = Object.keys(data)[0];
-        setJob(first);
-        setSub(data[first].subs[0]);
+        // 첫 항목 자동 선택 금지: 마지막으로 고른 직무(cc_last_job)가 있을 때만 복원, 없으면 "선택 전"
+        const last = loadLastJob(data);
+        if (last) { setJob(last.job); setSub(last.sub); }
       })
       .catch(() => showToast("error", "일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."));
   }, []);
+
+  // 직무·세부직무를 고르면 저장 → 면접 설정 / 자기소개서 화면이 같은 값을 공유
+  useEffect(() => {
+    if (job && sub) saveLastJob(job, sub);
+  }, [job, sub]);
 
   // 홈 대시보드용 데이터 로드 (기록/성장)
   useEffect(() => {
@@ -1593,7 +1799,13 @@ export default function App() {
               const fb = det && Array.isArray(det.results)
                 ? det.results.map((x) => x && x.feedback).find((f) => f && String(f).trim())
                 : null;
-              if (!cancelled && fb) setCoachLine(String(fb).trim());
+              // "논리성:" 같은 라벨 접두를 뗀 문장만 인용 (강점 문장 우선, 없으면 첫 줄)
+              if (!cancelled && fb) {
+                const lines = parseFeedbackLines(String(fb));
+                const pick = lines.find((l) => classifyFeedbackLine(l) === "strength") || lines[0];
+                const quote = pick ? pick.text : String(fb).trim();
+                if (quote) setCoachLine(quote);
+              }
               // 최근 세션의 개선점 리스트 (응답에 있을 때만 사용, 없으면 정적 팁으로 대체)
               const imps = det && Array.isArray(det.results)
                 ? det.results
@@ -1617,9 +1829,113 @@ export default function App() {
     return () => { cancelled = true; };
   }, [token, screen]);
 
+  // 피드백 분석 화면 진입 시: 기록 목록 + 최근 세션 상세(최대 8개)를 모아 종합 집계
+  useEffect(() => {
+    if (!token || screen !== "feedback") return;
+    let cancelled = false;
+    (async () => {
+      setFbLoading(true);
+      setFbErr("");
+      try {
+        const headers = { "Authorization": "Bearer " + token };
+        const res = await fetch(`${API}/history`, { headers });
+        if (res.status === 401 || res.status === 403) throw new Error("auth");
+        if (!res.ok) throw new Error("server");
+        const list = await res.json();
+        if (!Array.isArray(list)) throw new Error("format");
+        const targets = list.filter((s) => s && s.session_id != null).slice(0, 8);
+        const details = await Promise.all(
+          targets.map((s) =>
+            fetch(`${API}/history/${s.session_id}`, { headers })
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null)
+          )
+        );
+        if (!cancelled) setFbData({ list, details: details.filter(Boolean) });
+      } catch (e) {
+        if (!cancelled) {
+          setFbErr(
+            e && e.message === "auth"
+              ? "로그인이 만료되었어요. 설정에서 로그아웃 후 다시 로그인해주세요."
+              : "일시적으로 면접 기록을 불러올 수 없습니다. 잠시 후 다시 시도해주세요."
+          );
+        }
+      } finally {
+        if (!cancelled) setFbLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token, screen]);
+
+  // 자기소개서 저장/삭제 (localStorage cc_resume)
+  function saveResume() {
+    if (!resumeText.trim()) {
+      showToast("info", "저장할 자기소개서 내용을 먼저 입력해주세요.");
+      return;
+    }
+    const obj = { text: resumeText, updatedAt: new Date().toISOString() };
+    try {
+      localStorage.setItem(RESUME_KEY, JSON.stringify(obj));
+    } catch (e) {
+      showToast("error", "브라우저 저장 공간 문제로 자기소개서를 저장하지 못했어요.");
+      return;
+    }
+    setRsSaved(obj);
+    showToast("success", `자기소개서를 저장했어요. (${resumeText.length.toLocaleString()}자)`);
+  }
+  function deleteSavedResume() {
+    try { localStorage.removeItem(RESUME_KEY); } catch (e) {}
+    setRsSaved(null);
+    showToast("info", "저장된 자기소개서를 삭제했어요.");
+  }
+
+  // 자소서 기반 예상 질문 미리보기 (기존 /api/questions 재사용, 카메라·면접 없이 질문만)
+  async function previewQuestions() {
+    if (!resumeText.trim()) {
+      showToast("info", "먼저 자기소개서 내용을 입력해주세요.");
+      return;
+    }
+    if (!jobData) {
+      showToast("info", "직무 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    if (!job || !sub) {
+      showToast("info", "직무를 먼저 골라주세요.");
+      return;
+    }
+    setRsQLoading(true);
+    try {
+      const res = await fetch(`${API}/api/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job, sub, level, career, resume_text: resumeText }),
+      });
+      const data = await res.json();
+      if (res.ok && data && Array.isArray(data.questions) && data.questions.length > 0) {
+        setRsQuestions(data.questions.slice(0, 6));
+      } else {
+        showToast("error", "예상 질문을 만들지 못했습니다. 잠시 후 다시 시도해주세요.");
+      }
+    } catch (e) {
+      showToast("error", "일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setRsQLoading(false);
+    }
+  }
+
+  // 자기소개서 화면 → 면접 설정으로 이동 (자소서 자동 채움 상태 유지)
+  function startWithResume() {
+    if (!resumeText.trim() && rsSaved) setResumeText(rsSaved.text);
+    setResumeTab("text");
+    setNavHint("mock");
+    setScreen("start");
+  }
+
   function selectJob(name) {
+    if (!jobData || !jobData[name]) { setJob(""); setSub(""); return; }
     setJob(name);
-    setSub(jobData[name].subs[0]);
+    const subs = jobData[name].subs || [];
+    setSub(subs[0] || "");
   }
 
   // 자소서 파일 업로드 → 텍스트 추출 후 textarea에 반영
@@ -1679,6 +1995,10 @@ export default function App() {
   }
 
   async function startInterview() {
+    if (!job || !sub) {
+      showToast("info", "직무를 먼저 골라주세요.");
+      return;
+    }
     setScreen("loading");
     try {
       const res = await fetch(`${API}/api/questions`, {
@@ -1732,6 +2052,8 @@ export default function App() {
     return () => {
       cancelled = true;
       stopTimer();
+      stopTtsAudio(); // 화면 이탈 시 재생 중 뉴럴 오디오 정리 (objectURL revoke 포함)
+      ttsCacheRef.current.clear(); // 질문별 mp3 캐시 해제 (세션마다 질문이 달라짐)
       if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
       if (recorderRef.current && recorderRef.current.state !== "inactive") {
         recorderRef.current.onstop = null;
@@ -1776,6 +2098,170 @@ export default function App() {
     };
   }, [screen]);
 
+  /* ===== AI 면접관 음성(TTS) — 표시 레이어, 녹화/분석/저장 로직 무변경 ===== */
+  // 한국어 보이스 우선 선택 (없으면 null → lang 힌트만으로 발화)
+  function pickKoVoice() {
+    try {
+      const voices = window.speechSynthesis.getVoices() || [];
+      return voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("ko")) || null;
+    } catch (e) { return null; }
+  }
+
+  // 재생 중인 뉴럴 TTS Audio 정리 (pause + objectURL revoke). 종료·교체·이탈 공통 경로
+  function stopTtsAudio() {
+    const a = audioRef.current;
+    if (a) {
+      a.onplay = null; a.onended = null; a.onerror = null;
+      try { a.pause(); } catch (e) {}
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      try { URL.revokeObjectURL(audioUrlRef.current); } catch (e) {}
+      audioUrlRef.current = null;
+    }
+  }
+
+  // 백엔드 뉴럴 TTS: POST /api/tts → mp3 Blob (질문 텍스트별 캐시 → 다시 듣기 즉시 재생)
+  // 실패(비로그인·503·빈 응답)는 null 반환 → 호출부에서 브라우저 TTS 폴백
+  async function fetchTtsBlob(text) {
+    const cached = ttsCacheRef.current.get(text);
+    if (cached) return cached;
+    if (!token) return null;
+    const res = await fetch(`${API}/api/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ text: String(text) }),
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (!blob || blob.size === 0) return null;
+    ttsCacheRef.current.set(text, blob);
+    return blob;
+  }
+
+  // 브라우저 내장 TTS 폴백 (기존 speechSynthesis 경로 유지). finish(status)로 종료 통지
+  function speakBrowserTts(text, finish) {
+    if (!ttsSupported) { setAvatarState("idle"); finish("skipped"); return; }
+    try {
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.lang = "ko-KR";
+      u.rate = 1.0;
+      const voice = pickKoVoice();
+      if (voice) u.voice = voice;
+      u.onstart = () => setAvatarState("speaking");
+      u.onend = () => { setAvatarState("done"); finish("ended"); };
+      u.onerror = () => { setAvatarState("done"); finish("error"); };
+      utterRef.current = u;
+      window.speechSynthesis.speak(u);
+    } catch (e) { setAvatarState("idle"); finish("error"); /* 발화 실패 시 텍스트만 (알림 없음) */ }
+  }
+
+  // 질문 낭독: ① 뉴럴 TTS(/api/tts, mp3) 우선 ② 실패 시 speechSynthesis 폴백
+  // fetch(생성 1~2초) 동안 아바타는 idle 유지 — 말풍선의 질문 텍스트가 먼저 보인다
+  // onEnd(status): "ended" 낭독 정상 종료 | "skipped" 음소거·미지원·빈 텍스트 | "error" 재생 실패
+  function speakQuestion(text, onEnd) {
+    const finish = typeof onEnd === "function" ? onEnd : () => {};
+    const seq = ++speakSeqRef.current;
+    cancelSpeech(); // 이전 오디오·발화 정리
+    if (ttsMuted || !text) { setAvatarState("idle"); finish("skipped"); return; }
+    (async () => {
+      let blob = null;
+      try { blob = await fetchTtsBlob(text); } catch (e) { blob = null; /* 오프라인 등 → 폴백 */ }
+      if (speakSeqRef.current !== seq) return; // 그 사이 질문 전환·재호출됨 → 이 낭독은 폐기
+      if (blob) {
+        try {
+          const url = URL.createObjectURL(blob);
+          const a = new Audio(url);
+          audioRef.current = a;
+          audioUrlRef.current = url;
+          a.onplay = () => { setAvatarState("speaking"); finish("started", a); };
+          a.onended = () => { stopTtsAudio(); setAvatarState("done"); finish("ended"); };
+          a.onerror = () => { stopTtsAudio(); setAvatarState("done"); finish("error"); };
+          a.play().catch(() => {
+            if (speakSeqRef.current !== seq) return;
+            stopTtsAudio();
+            speakBrowserTts(text, finish); // 자동재생 차단 등 재생 실패 → 브라우저 TTS 폴백
+          });
+          return;
+        } catch (e) { stopTtsAudio(); }
+      }
+      speakBrowserTts(text, finish); // /api/tts 실패(비로그인·오프라인·503) → 기존 경로
+    })();
+  }
+
+  // 낭독 중단 (질문 전환/화면 이탈/면접 종료 시): 뉴럴 Audio + 브라우저 발화 모두 정지
+  function cancelSpeech() {
+    stopTtsAudio();
+    if (ttsSupported) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+    setAvatarState("idle");
+  }
+
+  // 음소거 토글 (localStorage cc_tts_muted 저장). 켜면 즉시 낭독 중단, 녹화 대기 중이면 즉시 녹화 시작
+  function toggleTtsMute() {
+    setTtsMuted((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("cc_tts_muted", next ? "1" : "0"); } catch (e) {}
+      if (next) {
+        speakSeqRef.current += 1; // fetch 진행 중인 낭독도 폐기
+        cancelSpeech();
+        if (pendingStartRef.current) pendingStartRef.current(); // 낭독 대기 → 즉시 녹화
+      }
+      return next;
+    });
+  }
+
+  // 보이스 목록이 비동기 로드되는 브라우저 대응: 미리 한 번 요청해둔다
+  useEffect(() => {
+    if (!ttsSupported) return;
+    try { window.speechSynthesis.getVoices(); } catch (e) {}
+  }, [ttsSupported]);
+
+  // 라이브 진입·다음 질문 전환: 자동 낭독 → 낭독 종료 0.4초 뒤 녹화·답변 타이머 시작 (STT 오염 방지)
+  // 음소거·TTS 미지원·낭독 실패 시엔 기존처럼 즉시 녹화. 12초 내 낭독이 안 끝나면 강제 시작 (행 방지)
+  useEffect(() => {
+    if (!(screen === "interview" && phase === "live")) return;
+    let started = false;
+    let delayT = null;
+    const start = () => {
+      if (started) return;
+      started = true;
+      clearTimeout(failT);
+      if (delayT) clearTimeout(delayT);
+      pendingStartRef.current = null;
+      setRecPending(false);
+      startRecording();
+      startTimer();
+    };
+    pendingStartRef.current = start;
+    setRecPending(true);
+    setSeconds(0);
+    // 행(멈춤) 방지 가드: 생성·재생 시작 전에는 텍스트 길이 기반, 재생이 시작되면 실제 오디오 길이 기반으로 교체
+    // (고정 12초는 2~3문장짜리 맞춤 질문을 중간에 잘랐음)
+    const qText = questions[qIndex] || "";
+    const abandon = () => { speakSeqRef.current += 1; cancelSpeech(); start(); };
+    let failT = setTimeout(abandon, Math.max(15000, qText.length * 400 + 8000));
+    speakQuestion(qText, (status, audio) => {
+      if (started) return;
+      if (status === "started") {
+        clearTimeout(failT);
+        const dur = audio && isFinite(audio.duration) && audio.duration > 0 ? audio.duration : qText.length * 0.35;
+        failT = setTimeout(abandon, (dur + 6) * 1000);
+        return;
+      }
+      clearTimeout(failT);
+      if (status === "ended") delayT = setTimeout(start, 400);
+      else start(); // skipped(음소거·미지원·빈 텍스트) / error(재생 실패) → 즉시 녹화
+    });
+    return () => {
+      started = true; // 이탈·질문 전환 후 지연 시작 방지
+      clearTimeout(failT);
+      if (delayT) clearTimeout(delayT);
+      pendingStartRef.current = null;
+      cancelSpeech();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, phase, qIndex]);
+
   // 준비 화면 → 3-2-1 카운트다운 → 녹화 개시
   function beginInterview() {
     if (camError || !streamRef.current || phase === "countdown") return;
@@ -1789,8 +2275,7 @@ export default function App() {
         clearInterval(countdownRef.current);
         countdownRef.current = null;
         setPhase("live");
-        startRecording();
-        startTimer();
+        // 녹화·타이머는 질문 낭독 종료 후 위 useEffect에서 시작한다 (STT 오염 방지)
       } else {
         setCountdown(n);
       }
@@ -1963,8 +2448,7 @@ export default function App() {
       if (next < questions.length) {
         setQIndex(next);
         qIndexRef.current = next;
-        startRecording();
-        startTimer();
+        // 다음 질문 녹화·타이머는 낭독 종료 후 useEffect에서 시작한다 (STT 오염 방지)
         setBusy(false);
       } else {
         if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
@@ -2010,32 +2494,53 @@ export default function App() {
   }
 
   /* ===== 사이드바 셸 ===== */
-  const emailName = userEmail ? userEmail.split("@")[0] : "회원";
-  const initial = emailName ? emailName.charAt(0).toUpperCase() : "C";
+  const emailName = displayNameFromEmail(userEmail);
+  const initial = emailName && emailName !== "회원" ? emailName.charAt(0).toUpperCase() : "C";
 
   // 사이드바 이동 핸들러 (기능 카드에서도 재사용)
   const goHomeNav = () => { setNavHint(""); setScreen("home"); };
-  const goMock = () => { setNavHint("mock"); setScreen("start"); };
-  const goResume = () => { setNavHint("resume"); setResumeTab("text"); setScreen("start"); };
+  const goMock = () => {
+    setNavHint("mock");
+    // 저장된 자소서가 있으면 면접 설정의 자소서 탭에 자동 채움 (입력 중이던 내용은 유지)
+    if (!resumeText.trim()) {
+      const s = loadSavedResume();
+      if (s) setResumeText(s.text);
+    }
+    setScreen("start");
+  };
+  const goResume = () => {
+    setNavHint("resume");
+    if (!resumeText.trim()) {
+      const s = loadSavedResume();
+      if (s) setResumeText(s.text);
+    }
+    setScreen("resume");
+  };
   const goRecords = () => { setNavHint(""); setScreen("growth"); };
-  const goFeedback = () => {
-    setNavHint("feedback");
-    const latest =
-      Array.isArray(historyData) && historyData.length > 0 && historyData[0].session_id != null
-        ? historyData[0].session_id
-        : null;
-    if (latest != null) openHistoryDetail(latest);
-    else setScreen("growth");
+  const goFeedback = () => { setNavHint("feedback"); setScreen("feedback"); };
+  // 기록 화면 "이 직무로 바로 시작": 마지막 기록의 직무·세부·회사·난이도를 설정 화면에 미리 채움 (표시 상태만 변경)
+  const startWithPreset = (preset) => {
+    if (preset && typeof preset === "object") {
+      if (preset.job && jobData && jobData[preset.job]) {
+        setJob(preset.job);
+        const subs = jobData[preset.job].subs || [];
+        setSub(preset.sub && subs.includes(preset.sub) ? preset.sub : (subs[0] || ""));
+      }
+      if (preset.level && LEVEL_LABEL[preset.level]) setLevel(preset.level);
+      setCompany(preset.company ? String(preset.company).trim() : "");
+    }
+    goMock();
   };
   const goSettings = () => { setNavHint(""); setScreen("settings"); };
 
   const navActive =
     screen === "settings" ? "settings"
-      : screen === "growth" ? (navHint === "feedback" ? "feedback" : "records")
-        : screen === "historyDetail" ? (navHint === "feedback" ? "feedback" : "home")
-          : screen === "home" ? "home"
-            : navHint === "resume" ? "resume"
-              : "mock"; // start / loading / interview / result
+      : screen === "feedback" ? "feedback"
+        : screen === "resume" ? "resume"
+          : screen === "growth" ? "records"
+            : screen === "historyDetail" ? (navHint === "feedback" ? "feedback" : "records")
+              : screen === "home" ? "home"
+                : "mock"; // start / loading / interview / result
 
   const NAV_ITEMS = [
     { key: "home", label: "홈", icon: <IconHome />, go: goHomeNav },
@@ -2131,7 +2636,678 @@ export default function App() {
   /* ===== 성장 화면 ===== */
   if (screen === "growth") {
     return renderShell(
-      <Growth token={token} onBack={() => setScreen("home")} />
+      <Growth
+        token={token}
+        onBack={() => setScreen("home")}
+        onOpenDetail={(id) => { setNavHint("records"); openHistoryDetail(id); }}
+        onStart={startWithPreset}
+        onFeedback={goFeedback}
+      />
+    );
+  }
+
+  /* ===== 자기소개서 전용 화면 ===== */
+  if (screen === "resume") {
+    const savedDate = rsSaved && rsSaved.updatedAt ? fmtDate(rsSaved.updatedAt) : "";
+    return renderShell(
+      <div className="page wide resume-page">
+        <h1 className="page-title">자기소개서</h1>
+        <p className="page-sub">
+          자기소개서를 저장해두면 면접 설정에 자동으로 채워지고, 내용 기반 맞춤 예상 질문을 미리 볼 수 있어요.
+        </p>
+        <div className="resume-cols">
+          <div className="resume-main">
+            {/* 1. 자소서 입력 (붙여넣기 + 파일 업로드, 기존 컴포넌트 문법 재활용) */}
+            <section className="dcard setup-sec rise" style={{ "--ri": 0 }}>
+              <div className="sec-head">
+                <span className="sec-chip sky"><IconDoc size={16} /></span>
+                <div className="sec-tt">자기소개서 입력</div>
+                <span className="sec-hint">붙여넣거나 파일로 불러올 수 있어요</span>
+              </div>
+              <div className="setup-seg">
+                <button type="button" className={"segb" + (resumeTab === "file" ? " active" : "")} onClick={() => setResumeTab("file")}>
+                  <IconClip />파일 업로드
+                </button>
+                <button type="button" className={"segb" + (resumeTab === "text" ? " active" : "")} onClick={() => setResumeTab("text")}>
+                  <IconEdit />직접 붙여넣기
+                </button>
+              </div>
+
+              {resumeTab === "file" ? (
+                <div className="setup-upload">
+                  <DocPencilIllust />
+                  <input
+                    ref={resumeFileRef}
+                    type="file"
+                    accept=".txt,.docx,.pdf"
+                    style={{ display: "none" }}
+                    onChange={handleResumeFile}
+                  />
+                  <button
+                    type="button"
+                    className="upload-btn"
+                    disabled={resumeUploading}
+                    onClick={() => resumeFileRef.current && resumeFileRef.current.click()}
+                  >
+                    {resumeUploading ? <BtnSpinner /> : <IconClip />}{resumeUploading ? "불러오는 중..." : "파일 업로드"}
+                  </button>
+                  <div className="upload-desc">.txt / .docx / .pdf 파일을 올리면 내용을 자동으로 불러와요 (5MB 이하)</div>
+                  {resumeFileMsg && (
+                    <div className={"upload-msg" + (resumeFileErr ? " err" : "")}>{resumeFileMsg}</div>
+                  )}
+                </div>
+              ) : (
+                <div className="setup-text">
+                  <textarea
+                    placeholder="여기에 자기소개서 내용을 붙여넣으세요..."
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                  />
+                  <div className="setup-text-foot">
+                    <span className="hint-l">저장하면 다음 면접 설정에도 자동으로 채워져요</span>
+                    <span className={"count" + (resumeText ? " on" : "")}>{resumeText.length.toLocaleString()}자</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="resume-save-row">
+                <button className="btn-primary" onClick={saveResume} disabled={!resumeText.trim()}>
+                  자기소개서 저장
+                </button>
+                {rsSaved && rsSaved.text === resumeText && (
+                  <span className="resume-saved-hint"><IconCheck size={11} /> 저장된 버전과 같아요</span>
+                )}
+              </div>
+            </section>
+
+            {/* 2. 맞춤 예상 질문 미리보기 (기존 /api/questions 재사용) */}
+            <section className="dcard setup-sec rise" style={{ "--ri": 1 }}>
+              <div className="sec-head">
+                <span className="sec-chip lav"><IconChatDots size={16} /></span>
+                <div className="sec-tt">맞춤 예상 질문 미리보기</div>
+                <span className="sec-hint">카메라·면접 없이 질문만 미리 연습해보세요</span>
+              </div>
+
+              {/* 직무·세부직무 선택 (면접 설정과 cc_last_job으로 공유) */}
+              <div className="rs-job" data-testid="rs-job">
+                <div className="rs-job-head">
+                  <span className="rs-job-t">면접 직무</span>
+                  {job && sub ? (
+                    <span className="rs-job-cur"><IconCheck size={10} /> {job} · {sub}</span>
+                  ) : (
+                    <span className="rs-job-cur unset">선택 전</span>
+                  )}
+                </div>
+                <div className="rs-job-row">
+                  <label className="rs-sel">
+                    <span className="rs-sel-k">직무</span>
+                    <select
+                      value={job || ""}
+                      disabled={!jobData}
+                      onChange={(e) => selectJob(e.target.value)}
+                      aria-label="직무 선택"
+                    >
+                      <option value="">{jobData ? "직무를 골라주세요" : "직무 불러오는 중..."}</option>
+                      {jobData && Object.keys(jobData).map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="rs-sel">
+                    <span className="rs-sel-k">세부 직무</span>
+                    <select
+                      value={sub || ""}
+                      disabled={!job || !jobData || !jobData[job]}
+                      onChange={(e) => setSub(e.target.value)}
+                      aria-label="세부 직무 선택"
+                    >
+                      {!job && <option value="">직무를 먼저 골라주세요</option>}
+                      {job && jobData && jobData[job] && (jobData[job].subs || []).map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {!job && <div className="rs-job-hint">직무를 먼저 골라주세요. 고른 직무는 면접 설정에도 그대로 적용돼요.</div>}
+              </div>
+
+              {rsQuestions.length === 0 ? (
+                <div className="q-preview-empty">
+                  <p>
+                    버튼을 누르면 자기소개서 내용을 바탕으로
+                    {job ? ` ${job}${sub ? " · " + sub : ""} 직무` : " 선택한 직무"} 예상 질문 6개를 만들어드려요.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    disabled={rsQLoading || !resumeText.trim() || !job || !sub}
+                    onClick={previewQuestions}
+                  >
+                    {rsQLoading ? <><BtnSpinner />질문을 만드는 중...</> : "예상 질문 만들기"}
+                  </button>
+                  {!job ? (
+                    <div className="upload-desc">직무를 먼저 골라주세요</div>
+                  ) : !resumeText.trim() ? (
+                    <div className="upload-desc">먼저 위에 자기소개서를 입력해주세요</div>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <div className="q-list">
+                    {rsQuestions.map((q, i) => (
+                      <div className="qcard" key={i}>
+                        <span className="qnum">Q{i + 1}</span>
+                        <span className="qtxt">{q}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="q-actions">
+                    <button className="btn-secondary" onClick={previewQuestions} disabled={rsQLoading || !job || !sub}>
+                      {rsQLoading ? <><BtnSpinner />다시 만드는 중...</> : "질문 다시 만들기"}
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={startWithResume}
+                      disabled={!rsSaved && !resumeText.trim()}
+                      title={!rsSaved && !resumeText.trim() ? "자기소개서를 먼저 저장해주세요" : undefined}
+                    >
+                      이 자소서로 모의면접 시작
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
+
+          {/* 우측 스티키 레일: 저장된 자소서 카드 */}
+          <aside className="resume-rail rise" style={{ "--ri": 1 }}>
+            <div className="dcard rail-card">
+              <div className="rail-t">저장된 자소서</div>
+              {rsSaved ? (
+                <div className="saved-resume">
+                  <div className="sr-meta">
+                    <span className="sr-chars">{rsSaved.text.length.toLocaleString()}자</span>
+                    {savedDate && <span className="sr-date"><IconCalendar size={12} /> 수정 {savedDate}</span>}
+                  </div>
+                  <div className="sr-preview">
+                    {rsSaved.text.slice(0, 140)}{rsSaved.text.length > 140 ? "…" : ""}
+                  </div>
+                  <div className="sr-actions">
+                    <button className="btn-ghost" onClick={() => { setResumeTab("text"); setResumeText(rsSaved.text); }}>
+                      편집기로 불러오기
+                    </button>
+                    <button className="btn-ghost" onClick={deleteSavedResume}>삭제</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="sr-empty">
+                  아직 저장된 자기소개서가 없어요. 왼쪽에 입력하고 저장하면 면접 설정에 자동으로 채워져요.
+                </div>
+              )}
+              <button
+                className="rail-start"
+                onClick={startWithResume}
+                disabled={!rsSaved}
+                title={!rsSaved ? "자기소개서를 먼저 저장해주세요" : undefined}
+              >
+                이 자소서로 모의면접 시작 <IconArrowR size={15} />
+              </button>
+              {!rsSaved && <div className="rail-hint">자기소개서를 저장하면 시작할 수 있어요</div>}
+              <div className="rail-tip">
+                <div className="tt"><BulbIllust size={15} />자소서 활용 Tip</div>
+                <div className="td">자소서 속 경험·수치가 구체적일수록 더 날카로운 맞춤 질문이 만들어져요.</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  /* ===== 피드백 분석 화면 (기록 종합 분석) ===== */
+  if (screen === "feedback") {
+    const fbList = fbData && Array.isArray(fbData.list) ? fbData.list : null;
+    const fbDetails = fbData && Array.isArray(fbData.details) ? fbData.details : [];
+    const rounds = fbList ? fbList.slice().reverse() : []; // 오래된 순 = 1회차부터
+
+    // 요약 스탯 (목록의 실제 점수만 집계)
+    const pScores = rounds.filter((s) => typeof s.posture_score === "number").map((s) => s.posture_score);
+    const cScores = rounds.filter((s) => typeof s.content_score === "number").map((s) => s.content_score);
+    const avg = (arr) => (arr.length ? Math.round(arr.reduce((a, v) => a + v, 0) / arr.length) : null);
+    const avgPosture = avg(pScores);
+    const avgContent = avg(cScores);
+    const fbDates = rounds.map((s) => s.created_at).filter(Boolean);
+    const fbRange = fbDates.length
+      ? (fmtDateDot(fbDates[0]) === fmtDateDot(fbDates[fbDates.length - 1])
+          ? fmtDateDot(fbDates[0])
+          : `${fmtDateDot(fbDates[0])} ~ ${fmtDateDot(fbDates[fbDates.length - 1])}`)
+      : "";
+
+    // 회차별 자세/내용 비교 차트 데이터 (최근 10회)
+    const chartPts = rounds
+      .map((s, i) => ({ round: i + 1, created_at: s.created_at, posture: s.posture_score, content: s.content_score }))
+      .filter((p) => typeof p.posture === "number" && typeof p.content === "number")
+      .slice(-10);
+
+    // 상세 응답의 모든 문항 결과
+    const allResults = fbDetails.flatMap((d) => (d && Array.isArray(d.results) ? d.results : []));
+    const analyzedSessions = fbDetails.length;
+
+    // 강점·개선점 모음: 구조화 배열이 있으면 우선, 없으면 feedback 텍스트의 라벨 줄에서 추출
+    // 3축 집계: 축 라벨 줄을 강점/개선으로 분류해 긍정 평가 비율 계산 (수치 점수가 응답에 있으면 그것을 우선)
+    const strengthSet = [];
+    const improveSet = [];
+    let fbLineCount = 0;
+    const axisAgg = FB_AXES.map((a) => ({ ...a, pos: 0, neg: 0, total: 0, scores: [] }));
+    const pushUniq = (arr, v) => {
+      const t = String(v).trim();
+      if (t && !t.includes("[object Object]") && !arr.includes(t)) arr.push(t);
+    };
+    for (const r of allResults) {
+      if (!r) continue;
+      const structS = r.content && Array.isArray(r.content.strengths) ? r.content.strengths
+        : Array.isArray(r.strengths) ? r.strengths : null;
+      const structI = r.content && Array.isArray(r.content.improvements) ? r.content.improvements
+        : Array.isArray(r.improvements) ? r.improvements : null;
+      if (structS) structS.forEach((s) => pushUniq(strengthSet, s));
+      if (structI) structI.forEach((s) => pushUniq(improveSet, s));
+      const numScores = r.content && r.content.scores && typeof r.content.scores === "object" && !Array.isArray(r.content.scores)
+        ? r.content.scores : null;
+      if (numScores) {
+        for (const [k, v] of Object.entries(numScores)) {
+          if (typeof v !== "number") continue;
+          const ax = axisAgg.find((a) => a.match.test(String(k)));
+          if (ax) ax.scores.push(v);
+        }
+      }
+      for (const ln of parseFeedbackLines(r.feedback)) {
+        fbLineCount++;
+        const kind = classifyFeedbackLine(ln);
+        const withLabel = ln.label && !FB_STRENGTH_LABEL.test(ln.label) && !FB_IMPROVE_LABEL.test(ln.label)
+          ? `${ln.label} · ${ln.text}`
+          : ln.text;
+        if (kind === "strength") pushUniq(strengthSet, withLabel);
+        else if (kind === "improve") pushUniq(improveSet, withLabel);
+        if (ln.label) {
+          const ax = axisAgg.find((a) => a.match.test(ln.label));
+          if (ax) {
+            ax.total++;
+            if (kind === "strength") ax.pos++;
+            else if (kind === "improve") ax.neg++;
+          }
+        }
+      }
+    }
+    // 축 카드: 수치 점수 평균이 있으면 점수, 없으면 긍정 평가율.
+    // 피드백 데이터가 있으면 3축 게이지를 항상 표시하고, 분류가 안 된 축은 "분류 근거 부족"으로 표시
+    const hasFbData = fbLineCount > 0 || axisAgg.some((a) => a.scores.length > 0);
+    const axisCards = hasFbData
+      ? axisAgg.map((a) => {
+          if (a.scores.length) {
+            return { key: a.key, color: a.color, track: a.track, value: avg(a.scores), unit: "점", sub: `${a.scores.length}문항 평균` };
+          }
+          const n = a.pos + a.neg;
+          if (n === 0) {
+            return { key: a.key, color: a.color, track: a.track, value: null, unit: "", sub: a.total > 0 ? `분류 근거 부족 (${a.total}줄)` : "분류 근거 부족", weak: true };
+          }
+          return { key: a.key, color: a.color, track: a.track, value: Math.round((a.pos / n) * 100), unit: "%", sub: `긍정 평가 ${a.pos}/${n}건` };
+        })
+      : [];
+    const fbClassified = strengthSet.length + improveSet.length;
+
+    // 최다 지적 이슈 TOP3: 개선 텍스트에서 키워드 버킷 등장 횟수 집계 (없으면 최근 개선 문장으로 대체)
+    const issueCounts = FB_ISSUE_BUCKETS.map((b) => ({
+      key: b.key,
+      tip: b.tip,
+      count: improveSet.reduce(
+        (a, t) => a + (b.words.some((w) => t.includes(w)) ? 1 : 0), 0
+      ),
+    })).filter((b) => b.count > 0).sort((a, b) => b.count - a.count).slice(0, 3);
+    const issueMax = issueCounts.length ? issueCounts[0].count : 0;
+    const focusDone = issueCounts.filter((b) => fbFocus.includes(b.key)).length;
+
+    // 필러워드·답변시간 추이 (상세 응답의 실제 필드만)
+    const detailById = new Map(
+      fbDetails.filter((d) => d && d.session && d.session.session_id != null)
+        .map((d) => [d.session.session_id, d])
+    );
+    const trendRows = rounds.map((s, i) => {
+      const d = detailById.get(s.session_id);
+      if (!d || !Array.isArray(d.results) || d.results.length === 0) return null;
+      const durs = d.results.filter((r) => r && typeof r.duration_sec === "number");
+      const fills = d.results.filter((r) => r && typeof r.filler_count === "number");
+      if (durs.length === 0 && fills.length === 0) return null;
+      return {
+        round: i + 1,
+        avgDur: durs.length ? Math.round(durs.reduce((a, r) => a + r.duration_sec, 0) / durs.length) : null,
+        filler: fills.length ? fills.reduce((a, r) => a + r.filler_count, 0) : null,
+      };
+    }).filter(Boolean);
+    const trendDurMax = Math.max(1, ...trendRows.map((t) => t.avgDur || 0));
+    const trendFillMax = Math.max(1, ...trendRows.map((t) => t.filler || 0));
+    const fillFirst = trendRows.length > 1 && trendRows[0].filler != null && trendRows[trendRows.length - 1].filler != null
+      ? trendRows[0].filler - trendRows[trendRows.length - 1].filler : null;
+
+    // 관련 기록 바로가기 (최신 5개)
+    const relatedList = fbList ? fbList.filter((s) => s && s.session_id != null).slice(0, 5) : [];
+
+    return renderShell(
+      <div className="page wide feedback-page">
+        <div className="growth-head">
+          <div>
+            <h1 className="page-title">피드백 분석</h1>
+            <p className="page-sub" style={{ margin: "6px 0 0" }}>지금까지의 면접 기록을 모아 자주 받은 피드백과 점수 흐름을 분석해드려요.</p>
+          </div>
+          <button className="btn-ghost" onClick={goRecords}>나의 기록 보기</button>
+        </div>
+
+        {fbErr ? (
+          <div className="growth-empty rise">
+            <div className="t">분석 데이터를 불러오지 못했어요</div>
+            <div className="d">{fbErr}</div>
+            <button onClick={goHomeNav} className="btn-primary">홈으로 돌아가기</button>
+          </div>
+        ) : fbLoading || !fbData ? (
+          <div className="skel-wrap" aria-label="분석 데이터를 불러오는 중">
+            <div className="dcard fb-hero"><SkelStatus /></div>
+            <div className="fb-cols">
+              <div className="fb-main">
+                <div className="dcard"><span className="skel skel-line w40" style={{ height: 14, marginBottom: 16 }} /><span className="skel skel-block" /></div>
+                <div className="dcard"><span className="skel skel-line w40" style={{ height: 14, marginBottom: 16 }} /><span className="skel gr-skel-chart" /></div>
+              </div>
+              <aside className="fb-rail">
+                <div className="dcard rail-card"><span className="skel skel-line w50" style={{ height: 14, marginBottom: 14 }} /><span className="skel skel-block" /></div>
+              </aside>
+            </div>
+          </div>
+        ) : rounds.length === 0 ? (
+          <div className="gr-empty rise">
+            <FeedbackEmptyIllust />
+            <div className="gr-empty-body">
+              <div className="t">아직 분석할 면접 기록이 없어요</div>
+              <div className="d">모의면접을 마치면 자주 지적받은 포인트, 자세·내용 점수 비교, 강점·개선점 모음이 이곳에 쌓여요.</div>
+              <ol className="re-steps">
+                <li><span className="re-num">1</span>모의면접을 마치면 문항별 AI 피드백이 저장돼요</li>
+                <li><span className="re-num">2</span>피드백을 논리성·구체성·직무적합도로 나눠 집계해요</li>
+                <li><span className="re-num">3</span>자주 지적받은 포인트가 다음 연습 과제로 정리돼요</li>
+              </ol>
+              <button onClick={goMock} className="re-cta">첫 모의면접 시작하기 <IconArrowR size={13} /></button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 1. 분석 범위 요약 + 3축 게이지 */}
+            <section className="dcard fb-hero rise" style={{ "--ri": 0 }}>
+              <div className="fb-hero-l">
+                <span className="fb-kicker"><IconSpark size={13} />분석 범위</span>
+                <h2>면접 {rounds.length}회 · 문항 {allResults.length}개 기준</h2>
+                <p>
+                  {fbLineCount > 0
+                    ? `${fbRange ? `${fbRange} 기록에서 ` : ""}피드백 ${fbLineCount}줄을 읽어 정리했어요.`
+                    : `${fbRange ? `${fbRange} 기록에 ` : ""}저장된 문항 피드백이 아직 없어 점수 흐름만 표시해요.`}
+                  {analyzedSessions < rounds.length ? ` (상세 분석은 최근 ${analyzedSessions}회 기준)` : ""}
+                </p>
+                <div className="fb-mini">
+                  <div className="fb-ms">
+                    <span className="chip lav"><IconVideo size={14} /></span>
+                    <span className="mtxt"><span className="mk">평균 자세·표정</span><span className="mv">{avgPosture != null ? `${avgPosture}점` : "-"}</span></span>
+                  </div>
+                  <div className="fb-ms">
+                    <span className="chip peach"><IconChatDots size={14} /></span>
+                    <span className="mtxt"><span className="mk">평균 답변 내용</span><span className="mv">{avgContent != null ? `${avgContent}점` : "-"}</span></span>
+                  </div>
+                  <div className="fb-ms">
+                    <span className="chip mint"><IconCheck size={12} /></span>
+                    <span className="mtxt">
+                      <span className="mk">강점 / 개선점</span>
+                      <span className="mv">
+                        {fbClassified === 0 && fbLineCount > 0 ? "분류 근거 부족" : `${strengthSet.length} / ${improveSet.length}`}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {axisCards.length > 0 ? (
+                <div className="fb-axes">
+                  {axisCards.map((a) => (
+                    <div className={"fb-axis" + (a.weak ? " weak" : "")} key={a.key}>
+                      <div className="fb-axis-g">
+                        <ArcProgress value={a.value == null ? 0 : a.value} r={34} strokeWidth={8} size={84} rotated color={a.color} track={a.track} />
+                        <div className="num">
+                          {a.value == null
+                            ? <b style={{ color: "var(--muted)" }}>–</b>
+                            : <><b style={{ color: a.color }}><CountUp value={a.value} /></b><small>{a.unit}</small></>}
+                        </div>
+                      </div>
+                      <div className="fb-axis-k">{a.key}</div>
+                      <div className="fb-axis-s">{a.sub}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="fb-axes-empty">논리성·구체성·직무적합도 축별 피드백이 저장되면 여기에 게이지로 표시돼요.</div>
+              )}
+            </section>
+
+            <div className="fb-cols rise" style={{ "--ri": 1 }}>
+              <div className="fb-main">
+                {/* 2. 자주 지적받은 포인트 TOP3 */}
+                <div className="dcard">
+                  <div className="dcard-head">
+                    <div className="dcard-t">
+                      자주 지적받은 포인트{issueCounts.length > 0 ? ` TOP${issueCounts.length}` : ""}
+                    </div>
+                    {issueCounts.length > 0 && <span className="dist-total">개선 피드백 {improveSet.length}건 기준</span>}
+                  </div>
+                  {issueCounts.length > 0 ? (
+                    <div className="fb-issues">
+                      {issueCounts.map((b, i) => (
+                        <div className="fb-issue" key={b.key}>
+                          <span className={"fb-rank r" + (i + 1)}>{i + 1}</span>
+                          <div className="fb-issue-body">
+                            <div className="fb-issue-top">
+                              <span className="nm">{b.key}</span>
+                              <span className="cnt">{b.count}회 언급</span>
+                            </div>
+                            <div className="dist-bar">
+                              <AnimatedBar className="dist-fill" pct={(b.count / issueMax) * 100} style={{ background: i === 0 ? "var(--peach-ink)" : i === 1 ? "var(--primary)" : "var(--mint-ink)" }} />
+                            </div>
+                            <div className="fb-issue-tip">{b.tip}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : improveSet.length > 0 ? (
+                    <>
+                      <div className="fb-note">반복 패턴은 아직 뚜렷하지 않아요. 최근 받은 개선 피드백이에요.</div>
+                      <ul className="fb-lines">
+                        {improveSet.slice(0, 3).map((t, i) => <li key={i}>{t}</li>)}
+                      </ul>
+                    </>
+                  ) : (
+                    <div className="fb-empty">
+                      저장된 피드백 텍스트가 아직 없어요. 다음 면접을 마치면 자주 지적받은 포인트가 집계돼요.
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. 회차별 자세/내용 점수 비교 */}
+                <div className="dcard">
+                  <div className="dcard-head gr-chart-head">
+                    <div className="dcard-t">회차별 자세 · 내용 점수 비교</div>
+                    <div className="gr-legend">
+                      <span className="gr-lg on static" style={{ "--c": "var(--sky-ink)" }}><span className="dot" />자세·표정</span>
+                      <span className="gr-lg on static" style={{ "--c": "var(--accent)" }}><span className="dot" />답변 내용</span>
+                      <span className="gr-goal"><span className="gl" />우수 기준 80점</span>
+                    </div>
+                  </div>
+                  {chartPts.length > 0 ? (
+                    <>
+                      <LineChart
+                        points={chartPts}
+                        series={[
+                          { key: "posture", label: "자세·표정", color: "var(--sky-ink)" },
+                          { key: "content", label: "답변 내용", color: "var(--accent)" },
+                        ]}
+                        goal={80} valueLabels={false} height={250}
+                        ariaLabel="회차별 자세·내용 점수 비교"
+                      />
+                      {chartPts.length === 1 && (
+                        <div className="chart-note">기록이 1회뿐이라 점으로만 표시돼요. 2회차부터 추이 선이 그려집니다.</div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="fb-empty">점수가 기록된 회차가 아직 없어요.</div>
+                  )}
+                </div>
+
+                {/* 4. 강점 · 개선점 모음 (상세 응답에 있을 때만) */}
+                {(strengthSet.length > 0 || improveSet.length > 0) && (
+                  <div className="fb-sw">
+                    <div className="dcard fb-sw-card good">
+                      <div className="dcard-head">
+                        <div className="dcard-t"><span className="gr-ic mint"><IconCheck size={11} /></span>강점 모음</div>
+                        <span className="fb-sw-cnt">{strengthSet.length}건</span>
+                      </div>
+                      {strengthSet.length > 0 ? (
+                        <ul className="fb-sw-list">
+                          {strengthSet.slice(0, 6).map((t, i) => <li key={i}>{t}</li>)}
+                        </ul>
+                      ) : (
+                        <div className="fb-empty">피드백에서 추출된 강점이 아직 없어요.</div>
+                      )}
+                    </div>
+                    <div className="dcard fb-sw-card warn">
+                      <div className="dcard-head">
+                        <div className="dcard-t"><span className="gr-ic peach"><IconTarget size={13} /></span>개선점 모음</div>
+                        <span className="fb-sw-cnt">{improveSet.length}건</span>
+                      </div>
+                      {improveSet.length > 0 ? (
+                        <ul className="fb-sw-list">
+                          {improveSet.slice(0, 6).map((t, i) => <li key={i}>{t}</li>)}
+                        </ul>
+                      ) : (
+                        <div className="fb-empty">피드백에서 추출된 개선점이 아직 없어요.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. 필러워드 · 답변시간 추이 (상세 응답에 필드가 있을 때만) */}
+                {trendRows.length > 0 && (
+                  <div className="dcard">
+                    <div className="dcard-head">
+                      <div className="dcard-t">필러워드 · 답변 시간 추이</div>
+                      <span className="dist-total">
+                        최근 {trendRows.length}회 기준
+                        {fillFirst != null && fillFirst !== 0 ? ` · 필러워드 ${fillFirst > 0 ? `${fillFirst}회 감소` : `${Math.abs(fillFirst)}회 증가`}` : ""}
+                      </span>
+                    </div>
+                    <div className="fb-trend-head"><span>회차</span><span>평균 답변 시간</span><span>필러워드 합계</span></div>
+                    <div className="fb-trends">
+                      {trendRows.map((t) => (
+                        <div className="fb-trend" key={t.round}>
+                          <span className="tr-round">{t.round}회차</span>
+                          <div className="tr-bar-wrap">
+                            {t.avgDur != null ? (
+                              <>
+                                <div className="dist-bar">
+                                  <AnimatedBar className="dist-fill" pct={(t.avgDur / trendDurMax) * 100} style={{ background: "var(--sky-ink)" }} />
+                                </div>
+                                <span className="tr-dur">{t.avgDur}초</span>
+                              </>
+                            ) : (
+                              <span className="tr-dur muted">기록 없음</span>
+                            )}
+                          </div>
+                          <div className="tr-fill-wrap">
+                            {t.filler != null ? (
+                              <>
+                                <div className="dist-bar">
+                                  <AnimatedBar className="dist-fill" pct={(t.filler / trendFillMax) * 100} style={{ background: t.filler === 0 ? "var(--mint-ink)" : "var(--peach-ink)" }} />
+                                </div>
+                                <span className={"tr-filler" + (t.filler === 0 ? " zero" : "")}>{t.filler}회</span>
+                              </>
+                            ) : (
+                              <span className="tr-dur muted">기록 없음</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 6. 우측 레일 */}
+              <aside className="fb-rail">
+                <div className="dcard rail-card">
+                  <div className="dcard-head">
+                    <div className="rail-t" style={{ marginBottom: 0 }}><span className="gr-ic peach"><IconTarget size={15} /></span>다음 연습에서 집중할 것</div>
+                    {issueCounts.length > 0 && <span className="check-cnt">{focusDone}/{issueCounts.length}</span>}
+                  </div>
+                  {issueCounts.length > 0 ? (
+                    <>
+                      <ul className="check-list fb-focus">
+                        {issueCounts.map((b, i) => {
+                          const on = fbFocus.includes(b.key);
+                          return (
+                            <li key={b.key}>
+                              <button type="button" className={"check-item" + (on ? " on" : "")} onClick={() => toggleFbFocus(b.key)} aria-pressed={on}>
+                                <span className="cbox"><IconCheck size={10} /></span>
+                                <span className="clabel"><b>{i + 1}. {b.key}</b><span>{b.tip}</span></span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="gw-note">
+                        {focusDone === issueCounts.length
+                          ? "모두 체크했어요. 다음 면접에서 실천해보고 점수 변화를 확인해보세요."
+                          : "체크한 항목은 이 브라우저에 저장돼요. 다음 면접 전에 다시 확인하세요."}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="fb-empty">개선 피드백이 쌓이면 다음 연습 과제 3개가 여기에 정리돼요.</div>
+                  )}
+                  <button className="rail-start" onClick={goMock}>다음 모의면접 시작하기 <IconArrowR size={15} /></button>
+                </div>
+
+                {relatedList.length > 0 && (
+                  <div className="dcard rail-card">
+                    <div className="dcard-head">
+                      <div className="rail-t" style={{ marginBottom: 0 }}><IconClock size={15} />관련 기록 바로가기</div>
+                      <button className="dlink" onClick={goRecords}>전체 보기 <IconChevron size={12} /></button>
+                    </div>
+                    <div className="recent-list fb-related">
+                      {relatedList.map((s, i) => (
+                        <div
+                          className="recent-row clickable" key={s.session_id}
+                          role="button" tabIndex={0}
+                          onClick={() => openHistoryDetail(s.session_id)}
+                          onKeyDown={keyActivate(() => openHistoryDetail(s.session_id))}
+                        >
+                          <RecordLogo company={s.company} job={s.job} idx={i} />
+                          <div className="rinfo">
+                            <div className="rjob">{sessionTitle(s)}</div>
+                            <div className="rdate">{fmtDateDot(s.created_at)}{typeof s.total_score === "number" ? ` · 종합 ${s.total_score}점` : ""}</div>
+                          </div>
+                          <ScoreBadge score={typeof s.total_score === "number" ? s.total_score : null} />
+                          <span className="rgo"><IconChevron /></span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rail-tip">
+                  <div className="tt"><BulbIllust size={15} />오늘의 면접 Tip</div>
+                  <div className="td">{tip}</div>
+                </div>
+              </aside>
+            </div>
+          </>
+        )}
+      </div>
     );
   }
 
@@ -2225,7 +3401,12 @@ export default function App() {
         )}
 
         <div className="result-actions">
-          <button className="btn-secondary" onClick={() => setScreen("home")}>돌아가기</button>
+          <button
+            className="btn-secondary"
+            onClick={() => { if (navHint === "feedback") goFeedback(); else if (navHint === "records") goRecords(); else setScreen("home"); }}
+          >
+            {navHint === "feedback" ? "피드백 분석으로 돌아가기" : navHint === "records" ? "나의 기록으로 돌아가기" : "돌아가기"}
+          </button>
         </div>
       </div>
     );
@@ -2443,12 +3624,20 @@ export default function App() {
             </div>
             <div className="iside">
               <div className="card">
+                <div className="card-t"><IconChatDots size={15} />AI 면접관</div>
+                <div className="av-ready-row">
+                  <InterviewerAvatar state="idle" size={86} />
+                  <div className="av-ready-msg">면접이 시작되면 제가 질문을 읽어드려요</div>
+                </div>
+              </div>
+              <div className="card">
                 <div className="card-t"><IconDoc size={15} />이번 면접 구성</div>
                 <div className="ready-facts">
                   <div className="rf"><span className="k">질문 수</span><span className="v">{total}개</span></div>
-                  <div className="rf"><span className="k">예상 소요 시간</span><span className="v">약 {total * 2}~{total * 3}분</span></div>
+                  <div className="rf"><span className="k">예상 소요 시간</span><span className="v">{estDuration(total)}</span></div>
                   <div className="rf"><span className="k">직무</span><span className="v">{jobRole}</span></div>
-                  <div className="rf"><span className="k">난이도</span><span className="v">{LEVEL_LABEL[level] || level} · {career}</span></div>
+                  <div className="rf"><span className="k">난이도</span><span className="v">{LEVEL_LABEL[level] || level}</span></div>
+                  <div className="rf"><span className="k">경력</span><span className="v">{career}</span></div>
                 </div>
               </div>
               <div className="card">
@@ -2484,9 +3673,38 @@ export default function App() {
         </div>
 
         <div className="imain">
-          <div className="q-fixed">
-            <span className="qb">Q{qIndex + 1}. {jobRole} · 난이도 {LEVEL_LABEL[level] || level} · {career}</span>
-            <div className="qt">{questions[qIndex]}</div>
+          <div className="q-fixed avatar-panel">
+            <div className="avp-left">
+              <InterviewerAvatar state={avatarState} size={128} />
+              <span className="av-label">AI 면접관</span>
+            </div>
+            <div className="avp-main">
+              <span className="qb">Q{qIndex + 1}. {jobRole} · 난이도 {LEVEL_LABEL[level] || level} · {career}</span>
+              <div className="q-bubble">
+                <div className="qt">{questions[qIndex]}</div>
+              </div>
+              {/* 뉴럴 TTS(/api/tts)는 speechSynthesis 미지원 브라우저에서도 동작하므로 항상 노출 */}
+              <div className="av-ctrl">
+                <button
+                  className={"av-btn" + (ttsMuted ? " on" : "")}
+                  onClick={toggleTtsMute}
+                  aria-pressed={ttsMuted}
+                  title={ttsMuted ? "음성 안내 켜기" : "음성 안내 끄기"}
+                >
+                  {ttsMuted ? <IconSoundOff /> : <IconSoundOn />}
+                  <span>{ttsMuted ? "음소거 중" : "음성 켜짐"}</span>
+                </button>
+                <button
+                  className="av-btn"
+                  onClick={() => speakQuestion(questions[qIndex])}
+                  disabled={ttsMuted || recPending}
+                  title="현재 질문을 다시 읽어드려요 (녹화는 멈추지 않아요)"
+                >
+                  <IconReplay />
+                  <span>질문 다시 듣기</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="cam-area">
@@ -2495,8 +3713,14 @@ export default function App() {
             ) : (
               <>
                 <video ref={videoRef} autoPlay muted playsInline></video>
-                <div className="cam-rec"><span className="d"></span>REC</div>
-                <div className="cam-msg">답변이 끝나면 아래 '답변 완료'를 눌러주세요</div>
+                {recPending ? (
+                  <div className="cam-rec listening"><span className="d"></span>질문 듣는 중</div>
+                ) : (
+                  <div className="cam-rec"><span className="d"></span>REC</div>
+                )}
+                <div className="cam-msg">
+                  {recPending ? "낭독이 끝나면 녹화가 시작돼요 · 답변을 준비하세요" : "답변이 끝나면 아래 '답변 완료'를 눌러주세요"}
+                </div>
               </>
             )}
           </div>
@@ -2512,7 +3736,11 @@ export default function App() {
             </div>
             <div className="card">
               <div className="card-t"><IconMic />녹화 상태</div>
-              <div className="rec-state"><span className="d"></span>답변을 녹화하고 있어요</div>
+              {recPending ? (
+                <div className="rec-state listen"><span className="d"></span>질문을 듣고 있어요...</div>
+              ) : (
+                <div className="rec-state"><span className="d"></span>답변을 녹화하고 있어요</div>
+              )}
               <div className="wave">
                 <span style={{ animationDelay: "0s" }}></span>
                 <span style={{ animationDelay: ".1s" }}></span>
@@ -2525,8 +3753,8 @@ export default function App() {
               </div>
             </div>
             <div className="ictrl">
-              <button className="btn-redo" onClick={handleRedo} disabled={busy}>다시 답변</button>
-              <button className="btn-done" onClick={handleDone} disabled={busy}>
+              <button className="btn-redo" onClick={handleRedo} disabled={busy || recPending}>다시 답변</button>
+              <button className="btn-done" onClick={handleDone} disabled={busy || recPending}>
                 {busy ? <><BtnSpinner />분석 중...</> : isLast ? "면접 마치기" : "답변 완료"}
               </button>
             </div>
@@ -2560,8 +3788,8 @@ export default function App() {
               <p>{jobTab === "dept" ? "학과를 고르면 우리 과 선배들이 가는 진로로 안내해드려요." : "직무와 난이도를 고르면 맞춤 질문을 만들어드려요."}</p>
               <div className="sh-chips">
                 {company.trim() && <span className="shc">{company.trim()}</span>}
-                <span className={"shc" + (job ? "" : " empty")}>{job || "직무"}</span>
-                <span className={"shc" + (sub ? "" : " empty")}>{sub || "세부 직무"}</span>
+                <span className={"shc" + (job ? "" : " empty")} data-testid="hero-job">{job || "직무 선택 전"}</span>
+                <span className={"shc" + (sub ? "" : " empty")} data-testid="hero-sub">{sub || "세부 직무 선택 전"}</span>
                 <span className={"shc" + (career ? "" : " empty")}>{career || "경력"}</span>
                 <span className={"shc" + (level ? "" : " empty")}>{LEVEL_LABEL[level] || "난이도"}</span>
               </div>
@@ -2729,6 +3957,7 @@ export default function App() {
                     );
                   })}
                 </div>
+                {job && jobData[job] ? (
                 <div
                   key={job}
                   className="setup-subjob"
@@ -2736,7 +3965,7 @@ export default function App() {
                 >
                   <div className="ss-label">세부 직무를 선택하면 더 정확한 질문이 나와요</div>
                   <div className="ss-tags">
-                    {jobData[job].subs.map((s, i) => (
+                    {(jobData[job].subs || []).map((s, i) => (
                       <div
                         key={s}
                         className={"ss-tag" + (sub === s ? " active" : "")}
@@ -2752,6 +3981,9 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+                ) : (
+                  <div className="upload-desc">직무를 고르면 세부 직무가 여기에 표시돼요</div>
+                )}
               </>
             )}
           </section>
@@ -2978,11 +4210,20 @@ export default function App() {
                 </div>
               </div>
               <div className="rail-facts">
-                <span><IconChatDots size={15} />질문 6개 내외</span>
-                <span><IconClock size={15} />예상 10~15분</span>
+                <span><IconChatDots size={15} />질문 {EXPECT_Q}개 내외</span>
+                <span><IconClock size={15} />예상 {estDuration(EXPECT_Q)}</span>
                 <span><IconVideo size={15} />카메라·마이크 필요</span>
               </div>
-              <button className="rail-start" onClick={startInterview}>면접 시작하기 <IconArrowR size={15} /></button>
+              <button
+                className="rail-start"
+                onClick={startInterview}
+                disabled={!job || !sub}
+                title={!job || !sub ? "직무를 먼저 골라주세요" : undefined}
+                data-testid="rail-start"
+              >
+                면접 시작하기 <IconArrowR size={15} />
+              </button>
+              {(!job || !sub) && <div className="rail-hint">직무를 먼저 골라주세요</div>}
               <div className="rail-tip">
                 <div className="tt"><BulbIllust size={15} />오늘의 면접 Tip</div>
                 <div className="td">{tip}</div>
@@ -2997,9 +4238,11 @@ export default function App() {
               {selMeta.icon}
             </span>
             <div className="sb-sum">
-              {company.trim() ? company.trim() + " · " : ""}{job || "직무 선택"}{sub ? " · " + sub : ""} · {career} · {LEVEL_LABEL[level] || level}
+              {company.trim() ? company.trim() + " · " : ""}{job || "직무 선택 전"}{sub ? " · " + sub : ""} · {career} · {LEVEL_LABEL[level] || level}
             </div>
-            <button className="sb-start" onClick={startInterview}>면접 시작하기 <IconArrowR size={14} /></button>
+            <button className="sb-start" onClick={startInterview} disabled={!job || !sub} title={!job || !sub ? "직무를 먼저 골라주세요" : undefined}>
+              면접 시작하기 <IconArrowR size={14} />
+            </button>
           </div>
       </div>
     );
@@ -3227,7 +4470,7 @@ export default function App() {
                 >
                   <RecordLogo company={s.company} job={s.job} idx={i} />
                   <div className="rinfo">
-                    <div className="rjob">{s.company && String(s.company).trim() ? String(s.company).trim() + " " : ""}{s.job || "모의"} 면접</div>
+                    <div className="rjob">{sessionTitle(s)}</div>
                     <div className="rdate">
                       {fmtDateDot(s.created_at)}
                       {typeof s.posture_score === "number" && typeof s.content_score === "number" && (
