@@ -7,6 +7,7 @@ import {
   prefersReducedMotion, CountUp, ArcProgress, AnimatedBar, keyActivate,
   ScoreBadge, RecordLogo, fmtDate, fmtDateDot, LineChart, sessionTitle,
   IconCheck, IconChevron, IconArrowR, IconTarget,
+  authFetch, setAuthExpiredHandler, isAuthExpired,
 } from "./ui";
 
 /* 마지막으로 고른 직무·세부직무 (면접 설정 ↔ 자기소개서 화면 공유, localStorage) */
@@ -1555,6 +1556,7 @@ export default function App() {
   // 토스트 알림 스택 (alert 대체) + 대시보드 첫 로드 완료 플래그 (스켈레톤 표시 판단 전용)
   const [toasts, setToasts] = useState([]);
   const toastIdRef = useRef(0);
+  const authExpiredRef = useRef(false); // 401 자동 로그아웃 토스트 1회 보장 (동시 다발 401 대비)
   const [dashLoaded, setDashLoaded] = useState(false);
 
   function dismissToast(id) {
@@ -1736,9 +1738,17 @@ export default function App() {
   function handleLogin(tk, em) {
     localStorage.setItem("cc_token", tk);
     localStorage.setItem("cc_email", em);
+    authExpiredRef.current = false;
     setToken(tk);
     setUserEmail(em);
     setScreen("home");
+  }
+  // 전역 401 처리: 토큰 삭제 → 로그인 화면 → 토스트 1회 (authFetch에서 호출)
+  function handleAuthExpired() {
+    if (authExpiredRef.current) return;
+    authExpiredRef.current = true;
+    handleLogout();
+    showToast("info", "로그인이 만료되어 다시 로그인해주세요");
   }
   function handleLogout() {
     localStorage.removeItem("cc_token");
@@ -1769,6 +1779,17 @@ export default function App() {
       .catch(() => showToast("error", "일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."));
   }, []);
 
+  // 전역 401 핸들러 등록 + 앱 시작 시 저장된 토큰 유효성 확인 (/me 1회)
+  // 죽은 토큰으로 대시보드에 들어가지 않도록, 401이면 즉시 로그인 화면으로 보낸다
+  useEffect(() => {
+    setAuthExpiredHandler(handleAuthExpired);
+    const saved = localStorage.getItem("cc_token");
+    if (saved) {
+      authFetch(`${API}/me`, { headers: { "Authorization": "Bearer " + saved } }).catch(() => {});
+    }
+    return () => setAuthExpiredHandler(null);
+  }, []);
+
   // 직무·세부직무를 고르면 저장 → 면접 설정 / 자기소개서 화면이 같은 값을 공유
   useEffect(() => {
     if (job && sub) saveLastJob(job, sub);
@@ -1780,12 +1801,12 @@ export default function App() {
     let cancelled = false;
     const headers = { "Authorization": "Bearer " + token };
 
-    fetch(`${API}/growth`, { headers })
+    authFetch(`${API}/growth`, { headers })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!cancelled) setGrowthData(d); })
       .catch(() => {});
 
-    fetch(`${API}/history`, { headers })
+    authFetch(`${API}/history`, { headers })
       .then((r) => (r.ok ? r.json() : null))
       .then(async (list) => {
         if (cancelled) return;
@@ -1793,7 +1814,7 @@ export default function App() {
         // 최근 면접의 피드백 한 줄 (상세 API에서 feedback 필드 사용)
         if (Array.isArray(list) && list.length > 0 && list[0].session_id != null) {
           try {
-            const res = await fetch(`${API}/history/${list[0].session_id}`, { headers });
+            const res = await authFetch(`${API}/history/${list[0].session_id}`, { headers });
             if (res.ok) {
               const det = await res.json();
               const fb = det && Array.isArray(det.results)
@@ -1838,28 +1859,22 @@ export default function App() {
       setFbErr("");
       try {
         const headers = { "Authorization": "Bearer " + token };
-        const res = await fetch(`${API}/history`, { headers });
-        if (res.status === 401 || res.status === 403) throw new Error("auth");
+        const res = await authFetch(`${API}/history`, { headers });
         if (!res.ok) throw new Error("server");
         const list = await res.json();
         if (!Array.isArray(list)) throw new Error("format");
         const targets = list.filter((s) => s && s.session_id != null).slice(0, 8);
         const details = await Promise.all(
           targets.map((s) =>
-            fetch(`${API}/history/${s.session_id}`, { headers })
+            authFetch(`${API}/history/${s.session_id}`, { headers })
               .then((r) => (r.ok ? r.json() : null))
               .catch(() => null)
           )
         );
         if (!cancelled) setFbData({ list, details: details.filter(Boolean) });
       } catch (e) {
-        if (!cancelled) {
-          setFbErr(
-            e && e.message === "auth"
-              ? "로그인이 만료되었어요. 설정에서 로그아웃 후 다시 로그인해주세요."
-              : "일시적으로 면접 기록을 불러올 수 없습니다. 잠시 후 다시 시도해주세요."
-          );
-        }
+        if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
+        if (!cancelled) setFbErr("일시적으로 면접 기록을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.");
       } finally {
         if (!cancelled) setFbLoading(false);
       }
@@ -1905,7 +1920,7 @@ export default function App() {
     }
     setRsQLoading(true);
     try {
-      const res = await fetch(`${API}/api/questions`, {
+      const res = await authFetch(`${API}/api/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ job, sub, level, career, resume_text: resumeText }),
@@ -1917,7 +1932,7 @@ export default function App() {
         showToast("error", "예상 질문을 만들지 못했습니다. 잠시 후 다시 시도해주세요.");
       }
     } catch (e) {
-      showToast("error", "일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      if (!isAuthExpired(e)) showToast("error", "일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setRsQLoading(false);
     }
@@ -1949,7 +1964,7 @@ export default function App() {
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch(`${API}/api/parse-resume`, {
+      const res = await authFetch(`${API}/api/parse-resume`, {
         method: "POST",
         headers: { "Authorization": "Bearer " + token },
         body: form,
@@ -1966,6 +1981,7 @@ export default function App() {
         showToast("error", data.detail || "파일을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       }
     } catch (err) {
+      if (isAuthExpired(err)) return; // 자동 로그아웃 처리됨
       setResumeFileErr(true);
       setResumeFileMsg("일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
       showToast("error", "일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
@@ -1980,7 +1996,7 @@ export default function App() {
     setDetailErr("");
     setScreen("historyDetail");
     try {
-      const res = await fetch(`${API}/history/${sessionId}`, {
+      const res = await authFetch(`${API}/history/${sessionId}`, {
         headers: { "Authorization": "Bearer " + token },
       });
       const data = await res.json();
@@ -1990,6 +2006,7 @@ export default function App() {
         setDetailErr(data.detail || "면접 기록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       }
     } catch (e) {
+      if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
       setDetailErr("일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
     }
   }
@@ -2001,7 +2018,7 @@ export default function App() {
     }
     setScreen("loading");
     try {
-      const res = await fetch(`${API}/api/questions`, {
+      const res = await authFetch(`${API}/api/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ job, sub, level, career, resume_text: resumeText }),
@@ -2019,6 +2036,7 @@ export default function App() {
       setCountdown(0);
       setScreen("interview");
     } catch (e) {
+      if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
       showToast("error", "질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       setScreen("start");
     }
@@ -2127,7 +2145,7 @@ export default function App() {
     const cached = ttsCacheRef.current.get(text);
     if (cached) return cached;
     if (!token) return null;
-    const res = await fetch(`${API}/api/tts`, {
+    const res = await authFetch(`${API}/api/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
       body: JSON.stringify({ text: String(text) }),
@@ -2329,11 +2347,12 @@ export default function App() {
         await new Promise((r) => setTimeout(r, 3000));
         let data;
         try {
-          const res = await fetch(`${API}/api/analysis-result/${jobId}`, {
+          const res = await authFetch(`${API}/api/analysis-result/${jobId}`, {
             headers: { "Authorization": "Bearer " + token },
           });
           data = await res.json();
         } catch (e) {
+          if (isAuthExpired(e)) return { error: "로그인이 만료되어 분석 결과를 받지 못했습니다." };
           continue; // 일시적 네트워크 오류는 다음 폴링에서 재시도
         }
         if (data && data.status === "done" && data.result) return data.result;
@@ -2357,7 +2376,7 @@ export default function App() {
     form.append("question", questions[index] || "");
     form.append("job_role", jobRole);
     form.append("career", career); // 백엔드 계약: 경력 구분 전달 (미수신이어도 무해)
-    const res = await fetch(`${API}/api/analyze-answer`, { method: "POST", body: form });
+    const res = await authFetch(`${API}/api/analyze-answer`, { method: "POST", body: form });
     let data = await res.json();
     // 배포 서버: 즉시 결과 대신 job_id가 오면 완료까지 폴링
     if (data && data.job_id != null && data.posture_score == null) {
@@ -2390,7 +2409,7 @@ export default function App() {
           filler_count: typeof r.filler_count === "number" ? Math.round(r.filler_count) : 0,
         })),
       };
-      const res = await fetch(`${API}/interview/finish`, {
+      const res = await authFetch(`${API}/interview/finish`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
         body: JSON.stringify(payload),
@@ -2406,6 +2425,7 @@ export default function App() {
         showToast("error", "기록 저장에 실패했습니다. " + (data.detail || "잠시 후 다시 시도해주세요."));
       }
     } catch (e) {
+      if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
       setSaveErr(true);
       setSaveMsg("일시적인 문제로 기록을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
       showToast("error", "일시적인 문제로 기록을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");

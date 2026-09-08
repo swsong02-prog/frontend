@@ -7,6 +7,25 @@ import { COMPANIES } from "./companies";
    - 라이브러리 미사용, 인라인 SVG
    ============================================================ */
 
+/* ===== 인증 만료 공용 처리 (App.jsx / Growth.jsx 공유) =====
+   - authFetch: fetch 래퍼. 응답이 401이면 등록된 핸들러(자동 로그아웃·토스트)를 부르고 AuthExpiredError를 던진다
+   - 호출부 catch에서는 isAuthExpired(e)면 조용히 빠져나온다 (중복 오류 문구 방지)
+   - 로그인/회원가입(/login, /signup)은 401이 "자격 증명 오류"이므로 이 래퍼를 쓰지 않는다 */
+let authExpiredHandler = null;
+export function setAuthExpiredHandler(fn) { authExpiredHandler = typeof fn === "function" ? fn : null; }
+export class AuthExpiredError extends Error {
+  constructor() { super("auth"); this.name = "AuthExpiredError"; }
+}
+export function isAuthExpired(e) { return !!e && (e instanceof AuthExpiredError || e.message === "auth"); }
+export async function authFetch(url, opts) {
+  const res = await fetch(url, opts);
+  if (res.status === 401) {
+    try { if (authExpiredHandler) authExpiredHandler(); } catch (e) {}
+    throw new AuthExpiredError();
+  }
+  return res;
+}
+
 /* ===== 모션 환경 감지 (prefers-reduced-motion이면 JS 애니메이션도 건너뜀) ===== */
 export function prefersReducedMotion() {
   return typeof window !== "undefined" && !!window.matchMedia

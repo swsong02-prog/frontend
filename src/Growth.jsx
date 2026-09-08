@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   CountUp, ScoreBadge, RecordLogo, fmtDateDot, keyActivate, LineChart, weekStartDate, sessionTitle,
   IconChevron, IconArrowR, IconTrendUp, IconTrendDown, IconTrendFlat, IconTrophy,
-  IconCalendarSm, IconTarget, IconPlay,
+  IconCalendarSm, IconTarget, IconPlay, authFetch, isAuthExpired,
 } from "./ui";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -85,9 +85,8 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
     //  count가 undefined가 되고, 빈 상태도 본문도 렌더되지 않는 '완전 빈 화면'이 된다)
     let cancelled = false;
     const headers = { "Authorization": "Bearer " + token };
-    fetch(`${API}/growth`, { headers })
+    authFetch(`${API}/growth`, { headers })
       .then(async (r) => {
-        if (r.status === 401 || r.status === 403) throw new Error("auth");
         if (!r.ok) throw new Error("server");
         const d = await r.json();
         if (!d || typeof d !== "object" || Array.isArray(d)) throw new Error("format");
@@ -95,15 +94,11 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
       })
       .then((d) => { if (!cancelled) setData(d); })
       .catch((e) => {
-        if (cancelled) return;
-        setErr(
-          e && e.message === "auth"
-            ? "로그인이 만료되었어요. 설정에서 로그아웃 후 다시 로그인하면 성장 기록이 표시됩니다."
-            : "일시적으로 성장 기록을 불러올 수 없습니다. 잠시 후 다시 시도해주세요."
-        );
+        if (cancelled || isAuthExpired(e)) return; // 401은 App에서 자동 로그아웃 처리
+        setErr("일시적으로 성장 기록을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.");
       });
     // 직무·회사 표시용 (실패해도 점수 화면은 그대로 동작)
-    fetch(`${API}/history`, { headers })
+    authFetch(`${API}/history`, { headers })
       .then((r) => (r.ok ? r.json() : null))
       .then((l) => { if (!cancelled) setHistory(Array.isArray(l) ? l : []); })
       .catch(() => { if (!cancelled) setHistory([]); });
