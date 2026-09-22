@@ -1341,6 +1341,16 @@ summary:focus-visible,
   background: var(--mint); border-radius: 999px; padding: 5px 11px;
 }
 .rs-job-cur.unset { color: var(--muted); background: var(--surface); }
+
+/* 분석 워커 상태 칩 (자기소개서 화면·면접 설정 자소서 섹션) + 맞춤 질문 생성 대기 문구 */
+.worker-chip {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px;
+  font-size: 12px; font-weight: 700; border-radius: 999px; padding: 5px 11px;
+}
+.worker-chip .d { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.worker-chip.on { color: var(--mint-ink); background: var(--mint); }
+.worker-chip.off { color: var(--muted); background: var(--bg); }
+.qgen-note { margin-top: 12px; }
 .rs-job-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .rs-sel { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .rs-sel-k { font-size: 11.5px; font-weight: 600; color: var(--muted); }

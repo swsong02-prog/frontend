@@ -1488,6 +1488,11 @@ function formatReasons(reasons) {
   return String(reasons);
 }
 
+/* 자소서 맞춤 질문 비동기 잡 실패/타임아웃 (호출부에서 질문은행 폴백 판단용) */
+class QuestionJobError extends Error {
+  constructor(msg) { super(msg || "question_job_failed"); this.name = "QuestionJobError"; }
+}
+
 /* 비동기 분석 폴링 status → 사용자 문구 */
 const ANALYSIS_STATUS_TEXT = {
   pending: "분석 대기 중",
@@ -1584,6 +1589,11 @@ export default function App() {
   const [rsSaved, setRsSaved] = useState(loadSavedResume);
   const [rsQuestions, setRsQuestions] = useState([]);
   const [rsQLoading, setRsQLoading] = useState(false);
+  // 자소서 맞춤 질문 비동기 생성(워커) 대기 상태: 폴링 중 true + 경과 초
+  const [qGenActive, setQGenActive] = useState(false);
+  const [qGenSeconds, setQGenSeconds] = useState(0);
+  // 분석 워커 상태 칩: null(미확인·API 없음 → 숨김) | { online: bool }
+  const [workerStatus, setWorkerStatus] = useState(null);
 
   // 피드백 분석 화면: /history + /history/{id} 종합 데이터
   const [fbData, setFbData] = useState(null); // { list, details }
@@ -1904,6 +1914,59 @@ export default function App() {
     showToast("info", "저장된 자기소개서를 삭제했어요.");
   }
 
+  // 질문 생성 공용 헬퍼 (면접 시작·자소서 미리보기 공용)
+  // - 동기 응답 { questions } → 그대로 { ok, data } 반환 (기존 경로 동작 변화 없음)
+  // - 비동기 응답 { job_id, status: "pending" } → 2초 간격, 최대 60초 폴링 후 done이면 questions 병합
+  // - failed/타임아웃 → QuestionJobError throw (호출부에서 자소서 없이 재요청해 질문은행으로 폴백)
+  async function requestQuestions(payload) {
+    const res = await authFetch(`${API}/api/questions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!(res.ok && data && data.job_id != null && !Array.isArray(data.questions))) {
+      return { ok: res.ok, data };
+    }
+    const jobId = data.job_id;
+    const deadline = Date.now() + 60 * 1000;
+    setQGenActive(true);
+    try {
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000));
+        let r;
+        try {
+          const rs = await authFetch(`${API}/api/question-result/${jobId}`, {
+            headers: token ? { "Authorization": "Bearer " + token } : undefined,
+          });
+          r = await rs.json();
+        } catch (e) {
+          if (isAuthExpired(e)) throw e;
+          continue; // 일시적 네트워크 오류는 다음 폴링에서 재시도
+        }
+        if (r && r.status === "done" && Array.isArray(r.questions)) {
+          return { ok: true, data: { ...data, ...r, questions: r.questions } };
+        }
+        if (r && r.status === "failed") throw new QuestionJobError(r.error || "failed");
+        // pending / processing → 계속 대기
+      }
+      throw new QuestionJobError("timeout");
+    } finally {
+      setQGenActive(false);
+    }
+  }
+  // 워커 실패/지연 시 자소서 없이 재요청 → 질문은행으로 진행 (면접이 막히지 않게)
+  async function requestQuestionsWithFallback(payload) {
+    try {
+      return await requestQuestions(payload);
+    } catch (e) {
+      if (!(e instanceof QuestionJobError) || !payload.resume_text) throw e;
+      showToast("info", "맞춤 질문 생성이 지연되어 기본 질문으로 진행합니다");
+      const { resume_text, ...rest } = payload;
+      return await requestQuestions(rest);
+    }
+  }
+
   // 자소서 기반 예상 질문 미리보기 (기존 /api/questions 재사용, 카메라·면접 없이 질문만)
   async function previewQuestions() {
     if (!resumeText.trim()) {
@@ -1920,13 +1983,8 @@ export default function App() {
     }
     setRsQLoading(true);
     try {
-      const res = await authFetch(`${API}/api/questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job, sub, level, career, resume_text: resumeText }),
-      });
-      const data = await res.json();
-      if (res.ok && data && Array.isArray(data.questions) && data.questions.length > 0) {
+      const { ok, data } = await requestQuestionsWithFallback({ job, sub, level, career, resume_text: resumeText });
+      if (ok && data && Array.isArray(data.questions) && data.questions.length > 0) {
         setRsQuestions(data.questions.slice(0, 6));
       } else {
         showToast("error", "예상 질문을 만들지 못했습니다. 잠시 후 다시 시도해주세요.");
@@ -2018,12 +2076,7 @@ export default function App() {
     }
     setScreen("loading");
     try {
-      const res = await authFetch(`${API}/api/questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job, sub, level, career, resume_text: resumeText }),
-      });
-      const data = await res.json();
+      const { data } = await requestQuestionsWithFallback({ job, sub, level, career, resume_text: resumeText });
       setQuestions(data.questions);
       setJobRole(data.job_role);
       setResults([]);
@@ -2106,6 +2159,28 @@ export default function App() {
     const iv = setInterval(() => setAnalysisSeconds((s) => s + 1), 1000);
     return () => clearInterval(iv);
   }, [busy]);
+
+  // 자소서 맞춤 질문 생성 대기 경과 시간(초) 카운터
+  useEffect(() => {
+    if (!qGenActive) { setQGenSeconds(0); return; }
+    setQGenSeconds(0);
+    const iv = setInterval(() => setQGenSeconds((s) => s + 1), 1000);
+    return () => clearInterval(iv);
+  }, [qGenActive]);
+
+  // 분석 워커 상태 확인 (자기소개서 화면·면접 설정 진입 시). 로컬 백엔드엔 API가 없을 수 있어 실패 시 칩 숨김
+  useEffect(() => {
+    if (screen !== "resume" && screen !== "start") return;
+    let cancelled = false;
+    fetch(`${API}/api/worker-status`, token ? { headers: { "Authorization": "Bearer " + token } } : undefined)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setWorkerStatus(data && typeof data.online === "boolean" ? { online: data.online } : null);
+      })
+      .catch(() => { if (!cancelled) setWorkerStatus(null); });
+    return () => { cancelled = true; };
+  }, [screen, token]);
 
   // 결과 화면을 떠날 때 답변 영상 objectURL 정리
   useEffect(() => {
@@ -2747,6 +2822,12 @@ export default function App() {
                 <div className="sec-tt">맞춤 예상 질문 미리보기</div>
                 <span className="sec-hint">카메라·면접 없이 질문만 미리 연습해보세요</span>
               </div>
+              {workerStatus && (
+                <span className={"worker-chip " + (workerStatus.online ? "on" : "off")} data-testid="worker-chip">
+                  <span className="d"></span>
+                  {workerStatus.online ? "AI 맞춤 질문 가능" : "지금은 기본 질문으로 진행돼요(분석 서버 대기 중)"}
+                </span>
+              )}
 
               {/* 직무·세부직무 선택 (면접 설정과 cc_last_job으로 공유) */}
               <div className="rs-job" data-testid="rs-job">
@@ -2804,6 +2885,12 @@ export default function App() {
                   >
                     {rsQLoading ? <><BtnSpinner />질문을 만드는 중...</> : "예상 질문 만들기"}
                   </button>
+                  {qGenActive && (
+                    <div className="analysis-note qgen-note" data-testid="qgen-note">
+                      <span className="d"></span>
+                      자소서를 읽고 맞춤 질문을 만들고 있어요 · {qGenSeconds}초
+                    </div>
+                  )}
                   {!job ? (
                     <div className="upload-desc">직무를 먼저 골라주세요</div>
                   ) : !resumeText.trim() ? (
@@ -2824,6 +2911,12 @@ export default function App() {
                     <button className="btn-secondary" onClick={previewQuestions} disabled={rsQLoading || !job || !sub}>
                       {rsQLoading ? <><BtnSpinner />다시 만드는 중...</> : "질문 다시 만들기"}
                     </button>
+                    {qGenActive && (
+                      <div className="analysis-note qgen-note" data-testid="qgen-note">
+                        <span className="d"></span>
+                        자소서를 읽고 맞춤 질문을 만들고 있어요 · {qGenSeconds}초
+                      </div>
+                    )}
                     <button
                       className="btn-primary"
                       onClick={startWithResume}
@@ -3439,6 +3532,12 @@ export default function App() {
         <div className="spinner"></div>
         <div className="lt">면접을 준비하고 있습니다</div>
         <div className="ls">{job}{sub ? " · " + sub : ""} · {career} 직무에 맞는 질문을 만들고 있어요</div>
+        {qGenActive && (
+          <div className="analysis-note qgen-note" data-testid="qgen-note">
+            <span className="d"></span>
+            자소서를 읽고 맞춤 질문을 만들고 있어요 · {qGenSeconds}초
+          </div>
+        )}
       </div>
     );
   }
@@ -4138,6 +4237,12 @@ export default function App() {
               <span className="sec-optional">선택</span>
               <span className="sec-hint">붙여넣으면 내용 기반 질문이 추가돼요</span>
             </div>
+            {workerStatus && (
+              <span className={"worker-chip " + (workerStatus.online ? "on" : "off")} data-testid="worker-chip">
+                <span className="d"></span>
+                {workerStatus.online ? "AI 맞춤 질문 가능" : "지금은 기본 질문으로 진행돼요(분석 서버 대기 중)"}
+              </span>
+            )}
             <div className="setup-seg">
               <button type="button" className={"segb" + (resumeTab === "file" ? " active" : "")} onClick={() => setResumeTab("file")}>
                 <IconClip />파일 업로드
