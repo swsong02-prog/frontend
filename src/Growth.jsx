@@ -189,7 +189,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
 
   const lastSess = last && last.sess ? last.sess : (history && history[0]) || null;
   const startPreset = lastSess
-    ? { job: lastSess.job, sub: lastSess.sub_job, company: lastSess.company, level: lastSess.level }
+    ? { job: lastSess.job, sub: lastSess.sub_job, company: lastSess.company, level: lastSess.level, career: lastSess.career }
     : null;
 
   return (
@@ -407,8 +407,8 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
                       )}
                       {startPreset.job && <span className="gn-chip">{startPreset.job}{startPreset.sub ? ` · ${startPreset.sub}` : ""}</span>}
                     </div>
-                    <div className="gn-d">마지막으로 연습한 조건이에요. 같은 조건으로 바로 시작하면 점수 비교가 정확해져요.</div>
-                    <button className="rail-start" onClick={() => onStart && onStart(startPreset)}>이 직무로 바로 시작 <IconArrowR size={15} /></button>
+                    <div className="gn-d">마지막으로 연습한 조건이에요. 같은 조건으로 연습하면 점수 비교가 정확해져요.</div>
+                    <button className="rail-start" onClick={() => onStart && onStart(startPreset)}>지난 조건으로 면접 설정 <IconArrowR size={15} /></button>
                   </>
                 ) : (
                   <>

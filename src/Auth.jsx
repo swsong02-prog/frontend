@@ -224,38 +224,54 @@ export default function Auth({ onLogin }) {
           {/* 로그인/회원가입 탭 */}
           <div className="auth-tabs">
             <button
+              type="button"
               className={"auth-tab" + (mode === "login" ? " active" : "")}
+              aria-pressed={mode === "login"}
               onClick={() => { setMode("login"); setMsg(""); }}
             >로그인</button>
             <button
+              type="button"
               className={"auth-tab" + (mode === "signup" ? " active" : "")}
+              aria-pressed={mode === "signup"}
               onClick={() => { setMode("signup"); setMsg(""); }}
             >회원가입</button>
           </div>
 
-          <input
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="auth-input"
-          />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
-            className="auth-input"
-          />
+          {/* form으로 감싸 이메일 칸에서도 Enter로 제출 + 브라우저 비밀번호 저장 지원 */}
+          <form onSubmit={(e) => { e.preventDefault(); if (!busy) handleSubmit(); }} noValidate>
+            <label className="sr-only" htmlFor="auth-email">이메일</label>
+            <input
+              id="auth-email"
+              type="email"
+              autoComplete="email"
+              placeholder="이메일"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="auth-input"
+              aria-invalid={!!msg && !msgOk}
+              aria-describedby={msg ? "auth-msg" : undefined}
+            />
+            <label className="sr-only" htmlFor="auth-password">비밀번호</label>
+            <input
+              id="auth-password"
+              type="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="auth-input"
+              aria-invalid={!!msg && !msgOk}
+              aria-describedby={msg ? "auth-msg" : undefined}
+            />
 
-          {msg && (
-            <div className={"auth-msg" + (msgOk ? " ok" : "")}>{msg}</div>
-          )}
+            {msg && (
+              <div id="auth-msg" className={"auth-msg" + (msgOk ? " ok" : "")} role={msgOk ? "status" : "alert"}>{msg}</div>
+            )}
 
-          <button onClick={handleSubmit} disabled={busy} className="auth-submit">
-            {busy ? <><BtnSpinner />처리 중...</> : mode === "login" ? "로그인" : "회원가입"}
-          </button>
+            <button type="submit" disabled={busy} className="auth-submit">
+              {busy ? <><BtnSpinner />처리 중...</> : mode === "login" ? "로그인" : "회원가입"}
+            </button>
+          </form>
         </div>
       </div>
       <p className="auth-note">웹캠과 마이크만 있으면, 어디서든 실전처럼 면접을 연습할 수 있어요.</p>

@@ -114,11 +114,40 @@ const CHECKLIST_ITEMS = [
 ];
 const CHECKLIST_KEY = "cc_checklist";
 
-/* 저장된 자기소개서 (localStorage, { text, updatedAt }) */
+/* 저장된 자기소개서 (localStorage, { text, updatedAt }) + 작성 중 초안 — 계정(이메일)별 키로 분리 */
 const RESUME_KEY = "cc_resume";
-function loadSavedResume() {
+const RESUME_DRAFT_KEY = "cc_resume_draft";
+function userKey(base, email) {
+  return `${base}:${String(email || "").trim().toLowerCase()}`;
+}
+/* 계정 구분 전 버전의 공용 저장본(cc_resume)은 그때 로그인해 있던 계정으로 한 번만 옮기고 지운다
+   (공용 PC에서 다음 사용자에게 이전 사용자의 자소서가 보이지 않게) */
+function migrateLegacyResume(email) {
   try {
-    const raw = localStorage.getItem(RESUME_KEY);
+    const legacy = localStorage.getItem(RESUME_KEY);
+    if (legacy == null) return;
+    if (!email) return; // 주인을 알 수 없으면 지우지도, 불러오지도 않고 그대로 둔다
+    if (localStorage.getItem(userKey(RESUME_KEY, email)) == null) {
+      localStorage.setItem(userKey(RESUME_KEY, email), legacy);
+    }
+    localStorage.removeItem(RESUME_KEY);
+  } catch (e) {}
+}
+function loadResumeDraft(email) {
+  if (!email) return "";
+  try { return localStorage.getItem(userKey(RESUME_DRAFT_KEY, email)) || ""; } catch (e) { return ""; }
+}
+function saveResumeDraft(email, text) {
+  if (!email) return;
+  try {
+    if (text && text.trim()) localStorage.setItem(userKey(RESUME_DRAFT_KEY, email), text);
+    else localStorage.removeItem(userKey(RESUME_DRAFT_KEY, email));
+  } catch (e) {}
+}
+function loadSavedResume(email) {
+  if (!email) return null;
+  try {
+    const raw = localStorage.getItem(userKey(RESUME_KEY, email));
     if (!raw) return null;
     const o = JSON.parse(raw);
     if (o && typeof o.text === "string" && o.text.trim()) {
@@ -1499,16 +1528,43 @@ const ANALYSIS_STATUS_TEXT = {
   processing: "AI 분석 중",
 };
 
+/* 카메라·마이크 오류 + 새로고침 없이 다시 연결 */
+function CamErrorPanel({ message, onRetry, after }) {
+  return (
+    <div className="cam-error" role="alert">
+      <div>
+        <p>{message}</p>
+        {after && <p className="cam-error-sub">{after}</p>}
+        <button type="button" className="btn-primary cam-retry" onClick={onRetry}>카메라·마이크 다시 연결</button>
+      </div>
+    </div>
+  );
+}
+
+/* 실제 마이크 입력 음량 막대 (App의 rAF 루프가 barRef의 transform을 직접 갱신) */
+function MicMeter({ barRef }) {
+  return (
+    <div className="mic-meter" aria-hidden="true">
+      <span ref={barRef} className="mic-meter-fill" />
+    </div>
+  );
+}
+
 export default function App() {
   // 새로고침해도 유지되도록 localStorage에서 초기값을 읽어온다
   const [token, setToken] = useState(() => localStorage.getItem("cc_token") || null);
-  const [userEmail, setUserEmail] = useState(() => localStorage.getItem("cc_email") || "");
+  const [userEmail, setUserEmail] = useState(() => {
+    const em = localStorage.getItem("cc_email") || "";
+    migrateLegacyResume(em);
+    return em;
+  });
 
   const [screen, setScreen] = useState("home"); // home | start | loading | interview | result | growth | settings | historyDetail
   const [navHint, setNavHint] = useState(""); // 사이드바에서 어떤 항목으로 진입했는지 (start 계열 구분용)
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
 
   const [jobData, setJobData] = useState(null);
+  const [jobsErr, setJobsErr] = useState(false); // 직무 목록 로딩 실패 (재시도 버튼 표시)
   const [job, setJob] = useState("");
   const [sub, setSub] = useState("");
   const [level, setLevel] = useState("중");
@@ -1523,7 +1579,7 @@ export default function App() {
   const [deptPick, setDeptPick] = useState(null); // 표시용: { dept: 학과 객체, careerLabel: 선택한 진로명 | null } (저장 payload와 무관)
   const [deptCollege, setDeptCollege] = useState(COLLEGE_ORDER[0]); // 단과대학 탐색: 선택된 단과대 (기본 SW융합대학)
   const [resumeTab, setResumeTab] = useState("text");
-  const [resumeText, setResumeText] = useState("");
+  const [resumeText, setResumeText] = useState(() => loadResumeDraft(localStorage.getItem("cc_email") || ""));
   const [resumeFileMsg, setResumeFileMsg] = useState("");
   const [resumeFileErr, setResumeFileErr] = useState(false);
   const [resumeUploading, setResumeUploading] = useState(false);
@@ -1541,6 +1597,15 @@ export default function App() {
   const [analysisSeconds, setAnalysisSeconds] = useState(0); // 분석 경과 시간(초)
   const [phase, setPhase] = useState("ready"); // 면접 화면 단계: ready | countdown | live
   const [countdown, setCountdown] = useState(0); // 3-2-1 카운트다운 숫자
+  const [camState, setCamState] = useState("idle"); // 카메라·마이크 연결: idle | connecting | ready | error
+  const [devices, setDevices] = useState({ cams: [], mics: [] }); // 선택 가능한 입력 장치
+  const [camId, setCamId] = useState("");
+  const [micId, setMicId] = useState("");
+  const [micSilent, setMicSilent] = useState(false); // 6초 넘게 마이크 입력이 없음
+  const [recError, setRecError] = useState(""); // MediaRecorder 생성·녹화 오류
+  const [replaying, setReplaying] = useState(false); // 질문 다시 듣는 중 (녹화 일시정지)
+  const [failedAnswer, setFailedAnswer] = useState(null); // 분석 실패한 답변: { index, blob, jobId, reason }
+  const [saveState, setSaveState] = useState("idle"); // 결과 저장: idle | saving | saved | error | skipped
 
   // AI 면접관 음성(TTS): 지원 여부/음소거/아바타 상태 (표시 레이어 — 녹화·분석 로직과 무관)
   const ttsSupported =
@@ -1563,6 +1628,8 @@ export default function App() {
   const toastIdRef = useRef(0);
   const authExpiredRef = useRef(false); // 401 자동 로그아웃 토스트 1회 보장 (동시 다발 401 대비)
   const [dashLoaded, setDashLoaded] = useState(false);
+  const [dashErr, setDashErr] = useState(false); // 기록 조회 실패 (빈 기록과 구분)
+  const [dashReload, setDashReload] = useState(0);
 
   function dismissToast(id) {
     // 퇴장 애니메이션(closing) 후 제거. 자동/수동 중복 호출에도 안전
@@ -1586,7 +1653,7 @@ export default function App() {
   const [coachPoints, setCoachPoints] = useState([]); // 최근 세션의 개선 포인트 (있을 때만)
 
   // 자기소개서 전용 화면: 저장본 + 예상 질문 미리보기
-  const [rsSaved, setRsSaved] = useState(loadSavedResume);
+  const [rsSaved, setRsSaved] = useState(() => loadSavedResume(localStorage.getItem("cc_email") || ""));
   const [rsQuestions, setRsQuestions] = useState([]);
   const [rsQLoading, setRsQLoading] = useState(false);
   // 자소서 맞춤 질문 비동기 생성(워커) 대기 상태: 폴링 중 true + 경과 초
@@ -1634,7 +1701,16 @@ export default function App() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
-  const chunksRef = useRef([]);
+  const recChunksRef = useRef(new WeakMap()); // recorder별 청크 배열 (재녹화 시 이전 녹화가 섞이지 않게)
+  const camGenRef = useRef(0); // 장치 연결 세대 (화면 이탈·재연결 시 늦게 끝난 연결 폐기)
+  const levelRef = useRef(null); // 마이크 입력 막대 (매 프레임 DOM 직접 갱신)
+  const runIdRef = useRef(0); // 면접 실행 세대: 화면을 떠난 뒤 도착한 질문·분석 응답을 버린다
+  const accountGenRef = useRef(0); // 로그인 계정 세대: 계정이 바뀐 뒤 도착한 응답을 버린다
+  const replayResumeRef = useRef(null); // 질문 다시 듣기 중 녹화 재개 함수 (음소거 시 즉시 호출)
+  const savingRef = useRef(false); // 결과 중복 저장 방지
+  const guideBtnRef = useRef(null);
+  const guideCloseRef = useRef(null);
+  const firstScreenRef = useRef(true);
   const timerRef = useRef(null);
   const qIndexRef = useRef(0);
   const resumeFileRef = useRef(null);
@@ -1746,11 +1822,15 @@ export default function App() {
 
   // 로그인/로그아웃 처리 (localStorage에도 같이 저장/삭제)
   function handleLogin(tk, em) {
+    accountGenRef.current += 1;
     localStorage.setItem("cc_token", tk);
     localStorage.setItem("cc_email", em);
     authExpiredRef.current = false;
     setToken(tk);
     setUserEmail(em);
+    // 계정별 자기소개서 저장본·초안을 불러온다 (이전 계정 내용은 handleLogout에서 비움)
+    setRsSaved(loadSavedResume(em));
+    setResumeText(loadResumeDraft(em));
     setScreen("home");
   }
   // 전역 401 처리: 토큰 삭제 → 로그인 화면 → 토스트 1회 (authFetch에서 호출)
@@ -1761,6 +1841,9 @@ export default function App() {
     showToast("info", "로그인이 만료되어 다시 로그인해주세요");
   }
   function handleLogout() {
+    runIdRef.current += 1; // 진행 중이던 질문 생성·분석 응답 폐기
+    accountGenRef.current += 1;
+    saveResumeDraft(userEmail, resumeText); // 디바운스 대기 중이던 초안까지 보관
     localStorage.removeItem("cc_token");
     localStorage.removeItem("cc_email");
     setToken(null);
@@ -1774,20 +1857,40 @@ export default function App() {
     setFbData(null);
     setFbErr("");
     setRsQuestions([]);
+    // 공용 PC 대비: 화면에 남은 이전 계정의 자소서·면접 상태를 모두 비운다
+    setResumeText("");
+    setRsSaved(null);
+    setResumeFileMsg("");
+    setCompany("");
+    setQuestions([]);
+    setResults([]);
+    setFailedAnswer(null);
+    setSaveMsg("");
+    setSaveState("idle");
     setScreen("home");
   }
 
+  // 작성 중인 자기소개서는 계정별로 자동 보관 (새로고침·실수로 이동해도 유지)
   useEffect(() => {
+    if (!userEmail) return;
+    const t = setTimeout(() => saveResumeDraft(userEmail, resumeText), 400);
+    return () => clearTimeout(t);
+  }, [resumeText, userEmail]);
+
+  function loadJobs() {
+    setJobsErr(false);
     fetch(`${API}/api/jobs`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error("http"); return r.json(); })
       .then((data) => {
+        if (!data || typeof data !== "object" || Object.keys(data).length === 0) throw new Error("empty");
         setJobData(data);
         // 첫 항목 자동 선택 금지: 마지막으로 고른 직무(cc_last_job)가 있을 때만 복원, 없으면 "선택 전"
         const last = loadLastJob(data);
         if (last) { setJob(last.job); setSub(last.sub); }
       })
-      .catch(() => showToast("error", "일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."));
-  }, []);
+      .catch(() => setJobsErr(true));
+  }
+  useEffect(() => { loadJobs(); }, []);
 
   // 전역 401 핸들러 등록 + 앱 시작 시 저장된 토큰 유효성 확인 (/me 1회)
   // 죽은 토큰으로 대시보드에 들어가지 않도록, 401이면 즉시 로그인 화면으로 보낸다
@@ -1810,14 +1913,16 @@ export default function App() {
     if (!token || screen !== "home") return;
     let cancelled = false;
     const headers = { "Authorization": "Bearer " + token };
+    const failed = (e) => { if (!cancelled && !isAuthExpired(e)) setDashErr(true); };
+    setDashErr(false);
 
     authFetch(`${API}/growth`, { headers })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => { if (!r.ok) throw new Error("http"); return r.json(); })
       .then((d) => { if (!cancelled) setGrowthData(d); })
-      .catch(() => {});
+      .catch(failed);
 
     authFetch(`${API}/history`, { headers })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => { if (!r.ok) throw new Error("http"); return r.json(); })
       .then(async (list) => {
         if (cancelled) return;
         setHistoryData(Array.isArray(list) ? list : null);
@@ -1854,11 +1959,11 @@ export default function App() {
           } catch (e) {}
         }
       })
-      .catch(() => {})
+      .catch(failed)
       .finally(() => { if (!cancelled) setDashLoaded(true); });
 
     return () => { cancelled = true; };
-  }, [token, screen]);
+  }, [token, screen, dashReload]);
 
   // 피드백 분석 화면 진입 시: 기록 목록 + 최근 세션 상세(최대 8개)를 모아 종합 집계
   useEffect(() => {
@@ -1900,7 +2005,7 @@ export default function App() {
     }
     const obj = { text: resumeText, updatedAt: new Date().toISOString() };
     try {
-      localStorage.setItem(RESUME_KEY, JSON.stringify(obj));
+      localStorage.setItem(userKey(RESUME_KEY, userEmail), JSON.stringify(obj));
     } catch (e) {
       showToast("error", "브라우저 저장 공간 문제로 자기소개서를 저장하지 못했어요.");
       return;
@@ -1909,9 +2014,15 @@ export default function App() {
     showToast("success", `자기소개서를 저장했어요. (${resumeText.length.toLocaleString()}자)`);
   }
   function deleteSavedResume() {
-    try { localStorage.removeItem(RESUME_KEY); } catch (e) {}
+    try { localStorage.removeItem(userKey(RESUME_KEY, userEmail)); } catch (e) {}
     setRsSaved(null);
     showToast("info", "저장된 자기소개서를 삭제했어요.");
+  }
+
+  // 작성 중인 내용이 있을 때 다른 내용으로 바꾸기 전에 한 번 확인 (실수로 덮어쓰기 방지)
+  function confirmReplaceResume(next) {
+    if (!resumeText.trim() || resumeText === next) return true;
+    return window.confirm("작성 중인 자기소개서를 불러온 내용으로 바꿀까요?\n지금 편집기에 있는 내용은 사라져요.");
   }
 
   // 질문 생성 공용 헬퍼 (면접 시작·자소서 미리보기 공용)
@@ -1921,10 +2032,11 @@ export default function App() {
   async function requestQuestions(payload) {
     const res = await authFetch(`${API}/api/questions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* 본문 없는 오류 응답 */ }
     if (!(res.ok && data && data.job_id != null && !Array.isArray(data.questions))) {
       return { ok: res.ok, data };
     }
@@ -1981,9 +2093,11 @@ export default function App() {
       showToast("info", "직무를 먼저 골라주세요.");
       return;
     }
+    const gen = accountGenRef.current;
     setRsQLoading(true);
     try {
       const { ok, data } = await requestQuestionsWithFallback({ job, sub, level, career, resume_text: resumeText });
+      if (accountGenRef.current !== gen) return; // 그 사이 로그아웃·계정 변경됨
       if (ok && data && Array.isArray(data.questions) && data.questions.length > 0) {
         setRsQuestions(data.questions.slice(0, 6));
       } else {
@@ -1996,9 +2110,15 @@ export default function App() {
     }
   }
 
-  // 자기소개서 화면 → 면접 설정으로 이동 (자소서 자동 채움 상태 유지)
-  function startWithResume() {
-    if (!resumeText.trim() && rsSaved) setResumeText(rsSaved.text);
+  // 자기소개서 화면 → 면접 설정으로 이동
+  // text를 넘기면(저장본 카드) 그 내용으로, 안 넘기면 편집기의 현재 내용으로 시작한다
+  function startWithResume(text) {
+    if (typeof text === "string") {
+      if (!confirmReplaceResume(text)) return;
+      setResumeText(text);
+    } else if (!resumeText.trim() && rsSaved) {
+      setResumeText(rsSaved.text);
+    }
     setResumeTab("text");
     setNavHint("mock");
     setScreen("start");
@@ -2016,6 +2136,7 @@ export default function App() {
     const file = e.target.files && e.target.files[0];
     e.target.value = ""; // 같은 파일 재선택도 가능하도록 초기화
     if (!file) return;
+    const gen = accountGenRef.current;
     setResumeUploading(true);
     setResumeFileErr(false);
     setResumeFileMsg("");
@@ -2028,7 +2149,12 @@ export default function App() {
         body: form,
       });
       const data = await res.json();
+      if (accountGenRef.current !== gen) return; // 그 사이 로그아웃·계정 변경됨
       if (res.ok) {
+        if (!confirmReplaceResume(data.text || "")) {
+          setResumeFileMsg("파일 내용을 불러오지 않았어요. 편집기 내용은 그대로예요.");
+          return;
+        }
         setResumeText(data.text || "");
         setResumeFileErr(false);
         setResumeFileMsg(`${data.filename} · ${data.chars}자 불러옴`);
@@ -2074,12 +2200,27 @@ export default function App() {
       showToast("info", "직무를 먼저 골라주세요.");
       return;
     }
+    const runId = ++runIdRef.current;
     setScreen("loading");
     try {
-      const { data } = await requestQuestionsWithFallback({ job, sub, level, career, resume_text: resumeText });
-      setQuestions(data.questions);
-      setJobRole(data.job_role);
+      const { ok, data } = await requestQuestionsWithFallback({ job, sub, level, career, resume_text: resumeText });
+      if (runIdRef.current !== runId) return; // 기다리는 동안 다른 화면으로 이동함 → 면접 화면으로 끌고 가지 않는다
+      const qs = ok && data && Array.isArray(data.questions)
+        ? data.questions.map((q) => (typeof q === "string" ? q.trim() : "")).filter(Boolean)
+        : [];
+      if (qs.length === 0) {
+        showToast("error", (data && typeof data.detail === "string" && data.detail) || "질문을 불러오지 못했어요. 설정은 그대로 두었으니 다시 시도해주세요.");
+        setScreen("start");
+        return;
+      }
+      setQuestions(qs);
+      setJobRole(data.job_role || `${job} ${sub}`.trim());
       setResults([]);
+      setBusy(false);
+      setFailedAnswer(null);
+      setRecError("");
+      setSaveState("idle");
+      savingRef.current = false;
       setQIndex(0);
       qIndexRef.current = 0;
       setCamError("");
@@ -2090,38 +2231,86 @@ export default function App() {
       setScreen("interview");
     } catch (e) {
       if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
-      showToast("error", "질문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      if (runIdRef.current !== runId) return;
+      showToast("error", "질문을 불러오지 못했어요. 설정은 그대로 두었으니 다시 시도해주세요.");
       setScreen("start");
+    }
+  }
+
+  // 질문 생성 대기 취소 → 설정 화면으로 (늦게 도착한 응답은 runId로 무시)
+  function cancelLoading() {
+    runIdRef.current += 1;
+    setScreen("start");
+  }
+
+  // 카메라·마이크 연결. 실패해도 새로고침 없이 '다시 연결'로 복구할 수 있다 (설정·자소서 유지)
+  async function connectDevices(opts = {}) {
+    const gen = ++camGenRef.current;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => { t.onended = null; t.stop(); });
+      streamRef.current = null;
+    }
+    setCamError("");
+    setCamState("connecting");
+    const vId = opts.camId !== undefined ? opts.camId : camId;
+    const aId = opts.micId !== undefined ? opts.micId : micId;
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
+      }
+      if (!window.MediaRecorder) {
+        throw Object.assign(new Error("no recorder"), { name: "NoRecorderError" });
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: vId ? { deviceId: { exact: vId } } : true,
+        audio: aId ? { deviceId: { exact: aId } } : true,
+      });
+      if (camGenRef.current !== gen) { stream.getTracks().forEach((t) => t.stop()); return; }
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      // 장치가 뽑히거나 다른 앱이 가져가면 즉시 알린다
+      stream.getTracks().forEach((t) => {
+        t.onended = () => {
+          if (streamRef.current !== stream) return;
+          setCamState("error");
+          setCamError("카메라 또는 마이크 연결이 끊겼어요. 장치를 확인한 뒤 '다시 연결'을 눌러주세요.");
+        };
+      });
+      setCamState("ready");
+      // 권한을 받은 뒤에야 장치 이름이 보이므로 여기서 목록을 갱신한다
+      try {
+        const list = await navigator.mediaDevices.enumerateDevices();
+        if (camGenRef.current !== gen) return;
+        setDevices({
+          cams: list.filter((d) => d.kind === "videoinput"),
+          mics: list.filter((d) => d.kind === "audioinput"),
+        });
+      } catch (e) {}
+    } catch (e) {
+      if (camGenRef.current !== gen) return;
+      const name = e && e.name;
+      let msg;
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        msg = "카메라·마이크 권한이 차단되어 있어요. 주소창 왼쪽 아이콘 → 카메라·마이크를 '허용'으로 바꾼 뒤 '다시 연결'을 눌러주세요.";
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        msg = "카메라 또는 마이크 장치를 찾을 수 없어요. 웹캠·마이크 연결을 확인한 뒤 '다시 연결'을 눌러주세요.";
+      } else if (name === "NotReadableError" || name === "AbortError") {
+        msg = "다른 프로그램(줌·디스코드·OBS 등)이 카메라를 사용 중이에요. 그 프로그램을 끈 뒤 '다시 연결'을 눌러주세요.";
+      } else if (name === "NotSupportedError" || name === "NoRecorderError") {
+        msg = "이 브라우저는 영상 녹화를 지원하지 않아요. 최신 크롬이나 엣지에서 다시 열어주세요.";
+      } else {
+        msg = `카메라/마이크를 켤 수 없어요. (원인: ${name || "알 수 없음"}) 권한과 장치 연결을 확인한 뒤 '다시 연결'을 눌러주세요.`;
+      }
+      setCamError(msg);
+      setCamState("error");
     }
   }
 
   useEffect(() => {
     if (screen !== "interview") return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        // 녹화/타이머는 준비 화면에서 [면접 시작] → 카운트다운 이후에 시작한다
-      } catch (e) {
-        const name = e && e.name;
-        let msg;
-        if (name === "NotAllowedError" || name === "SecurityError") {
-          msg = "카메라·마이크 권한이 차단되어 있어요. 주소창 왼쪽 아이콘 → 카메라·마이크를 '허용'으로 바꾸고 새로고침해주세요.";
-        } else if (name === "NotFoundError" || name === "OverconstrainedError") {
-          msg = "카메라 또는 마이크 장치를 찾을 수 없어요. 웹캠·마이크가 연결되어 있는지 확인해주세요.";
-        } else if (name === "NotReadableError" || name === "AbortError") {
-          msg = "다른 프로그램(줌·디스코드·OBS 등)이 카메라를 사용 중이에요. 해당 프로그램을 끄고 새로고침해주세요.";
-        } else {
-          msg = `카메라/마이크를 켤 수 없습니다. (원인: ${name || "알 수 없음"}) 브라우저 권한과 장치 연결을 확인해주세요.`;
-        }
-        setCamError(msg);
-      }
-    })();
+    connectDevices();
     return () => {
-      cancelled = true;
+      camGenRef.current += 1; // 연결 중이던 요청 폐기
       stopTimer();
       stopTtsAudio(); // 화면 이탈 시 재생 중 뉴럴 오디오 정리 (objectURL revoke 포함)
       ttsCacheRef.current.clear(); // 질문별 mp3 캐시 해제 (세션마다 질문이 달라짐)
@@ -2131,11 +2320,53 @@ export default function App() {
         try { recorderRef.current.stop(); } catch (e) {}
       }
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current.getTracks().forEach((t) => { t.onended = null; t.stop(); });
         streamRef.current = null;
       }
+      setCamState("idle");
+      setReplaying(false);
+      setBusy(false); // 분석 대기 중 이탈해도 다음 면접 버튼이 막히지 않게
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
+
+  // 마이크 입력 막대: 실제 음량을 보여주고, 6초 넘게 소리가 없으면 안내한다
+  useEffect(() => {
+    if (screen !== "interview" || camState !== "ready" || !streamRef.current) return;
+    const stream = streamRef.current;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || stream.getAudioTracks().length === 0) return;
+    let ctx, raf = 0;
+    try {
+      ctx = new AC();
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      const src = ctx.createMediaStreamSource(stream);
+      const an = ctx.createAnalyser();
+      an.fftSize = 512;
+      src.connect(an);
+      const buf = new Uint8Array(an.fftSize);
+      let silentSince = performance.now();
+      let silentShown = false;
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+        const lvl = Math.min(1, Math.sqrt(sum / buf.length) * 6);
+        if (levelRef.current) levelRef.current.style.transform = `scaleX(${lvl.toFixed(3)})`;
+        const now = performance.now();
+        if (lvl > 0.04) silentSince = now;
+        const silent = now - silentSince > 6000;
+        if (silent !== silentShown) { silentShown = silent; setMicSilent(silent); }
+        raf = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch (e) { return; }
+    return () => {
+      cancelAnimationFrame(raf);
+      try { ctx.close(); } catch (e) {}
+      setMicSilent(false);
+    };
+  }, [screen, camState]);
 
   // ready ↔ live 전환 시 video 요소가 리마운트되므로 스트림을 다시 붙인다
   useEffect(() => {
@@ -2144,13 +2375,46 @@ export default function App() {
     }
   }, [screen, phase]);
 
-  // 이탈 보호: 면접 진행 중(1문항 이상 답변 완료 & 미저장)에는 새로고침/탭 닫기 경고
+  // 이탈 보호: 녹화를 시작했거나 분석·저장 중이거나 저장 못 한 결과가 있으면 새로고침/탭 닫기 경고
+  const interviewInProgress = screen === "interview" && (phase !== "ready" || busy || results.length > 0 || !!failedAnswer);
+  const resultUnsaved = screen === "result" && (saveState === "saving" || saveState === "error");
   useEffect(() => {
-    if (!(screen === "interview" && results.length > 0)) return;
+    if (!(interviewInProgress || resultUnsaved)) return;
     const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [screen, results.length]);
+  }, [interviewInProgress, resultUnsaved]);
+
+  // 화면이 바뀌면 맨 위로 + 제목에 포커스 (스크린리더·키보드 사용자가 새 화면을 바로 알 수 있게)
+  useEffect(() => {
+    if (firstScreenRef.current) { firstScreenRef.current = false; return; }
+    window.scrollTo(0, 0);
+    const raf = requestAnimationFrame(() => {
+      const h = document.querySelector(".smain h1, .smain h2");
+      if (h) {
+        if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+        try { h.focus({ preventScroll: true }); } catch (e) {}
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [screen]);
+
+  // 가이드 모달: Esc로 닫기 + 열릴 때 닫기 버튼에 포커스 + 닫으면 원래 버튼으로 포커스 복귀
+  useEffect(() => {
+    if (!showGuide) return;
+    const opener = document.activeElement;
+    const t = setTimeout(() => { if (guideCloseRef.current) guideCloseRef.current.focus(); }, 0);
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); setShowGuide(false); }
+      else if (e.key === "Tab") { e.preventDefault(); if (guideCloseRef.current) guideCloseRef.current.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("keydown", onKey);
+      if (opener && typeof opener.focus === "function") opener.focus();
+    };
+  }, [showGuide]);
 
   // 분석 대기 경과 시간(초) 카운터 (동기/비동기 경로 공통)
   useEffect(() => {
@@ -2298,6 +2562,7 @@ export default function App() {
         speakSeqRef.current += 1; // fetch 진행 중인 낭독도 폐기
         cancelSpeech();
         if (pendingStartRef.current) pendingStartRef.current(); // 낭독 대기 → 즉시 녹화
+        if (replayResumeRef.current) replayResumeRef.current(); // 다시 듣기 중 → 즉시 녹화 재개
       }
       return next;
     });
@@ -2377,6 +2642,9 @@ export default function App() {
 
   function startTimer() {
     setSeconds(0);
+    resumeTimer();
+  }
+  function resumeTimer() {
     stopTimer();
     timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
   }
@@ -2392,30 +2660,71 @@ export default function App() {
     return "";
   }
 
+  // 녹화 시작. 실패하면 false (답변 완료를 막고 '다시 답변'/재연결로 복구하게 한다)
   function startRecording() {
-    if (!streamRef.current) return;
-    chunksRef.current = [];
-    const mime = pickMime();
-    const rec = new MediaRecorder(streamRef.current, mime ? { mimeType: mime } : undefined);
-    rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
+    if (!streamRef.current) return false;
+    const chunks = [];
+    let rec;
+    try {
+      const mime = pickMime();
+      rec = new MediaRecorder(streamRef.current, mime ? { mimeType: mime } : undefined);
+      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      rec.onerror = () => {
+        if (recorderRef.current !== rec) return;
+        stopTimer();
+        setRecError("녹화 중 문제가 생겼어요. '다시 답변'을 눌러 이 질문을 다시 녹화해주세요.");
+      };
+      rec.start();
+    } catch (e) {
+      recorderRef.current = null;
+      stopTimer();
+      setRecError("녹화를 시작하지 못했어요. '다시 연결'로 카메라·마이크를 다시 켠 뒤 '다시 답변'을 눌러주세요.");
+      return false;
+    }
+    recChunksRef.current.set(rec, chunks);
     recorderRef.current = rec;
-    rec.start();
+    setRecError("");
+    return true;
   }
 
   function stopRecording(cb) {
     const rec = recorderRef.current;
     if (!rec || rec.state === "inactive") { cb && cb(null); return; }
     rec.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: rec.mimeType || "video/webm" });
+      const chunks = recChunksRef.current.get(rec) || [];
+      const blob = new Blob(chunks, { type: rec.mimeType || "video/webm" });
       cb && cb(blob);
     };
     rec.stop();
   }
 
-  // 배포 서버의 비동기 분석 잡 폴링: 3초 간격, 최대 5분
-  // done → result 반환(동기 응답과 동일 구조), failed/타임아웃 → { error } 반환
+  // 질문 다시 듣기: 낭독이 답변 녹음에 섞이지 않도록 그동안 녹화·타이머를 멈춘다
+  function replayQuestion() {
+    const rec = recorderRef.current;
+    const wasRecording = !!rec && rec.state === "recording";
+    if (wasRecording) { try { rec.pause(); } catch (e) {} stopTimer(); }
+    setReplaying(true);
+    let done = false;
+    const resume = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(guard);
+      if (replayResumeRef.current === resume) replayResumeRef.current = null;
+      if (wasRecording && rec.state === "paused" && recorderRef.current === rec) {
+        try { rec.resume(); } catch (e) {}
+        resumeTimer();
+      }
+      setReplaying(false);
+    };
+    const guard = setTimeout(resume, 45000); // 낭독이 끝났다는 신호가 안 와도 녹화는 다시 이어간다
+    replayResumeRef.current = resume;
+    speakQuestion(questions[qIndex], (status) => { if (status !== "started") resume(); });
+  }
+
+  // 배포 서버의 비동기 분석 잡 폴링: 3초 간격, 최대 10분 (워커 1대가 순서대로 처리)
+  // done → result 반환(동기 응답과 동일 구조), failed → { error }, 타임아웃 → { error, jobId } (같은 작업을 다시 조회 가능)
   async function pollAnalysisResult(jobId) {
-    const deadline = Date.now() + 5 * 60 * 1000;
+    const deadline = Date.now() + 10 * 60 * 1000;
     setAnalysisNote("분석 대기 중");
     try {
       while (Date.now() < deadline) {
@@ -2427,7 +2736,7 @@ export default function App() {
           });
           data = await res.json();
         } catch (e) {
-          if (isAuthExpired(e)) return { error: "로그인이 만료되어 분석 결과를 받지 못했습니다." };
+          if (isAuthExpired(e)) throw e; // 자동 로그아웃 처리됨
           continue; // 일시적 네트워크 오류는 다음 폴링에서 재시도
         }
         if (data && data.status === "done" && data.result) return data.result;
@@ -2439,7 +2748,7 @@ export default function App() {
           setAnalysisNote(ANALYSIS_STATUS_TEXT[data.status] || "피드백 생성 중");
         }
       }
-      return { error: "분석 대기 시간이 초과되었습니다. 잠시 후 다시 시도해주세요." };
+      return { error: "분석이 생각보다 오래 걸리고 있어요. '다시 분석'을 누르면 같은 답변의 결과를 이어서 기다려요.", jobId };
     } finally {
       setAnalysisNote("");
     }
@@ -2451,8 +2760,18 @@ export default function App() {
     form.append("question", questions[index] || "");
     form.append("job_role", jobRole);
     form.append("career", career); // 백엔드 계약: 경력 구분 전달 (미수신이어도 무해)
-    const res = await authFetch(`${API}/api/analyze-answer`, { method: "POST", body: form });
-    let data = await res.json();
+    const res = await authFetch(`${API}/api/analyze-answer`, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + token },
+      body: form,
+    });
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* 본문 없는 오류 응답 */ }
+    if (!res.ok) {
+      // 503(분석 서버 꺼짐)·413(영상 큼)·429(대기 많음) 등 서버가 알려준 이유를 그대로 보여준다
+      const detail = data && typeof data.detail === "string" ? data.detail : "";
+      return { question: questions[index], error: detail || "답변을 업로드하지 못했어요. 잠시 후 다시 시도해주세요." };
+    }
     // 배포 서버: 즉시 결과 대신 job_id가 오면 완료까지 폴링
     if (data && data.job_id != null && data.posture_score == null) {
       data = await pollAnalysisResult(data.job_id);
@@ -2461,23 +2780,31 @@ export default function App() {
   }
 
   async function saveSession(finalResults) {
+    if (savingRef.current) return; // 저장 중 중복 요청 방지
     // 분석에 실패한 문항은 저장에서 제외한다 (가짜 점수를 만들지 않는다)
     const valid = finalResults.filter((r) => !r.failed && !r.error && r.posture_score != null);
     if (valid.length === 0) {
       setSaveErr(true);
+      setSaveState("skipped");
       setSaveMsg("분석에 성공한 답변이 없어 이번 면접은 기록에 저장되지 않았습니다.");
       showToast("error", "분석에 성공한 답변이 없어 이번 면접은 기록에 저장되지 않았습니다.");
       return;
     }
+    // 측정하지 못한 점수는 0점이 아니라 null로 보낸다 (결과 화면과 같은 기준으로 평균)
+    const score = (v) => (typeof v === "number" && isFinite(v) ? Math.max(0, Math.min(100, Math.round(v))) : null);
+    savingRef.current = true;
+    setSaveState("saving");
+    setSaveErr(false);
+    setSaveMsg("면접 기록을 저장하고 있어요...");
     try {
       const payload = {
-        job, sub_job: sub, level,
+        job, sub_job: sub, level, career,
         ...(company.trim() ? { company: company.trim() } : {}),
         results: valid.map((r) => ({
           question: r.question || "",
           answer_stt: r.answer_text || "",
-          posture_score: Math.round(r.posture_score || 0),
-          content_score: Math.round(r.content_score || 0),
+          posture_score: score(r.posture_score),
+          content_score: score(r.content_score),
           feedback: (r.content && r.content.reasons) ? formatReasons(r.content.reasons) : "",
           model_answer: (r.content && r.content.model_answer) || "",
           duration_sec: typeof r.duration_sec === "number" ? Math.round(r.duration_sec) : 0,
@@ -2489,80 +2816,143 @@ export default function App() {
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      let data = null;
+      try { data = await res.json(); } catch (e) { /* 본문 없는 오류 응답 */ }
       if (res.ok) {
+        setSaveState("saved");
         setSaveErr(false);
-        setSaveMsg(`면접 기록이 저장되었습니다. (종합 ${data.total_score}점)`);
-        showToast("success", `면접 기록이 저장되었습니다. (종합 ${data.total_score}점)`);
+        const t = data && typeof data.total_score === "number" ? ` (종합 ${data.total_score}점)` : "";
+        setSaveMsg(`면접 기록이 저장되었습니다.${t}`);
+        showToast("success", `면접 기록이 저장되었습니다.${t}`);
       } else {
+        const detail = data && typeof data.detail === "string" ? data.detail : "잠시 후 다시 시도해주세요.";
+        setSaveState("error");
         setSaveErr(true);
-        setSaveMsg("기록 저장에 실패했습니다. " + (data.detail || "잠시 후 다시 시도해주세요."));
-        showToast("error", "기록 저장에 실패했습니다. " + (data.detail || "잠시 후 다시 시도해주세요."));
+        setSaveMsg("기록 저장에 실패했어요. " + detail);
+        showToast("error", "기록 저장에 실패했어요. " + detail);
       }
     } catch (e) {
-      if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
+      setSaveState("error");
       setSaveErr(true);
-      setSaveMsg("일시적인 문제로 기록을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
-      showToast("error", "일시적인 문제로 기록을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
+      setSaveMsg("일시적인 문제로 기록을 저장하지 못했어요. 아래 '다시 저장'을 눌러주세요.");
+      showToast("error", "일시적인 문제로 기록을 저장하지 못했어요.");
+    } finally {
+      savingRef.current = false;
     }
   }
 
+  // 답변 1개를 결과에 넣고 다음 질문(또는 결과 화면)으로 넘어간다
+  function finishAnswer(result, blob, answeredIndex, prevResults = results) {
+    // 세션 내 다시보기용 답변 영상 URL 보관 (결과 화면 이탈 시 revoke)
+    if (blob) {
+      try { result.videoUrl = URL.createObjectURL(blob); } catch (e) {}
+    }
+    const newResults = [...prevResults, result];
+    setResults(newResults);
+    setFailedAnswer(null);
+    setBusy(false);
+
+    const next = answeredIndex + 1;
+    if (next < questions.length) {
+      setQIndex(next);
+      qIndexRef.current = next;
+      // 다음 질문 녹화·타이머는 낭독 종료 후 useEffect에서 시작한다 (STT 오염 방지)
+    } else {
+      endInterview(newResults);
+    }
+  }
+
+  function endInterview(finalResults) {
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    setScreen("result");
+    saveSession(finalResults);
+  }
+
+  // 답변 분석 (jobId가 있으면 업로드 없이 기존 작업 결과를 이어서 기다린다)
+  async function runAnalysis(blob, index, jobId) {
+    const runId = runIdRef.current;
+    setFailedAnswer(null);
+    setBusy(true);
+    let result;
+    try {
+      if (jobId != null) {
+        result = { question: questions[index], ...(await pollAnalysisResult(jobId)) };
+      } else {
+        result = await sendForAnalysis(blob, index);
+      }
+    } catch (e) {
+      if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
+      result = { question: questions[index], error: "일시적으로 분석 서버에 연결할 수 없어요." };
+    }
+    if (runIdRef.current !== runId) return; // 면접 화면을 떠난 뒤 도착한 응답은 버린다
+
+    // 분석 실패: 가짜 점수를 만들지 않고, 같은 답변을 다시 분석·다시 답변·건너뛰기 중에서 고르게 한다
+    if (!result || result.error || result.posture_score == null) {
+      setBusy(false);
+      setFailedAnswer({
+        index,
+        blob,
+        jobId: result && result.jobId != null ? result.jobId : null,
+        reason: (result && result.error) || "답변을 분석하지 못했어요.",
+      });
+      return;
+    }
+    finishAnswer(result, blob, index);
+  }
+
   function handleDone() {
-    if (camError) return;
+    if (camError || busy || recError || replaying) return;
     setBusy(true);
     stopTimer();
     const answeredIndex = qIndexRef.current;
-
-    stopRecording(async (blob) => {
-      let result;
-      try {
-        result = blob ? await sendForAnalysis(blob, answeredIndex)
-                       : { question: questions[answeredIndex], error: "녹화된 영상이 없습니다." };
-      } catch (e) {
-        result = { question: questions[answeredIndex], error: "일시적으로 분석 서버에 연결할 수 없습니다." };
-      }
-
-      // 분석 실패 시 가짜 점수를 만들지 않고, '분석 실패' 상태로 정직하게 기록한다
-      if (result.error || result.posture_score == null) {
-        result = {
-          question: questions[answeredIndex],
-          failed: true,
-          failReason: result.error || "답변을 분석하지 못했습니다. 잠시 후 다시 시도해주세요.",
-        };
-      }
-
-      // 세션 내 다시보기용 답변 영상 URL 보관 (결과 화면 이탈 시 revoke)
-      if (blob) {
-        try { result.videoUrl = URL.createObjectURL(blob); } catch (e) {}
-      }
-
-      const newResults = [...results, result];
-      setResults(newResults);
-
-      const next = answeredIndex + 1;
-      if (next < questions.length) {
-        setQIndex(next);
-        qIndexRef.current = next;
-        // 다음 질문 녹화·타이머는 낭독 종료 후 useEffect에서 시작한다 (STT 오염 방지)
+    stopRecording((blob) => {
+      if (!blob || blob.size === 0) {
         setBusy(false);
-      } else {
-        if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
-        setBusy(false);
-        setScreen("result");
-        saveSession(newResults);
+        setFailedAnswer({ index: answeredIndex, blob: null, jobId: null, reason: "녹화된 영상이 없어요. '다시 답변'을 눌러 다시 녹화해주세요." });
+        return;
       }
+      runAnalysis(blob, answeredIndex, null);
     });
   }
 
-  function handleRedo() {
-    if (camError) return;
+  function retryAnalysis() {
+    const f = failedAnswer;
+    if (!f || (!f.blob && f.jobId == null)) return;
+    runAnalysis(f.blob, f.index, f.jobId);
+  }
+  function redoFailed() {
+    setFailedAnswer(null);
+    if (startRecording()) startTimer();
+  }
+  function skipFailed() {
+    const f = failedAnswer;
+    if (!f) return;
+    finishAnswer({ question: questions[f.index], failed: true, failReason: f.reason }, f.blob, f.index);
+  }
+
+  // 지금까지 분석된 답변만으로 면접을 끝내고 기록에 저장
+  function finishEarly() {
+    if (busy) return;
+    if (!window.confirm("지금까지 분석된 답변만 저장하고 면접을 마칠까요?\n진행 중인 질문의 녹화는 저장되지 않아요.")) return;
     const rec = recorderRef.current;
     if (rec && rec.state !== "inactive") { rec.onstop = null; try { rec.stop(); } catch (e) {} }
-    startRecording();
-    startTimer();
+    stopTimer();
+    cancelSpeech();
+    runIdRef.current += 1;
+    setFailedAnswer(null);
+    endInterview(results);
+  }
+
+  function handleRedo() {
+    if (camError || busy) return;
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") { rec.onstop = null; try { rec.stop(); } catch (e) {} }
+    if (startRecording()) startTimer();
   }
 
   function goHome() {
+    runIdRef.current += 1;
     stopTimer();
     if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -2598,7 +2988,7 @@ export default function App() {
     setNavHint("mock");
     // 저장된 자소서가 있으면 면접 설정의 자소서 탭에 자동 채움 (입력 중이던 내용은 유지)
     if (!resumeText.trim()) {
-      const s = loadSavedResume();
+      const s = loadSavedResume(userEmail);
       if (s) setResumeText(s.text);
     }
     setScreen("start");
@@ -2606,7 +2996,7 @@ export default function App() {
   const goResume = () => {
     setNavHint("resume");
     if (!resumeText.trim()) {
-      const s = loadSavedResume();
+      const s = loadSavedResume(userEmail);
       if (s) setResumeText(s.text);
     }
     setScreen("resume");
@@ -2622,6 +3012,7 @@ export default function App() {
         setSub(preset.sub && subs.includes(preset.sub) ? preset.sub : (subs[0] || ""));
       }
       if (preset.level && LEVEL_LABEL[preset.level]) setLevel(preset.level);
+      if (preset.career === "신입" || preset.career === "경력") setCareer(preset.career);
       setCompany(preset.company ? String(preset.company).trim() : "");
     }
     goMock();
@@ -2638,19 +3029,23 @@ export default function App() {
                 : "mock"; // start / loading / interview / result
 
   const NAV_ITEMS = [
-    { key: "home", label: "홈", icon: <IconHome />, go: goHomeNav },
-    { key: "mock", label: "모의면접", icon: <IconVideo />, go: goMock },
-    { key: "feedback", label: "피드백 분석", icon: <IconSpark size={17} />, go: goFeedback },
-    { key: "records", label: "나의 기록", icon: <IconClock />, go: goRecords },
-    { key: "resume", label: "자기소개서", icon: <IconDoc />, go: goResume },
-    { key: "settings", label: "설정", icon: <IconGear />, go: goSettings },
+    { key: "home", label: "홈", short: "홈", icon: <IconHome />, go: goHomeNav },
+    { key: "mock", label: "모의면접", short: "면접", icon: <IconVideo />, go: goMock },
+    { key: "feedback", label: "피드백 분석", short: "피드백", icon: <IconSpark size={17} />, go: goFeedback },
+    { key: "records", label: "나의 기록", short: "기록", icon: <IconClock />, go: goRecords },
+    { key: "resume", label: "자기소개서", short: "자소서", icon: <IconDoc />, go: goResume },
+    { key: "settings", label: "설정", short: "설정", icon: <IconGear />, go: goSettings },
   ];
 
-  // 면접 진행 중(1문항 이상 답변 & 미저장) 사이드바 이동 시 확인 한 번
+  // 면접 진행 중(녹화 시작·분석 중·답변 있음)이거나 결과를 아직 저장하지 못했으면 이동 전에 확인
+  // 이동하면 진행 중이던 질문 생성·분석 응답은 runId로 폐기한다
   const confirmLeaveInterview = () => {
-    if (screen === "interview" && results.length > 0) {
-      return window.confirm("면접이 진행 중입니다. 지금 나가면 이번 면접 내용이 저장되지 않아요. 정말 나갈까요?");
+    if (interviewInProgress) {
+      if (!window.confirm("면접이 진행 중이에요. 지금 나가면 이번 면접 내용이 저장되지 않아요. 정말 나갈까요?")) return false;
+    } else if (resultUnsaved) {
+      if (!window.confirm("면접 기록을 아직 저장하지 못했어요. 그래도 나갈까요?")) return false;
     }
+    runIdRef.current += 1;
     return true;
   };
 
@@ -2661,18 +3056,21 @@ export default function App() {
     return (
       <div className="shell">
         <aside className="sidebar">
-          <div className="logo" onClick={() => { if (confirmLeaveInterview()) goHomeNav(); }}>
+          <button type="button" className="logo" aria-label="코치코치 홈으로" onClick={() => { if (confirmLeaveInterview()) goHomeNav(); }}>
             <span className="mark"><BubbleLogoIcon /></span>
-            <span className="word"><span>코치</span><span className="w2">코치</span></span>
-          </div>
-          <nav className="snav">
+            <span className="word" aria-hidden="true"><span>코치</span><span className="w2">코치</span></span>
+          </button>
+          <nav className="snav" aria-label="주요 메뉴">
             {NAV_ITEMS.map((it) => (
               <button
                 key={it.key}
                 className={"snav-item" + (navActive === it.key ? " active" : "")}
+                aria-label={it.label}
+                aria-current={navActive === it.key ? "page" : undefined}
+                title={it.label}
                 onClick={() => { if (confirmLeaveInterview()) it.go(); }}
               >
-                {it.icon}<span className="lb">{it.label}</span>
+                {it.icon}<span className="lb">{it.label}</span><span className="lb-s" aria-hidden="true">{it.short}</span>
               </button>
             ))}
           </nav>
@@ -2794,12 +3192,13 @@ export default function App() {
               ) : (
                 <div className="setup-text">
                   <textarea
+                    aria-label="자기소개서 내용"
                     placeholder="여기에 자기소개서 내용을 붙여넣으세요..."
                     value={resumeText}
                     onChange={(e) => setResumeText(e.target.value)}
                   />
                   <div className="setup-text-foot">
-                    <span className="hint-l">저장하면 다음 면접 설정에도 자동으로 채워져요</span>
+                    <span className="hint-l">작성 중인 내용은 이 브라우저에 자동 보관돼요 · 저장하면 다음 면접 설정에도 채워져요</span>
                     <span className={"count" + (resumeText ? " on" : "")}>{resumeText.length.toLocaleString()}자</span>
                   </div>
                 </div>
@@ -2848,7 +3247,7 @@ export default function App() {
                       onChange={(e) => selectJob(e.target.value)}
                       aria-label="직무 선택"
                     >
-                      <option value="">{jobData ? "직무를 골라주세요" : "직무 불러오는 중..."}</option>
+                      <option value="">{jobData ? "직무를 골라주세요" : jobsErr ? "직무 목록을 불러오지 못했어요" : "직무 불러오는 중..."}</option>
                       {jobData && Object.keys(jobData).map((name) => (
                         <option key={name} value={name}>{name}</option>
                       ))}
@@ -2869,7 +3268,12 @@ export default function App() {
                     </select>
                   </label>
                 </div>
-                {!job && <div className="rs-job-hint">직무를 먼저 골라주세요. 고른 직무는 면접 설정에도 그대로 적용돼요.</div>}
+                {jobsErr && !jobData && (
+                  <div className="rs-job-hint err" role="alert">
+                    직무 목록을 불러오지 못했어요. <button type="button" className="link-btn" onClick={loadJobs}>다시 불러오기</button>
+                  </div>
+                )}
+                {!job && !jobsErr && <div className="rs-job-hint">직무를 먼저 골라주세요. 고른 직무는 면접 설정에도 그대로 적용돼요.</div>}
               </div>
 
               {rsQuestions.length === 0 ? (
@@ -2919,11 +3323,11 @@ export default function App() {
                     )}
                     <button
                       className="btn-primary"
-                      onClick={startWithResume}
-                      disabled={!rsSaved && !resumeText.trim()}
-                      title={!rsSaved && !resumeText.trim() ? "자기소개서를 먼저 저장해주세요" : undefined}
+                      onClick={() => startWithResume()}
+                      disabled={!resumeText.trim()}
+                      title={!resumeText.trim() ? "자기소개서를 먼저 입력해주세요" : undefined}
                     >
-                      이 자소서로 모의면접 시작
+                      작성 중인 자소서로 모의면접 시작
                     </button>
                   </div>
                 </>
@@ -2945,7 +3349,7 @@ export default function App() {
                     {rsSaved.text.slice(0, 140)}{rsSaved.text.length > 140 ? "…" : ""}
                   </div>
                   <div className="sr-actions">
-                    <button className="btn-ghost" onClick={() => { setResumeTab("text"); setResumeText(rsSaved.text); }}>
+                    <button className="btn-ghost" onClick={() => { if (!confirmReplaceResume(rsSaved.text)) return; setResumeTab("text"); setResumeText(rsSaved.text); }}>
                       편집기로 불러오기
                     </button>
                     <button className="btn-ghost" onClick={deleteSavedResume}>삭제</button>
@@ -2958,11 +3362,11 @@ export default function App() {
               )}
               <button
                 className="rail-start"
-                onClick={startWithResume}
+                onClick={() => { if (rsSaved) startWithResume(rsSaved.text); }}
                 disabled={!rsSaved}
                 title={!rsSaved ? "자기소개서를 먼저 저장해주세요" : undefined}
               >
-                이 자소서로 모의면접 시작 <IconArrowR size={15} />
+                저장된 자소서로 모의면접 시작 <IconArrowR size={15} />
               </button>
               {!rsSaved && <div className="rail-hint">자기소개서를 저장하면 시작할 수 있어요</div>}
               <div className="rail-tip">
@@ -3009,6 +3413,11 @@ export default function App() {
     // 3축 집계: 축 라벨 줄을 강점/개선으로 분류해 긍정 평가 비율 계산 (수치 점수가 응답에 있으면 그것을 우선)
     const strengthSet = [];
     const improveSet = [];
+    const improveAll = []; // 빈도 집계용 원본 (같은 지적이 여러 문항에 반복되면 그만큼 센다)
+    const pushAll = (arr, v) => {
+      const t = String(v).trim();
+      if (t && !t.includes("[object Object]")) arr.push(t);
+    };
     let fbLineCount = 0;
     const axisAgg = FB_AXES.map((a) => ({ ...a, pos: 0, neg: 0, total: 0, scores: [] }));
     const pushUniq = (arr, v) => {
@@ -3022,7 +3431,7 @@ export default function App() {
       const structI = r.content && Array.isArray(r.content.improvements) ? r.content.improvements
         : Array.isArray(r.improvements) ? r.improvements : null;
       if (structS) structS.forEach((s) => pushUniq(strengthSet, s));
-      if (structI) structI.forEach((s) => pushUniq(improveSet, s));
+      if (structI) structI.forEach((s) => { pushUniq(improveSet, s); pushAll(improveAll, s); });
       const numScores = r.content && r.content.scores && typeof r.content.scores === "object" && !Array.isArray(r.content.scores)
         ? r.content.scores : null;
       if (numScores) {
@@ -3039,7 +3448,7 @@ export default function App() {
           ? `${ln.label} · ${ln.text}`
           : ln.text;
         if (kind === "strength") pushUniq(strengthSet, withLabel);
-        else if (kind === "improve") pushUniq(improveSet, withLabel);
+        else if (kind === "improve") { pushUniq(improveSet, withLabel); pushAll(improveAll, withLabel); }
         if (ln.label) {
           const ax = axisAgg.find((a) => a.match.test(ln.label));
           if (ax) {
@@ -3071,7 +3480,7 @@ export default function App() {
     const issueCounts = FB_ISSUE_BUCKETS.map((b) => ({
       key: b.key,
       tip: b.tip,
-      count: improveSet.reduce(
+      count: improveAll.reduce(
         (a, t) => a + (b.words.some((w) => t.includes(w)) ? 1 : 0), 0
       ),
     })).filter((b) => b.count > 0).sort((a, b) => b.count - a.count).slice(0, 3);
@@ -3538,6 +3947,7 @@ export default function App() {
             자소서를 읽고 맞춤 질문을 만들고 있어요 · {qGenSeconds}초
           </div>
         )}
+        <button className="btn-secondary loading-cancel" onClick={cancelLoading}>취소하고 설정으로 돌아가기</button>
       </div>
     );
   }
@@ -3590,11 +4000,18 @@ export default function App() {
             </div>
           </div>
 
-          {saveMsg && <p className={"save-msg" + (saveErr ? " err" : "")}>{saveMsg}</p>}
+          {saveMsg && (
+            <p className={"save-msg" + (saveErr ? " err" : "")} role={saveErr ? "alert" : "status"}>
+              {saveState === "saving" && <BtnSpinner />}{saveMsg}
+            </p>
+          )}
+          {saveState === "error" && (
+            <button className="btn-primary save-retry" onClick={() => saveSession(results)}>기록 다시 저장</button>
+          )}
 
           <div className="rail-actions">
-            <button onClick={goHome} className="btn-primary">홈으로</button>
-            <button onClick={() => setScreen("growth")} className="btn-secondary">나의 성장 보기</button>
+            <button onClick={() => { if (confirmLeaveInterview()) goHome(); }} className="btn-primary">홈으로</button>
+            <button onClick={() => setScreen("growth")} className="btn-secondary" disabled={saveState === "saving"}>나의 성장 보기</button>
           </div>
           </aside>
 
@@ -3707,8 +4124,8 @@ export default function App() {
           ))}
 
           <div className="result-actions">
-            <button onClick={goHome} className="btn-primary">홈으로</button>
-            <button onClick={() => setScreen("growth")} className="btn-secondary">나의 성장 보기</button>
+            <button onClick={() => { if (confirmLeaveInterview()) goHome(); }} className="btn-primary">홈으로</button>
+            <button onClick={() => setScreen("growth")} className="btn-secondary" disabled={saveState === "saving"}>나의 성장 보기</button>
           </div>
           </div>
           </div>
@@ -3720,6 +4137,19 @@ export default function App() {
   if (screen === "interview") {
     const total = questions.length;
     const isLast = qIndex + 1 >= total;
+    // 지금 실제로 녹화 중인지 + 단계별 안내 문구 (낭독·녹화·다시 듣기·분석·실패를 구분)
+    const liveRecording = phase === "live" && !recPending && !replaying && !busy && !failedAnswer && !recError && !camError;
+    const liveStatus = recPending
+      ? { badge: "질문 듣는 중", msg: "낭독이 끝나면 녹화가 시작돼요 · 답변을 준비하세요", state: "질문을 듣고 있어요..." }
+      : replaying
+        ? { badge: "녹화 일시정지", msg: "질문을 다시 읽는 중이에요 · 끝나면 녹화가 이어져요", state: "질문을 다시 듣는 동안 녹화를 멈췄어요" }
+        : busy
+          ? { badge: "녹화 완료 · 분석 중", msg: "녹화를 마쳤어요 · 지금 말하는 내용은 녹음되지 않아요", state: "녹화를 마쳤어요 — 답변을 분석하고 있어요" }
+          : failedAnswer
+            ? { badge: "녹화 멈춤", msg: "오른쪽에서 다시 분석하거나 다시 답변할 수 있어요", state: "녹화가 멈춰 있어요" }
+            : recError
+              ? { badge: "녹화 오류", msg: "'다시 답변'을 눌러 다시 녹화해주세요", state: "녹화가 멈춰 있어요" }
+              : { badge: "REC", msg: "답변이 끝나면 아래 '답변 완료'를 눌러주세요", state: "답변을 녹화하고 있어요" };
 
     /* 녹화 전 준비 화면 (카메라 미리보기 + 안내) → 3-2-1 카운트다운 → 녹화 개시 */
     if (phase !== "live") {
@@ -3730,10 +4160,13 @@ export default function App() {
           <div className="imain ready-main">
             <div className="cam-area">
               {camError ? (
-                <div className="cam-error">{camError}</div>
+                <CamErrorPanel message={camError} onRetry={() => connectDevices()} />
               ) : (
                 <>
                   <video ref={videoRef} autoPlay muted playsInline></video>
+                  {camState === "connecting" && (
+                    <div className="count-overlay connecting" role="status"><span>카메라·마이크를 연결하고 있어요...<br />브라우저 권한 요청이 뜨면 '허용'을 눌러주세요</span></div>
+                  )}
                   {phase === "countdown" && (
                     <div className="count-overlay"><b>{countdown}</b><span>곧 녹화가 시작됩니다</span></div>
                   )}
@@ -3742,6 +4175,36 @@ export default function App() {
               )}
             </div>
             <div className="iside">
+              <div className="card">
+                <div className="card-t"><IconMic />마이크 확인</div>
+                <div className="hint-line">말해보세요. 막대가 움직이면 마이크가 정상이에요.</div>
+                <MicMeter barRef={levelRef} />
+                {micSilent && camState === "ready" && (
+                  <div className="mic-warn" role="alert">마이크 소리가 들어오지 않아요. 음소거나 입력 장치를 확인해주세요.</div>
+                )}
+                {(devices.cams.length > 1 || devices.mics.length > 1) && (
+                  <div className="dev-select">
+                    {devices.cams.length > 1 && (
+                      <label className="rs-sel">
+                        <span className="rs-sel-k">카메라</span>
+                        <select value={camId} onChange={(e) => { setCamId(e.target.value); connectDevices({ camId: e.target.value }); }} disabled={phase === "countdown"}>
+                          <option value="">기본 카메라</option>
+                          {devices.cams.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `카메라 ${i + 1}`}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {devices.mics.length > 1 && (
+                      <label className="rs-sel">
+                        <span className="rs-sel-k">마이크</span>
+                        <select value={micId} onChange={(e) => { setMicId(e.target.value); connectDevices({ micId: e.target.value }); }} disabled={phase === "countdown"}>
+                          <option value="">기본 마이크</option>
+                          {devices.mics.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `마이크 ${i + 1}`}</option>)}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="card">
                 <div className="card-t"><IconChatDots size={15} />AI 면접관</div>
                 <div className="av-ready-row">
@@ -3769,9 +4232,9 @@ export default function App() {
               <button
                 className="btn-done ready-start"
                 onClick={beginInterview}
-                disabled={!!camError || phase === "countdown"}
+                disabled={!!camError || camState !== "ready" || phase === "countdown"}
               >
-                {phase === "countdown" ? `${countdown}초 후 시작...` : "면접 시작"}
+                {phase === "countdown" ? `${countdown}초 후 시작...` : camState === "connecting" ? "카메라 연결 중..." : "면접 시작"}
               </button>
             </div>
           </div>
@@ -3788,7 +4251,14 @@ export default function App() {
               <div className="progress-fill" style={{ width: ((qIndex + 1) / total) * 100 + "%" }}></div>
             </div>
           </div>
-          <div className="timer"><span className="rec"></span>{mm}:{ss}</div>
+          <div className="ibar-right">
+            {results.length > 0 && !busy && (
+              <button className="ibar-end" onClick={finishEarly}>여기까지 저장하고 끝내기</button>
+            )}
+            <div className="timer" aria-label={`답변 시간 ${mm}분 ${ss}초`}>
+              <span className={"rec" + (liveRecording ? "" : " off")}></span>{mm}:{ss}
+            </div>
+          </div>
         </div>
 
         <div className="imain">
@@ -3815,37 +4285,31 @@ export default function App() {
                 </button>
                 <button
                   className="av-btn"
-                  onClick={() => speakQuestion(questions[qIndex])}
-                  disabled={ttsMuted || recPending}
-                  title="현재 질문을 다시 읽어드려요 (녹화는 멈추지 않아요)"
+                  onClick={replayQuestion}
+                  disabled={ttsMuted || recPending || replaying || busy || !!failedAnswer}
                 >
                   <IconReplay />
-                  <span>질문 다시 듣기</span>
+                  <span>{replaying ? "다시 읽는 중..." : "질문 다시 듣기"}</span>
                 </button>
+                <span className="av-hint">다시 듣는 동안 녹화는 잠시 멈춰요</span>
               </div>
             </div>
           </div>
 
           <div className="cam-area">
             {camError ? (
-              <div className="cam-error">{camError}</div>
+              <CamErrorPanel message={camError} onRetry={() => connectDevices()} after="다시 연결되면 '다시 답변'을 눌러 이 질문부터 이어가세요." />
             ) : (
               <>
                 <video ref={videoRef} autoPlay muted playsInline></video>
-                {recPending ? (
-                  <div className="cam-rec listening"><span className="d"></span>질문 듣는 중</div>
-                ) : (
-                  <div className="cam-rec"><span className="d"></span>REC</div>
-                )}
-                <div className="cam-msg">
-                  {recPending ? "낭독이 끝나면 녹화가 시작돼요 · 답변을 준비하세요" : "답변이 끝나면 아래 '답변 완료'를 눌러주세요"}
-                </div>
+                <div className={"cam-rec" + (liveRecording ? "" : " listening")}><span className="d"></span>{liveStatus.badge}</div>
+                <div className="cam-msg">{liveStatus.msg}</div>
               </>
             )}
           </div>
 
           <div className="iside">
-            <div className="card">
+            <div className="card tips-card">
               <div className="card-t"><IconTip />면접 팁</div>
               <div className="hint-line">
                 · 카메라(렌즈)를 면접관이라 생각하고 바라보세요<br />
@@ -3855,30 +4319,35 @@ export default function App() {
             </div>
             <div className="card">
               <div className="card-t"><IconMic />녹화 상태</div>
-              {recPending ? (
-                <div className="rec-state listen"><span className="d"></span>질문을 듣고 있어요...</div>
-              ) : (
-                <div className="rec-state"><span className="d"></span>답변을 녹화하고 있어요</div>
+              <div className={"rec-state" + (liveRecording ? "" : " listen")} role="status"><span className="d"></span>{liveStatus.state}</div>
+              <MicMeter barRef={levelRef} />
+              {micSilent && liveRecording && (
+                <div className="mic-warn" role="alert">마이크 소리가 들어오지 않아요. 음소거나 입력 장치를 확인해주세요.</div>
               )}
-              <div className="wave">
-                <span style={{ animationDelay: "0s" }}></span>
-                <span style={{ animationDelay: ".1s" }}></span>
-                <span style={{ animationDelay: ".2s" }}></span>
-                <span style={{ animationDelay: ".3s" }}></span>
-                <span style={{ animationDelay: ".15s" }}></span>
-                <span style={{ animationDelay: ".25s" }}></span>
-                <span style={{ animationDelay: ".05s" }}></span>
-                <span style={{ animationDelay: ".35s" }}></span>
+            </div>
+            {recError && <div className="mic-warn" role="alert">{recError}</div>}
+            {failedAnswer ? (
+              <div className="card fail-card" role="alert">
+                <div className="card-t">이 답변을 분석하지 못했어요</div>
+                <div className="hint-line">{failedAnswer.reason}</div>
+                <div className="fail-actions">
+                  {(failedAnswer.blob || failedAnswer.jobId != null) && (
+                    <button className="btn-done" onClick={retryAnalysis}>다시 분석</button>
+                  )}
+                  <button className="btn-redo" onClick={redoFailed} disabled={!!camError}>다시 답변</button>
+                  <button className="btn-redo" onClick={skipFailed}>건너뛰기</button>
+                </div>
               </div>
-            </div>
-            <div className="ictrl">
-              <button className="btn-redo" onClick={handleRedo} disabled={busy || recPending}>다시 답변</button>
-              <button className="btn-done" onClick={handleDone} disabled={busy || recPending}>
-                {busy ? <><BtnSpinner />분석 중...</> : isLast ? "면접 마치기" : "답변 완료"}
-              </button>
-            </div>
+            ) : (
+              <div className="ictrl">
+                <button className="btn-redo" onClick={handleRedo} disabled={busy || recPending || replaying || !!camError}>다시 답변</button>
+                <button className="btn-done" onClick={handleDone} disabled={busy || recPending || replaying || !!recError || !!camError}>
+                  {busy ? <><BtnSpinner />분석 중...</> : isLast ? "면접 마치기" : "답변 완료"}
+                </button>
+              </div>
+            )}
             {busy && (
-              <div className="analysis-note">
+              <div className="analysis-note" role="status">
                 <span className="d"></span>
                 {(analysisNote || "답변을 분석하고 있어요")} · {analysisSeconds}초 경과
               </div>
@@ -3892,6 +4361,17 @@ export default function App() {
   /* ===== 면접 설정 화면 ===== */
   if (screen === "start") {
     if (!jobData) {
+      if (jobsErr) {
+        return renderShell(
+          <div className="page">
+            <h1 className="page-title">면접 설정</h1>
+            <div className="dcard load-err" role="alert">
+              <p>직무 목록을 불러오지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해주세요.</p>
+              <button className="btn-primary" onClick={loadJobs}>직무 목록 다시 불러오기</button>
+            </div>
+          </div>
+        );
+      }
       return renderShell(<SetupSkeleton />);
     }
     const jobNames = Object.keys(jobData);
@@ -3947,18 +4427,22 @@ export default function App() {
                     onFocus={() => setDeptOpen(true)}
                     onKeyDown={handleDeptKey}
                     role="combobox"
+                    aria-label="학과 검색"
                     aria-expanded={deptOpen && deptQ !== ""}
                     aria-autocomplete="list"
+                    aria-controls="dept-listbox"
+                    aria-activedescendant={deptOpen && deptIdx >= 0 && deptResults[deptIdx] ? `dept-opt-${deptIdx}` : undefined}
                   />
                   {deptQuery.trim() !== "" && (
                     <button type="button" className="co-clear" onClick={() => { setDeptQuery(""); setDeptOpen(false); setDeptIdx(-1); }}>지우기</button>
                   )}
                   {deptOpen && deptQ !== "" && (
-                    <div className="co-suggest" role="listbox">
+                    <div className="co-suggest" role="listbox" id="dept-listbox" aria-label="학과 검색 결과">
                       {deptResults.length > 0 ? (
                         deptResults.map((d, i) => (
                           <div
                             key={d.name}
+                            id={`dept-opt-${i}`}
                             className={"co-sug-row" + (i === deptIdx ? " active" : "")}
                             role="option"
                             aria-selected={i === deptIdx}
@@ -4137,18 +4621,22 @@ export default function App() {
                 onFocus={() => setCoOpen(true)}
                 onKeyDown={handleCompanyKey}
                 role="combobox"
+                aria-label="지원 회사 입력"
                 aria-expanded={coOpen && coQuery !== ""}
                 aria-autocomplete="list"
+                aria-controls="company-listbox"
+                aria-activedescendant={coOpen && coIdx >= 0 && coResults[coIdx] ? `company-opt-${coIdx}` : undefined}
               />
               {company.trim() !== "" && (
                 <button type="button" className="co-clear" onClick={() => { setCompany(""); setCoOpen(false); setCoIdx(-1); }}>지우기</button>
               )}
               {coOpen && coQuery !== "" && (
-                <div className="co-suggest" role="listbox">
+                <div className="co-suggest" role="listbox" id="company-listbox" aria-label="회사 검색 결과">
                   {coResults.length > 0 ? (
                     coResults.map((c, i) => (
                       <div
                         key={c.name}
+                        id={`company-opt-${i}`}
                         className={"co-sug-row" + (i === coIdx ? " active" : "")}
                         role="option"
                         aria-selected={i === coIdx}
@@ -4278,12 +4766,13 @@ export default function App() {
             ) : (
               <div className="setup-text">
                 <textarea
+                  aria-label="자기소개서 내용"
                   placeholder="여기에 자기소개서 내용을 붙여넣으세요..."
                   value={resumeText}
                   onChange={(e) => setResumeText(e.target.value)}
                 />
                 <div className="setup-text-foot">
-                  <span className="hint-l">자기소개서를 붙여넣으면 내용 기반 맞춤 질문을 만들어드려요</span>
+                  <span className="hint-l">붙여넣으면 내용 기반 맞춤 질문을 만들어드려요 · 이 브라우저에 자동 보관돼요</span>
                   <span className={"count" + (resumeText ? " on" : "")}>{resumeText.length.toLocaleString()}자</span>
                 </div>
               </div>
@@ -4390,6 +4879,7 @@ export default function App() {
       }).length
     : 0;
   const totalCount = count != null ? count : (Array.isArray(historyData) ? historyData.length : null);
+  const statUnknown = dashErr && historyData == null; // 조회 실패: "0회"가 아니라 "-"로 표시
   const lastScore =
     Array.isArray(historyData) && historyData.length > 0 && typeof historyData[0].total_score === "number"
       ? historyData[0].total_score
@@ -4464,6 +4954,13 @@ export default function App() {
         <HeroIllust />
       </section>
 
+      {dashErr && (
+        <div className="dash-err" role="alert">
+          <span>면접 기록을 불러오지 못했어요. 아래 숫자가 실제와 다를 수 있어요.</span>
+          <button type="button" className="link-btn" onClick={() => setDashReload((n) => n + 1)}>다시 불러오기</button>
+        </div>
+      )}
+
       {/* 2. 기능 카드 4개 */}
       <section className="feature-row rise" style={{ "--ri": 1 }}>
         {FEATURES.map((f) => (
@@ -4498,14 +4995,14 @@ export default function App() {
                 <span className="chip lav"><IconVideo size={14} /></span>
                 <span className="mtxt">
                   <span className="mk">이번 주 면접</span>
-                  <span className="mv">{weeklyCount}회</span>
+                  <span className="mv">{statUnknown ? "-" : `${weeklyCount}회`}</span>
                 </span>
               </div>
               <div className="ms">
                 <span className="chip mint"><IconClock size={14} /></span>
                 <span className="mtxt">
                   <span className="mk">전체 누적</span>
-                  <span className="mv">{totalCount != null ? `${totalCount}회` : "0회"}</span>
+                  <span className="mv">{statUnknown ? "-" : totalCount != null ? `${totalCount}회` : "0회"}</span>
                 </span>
               </div>
               <div className="ms">
@@ -4572,6 +5069,10 @@ export default function App() {
           </div>
           {!dashLoaded && historyData == null ? (
             <SkelRecentRows n={3} />
+          ) : statUnknown ? (
+            <div className="dist-empty">
+              기록을 불러오지 못했어요. <button type="button" className="link-btn" onClick={() => setDashReload((n) => n + 1)}>다시 시도</button>
+            </div>
           ) : recentList.length === 0 ? (
             <div className="recent-empty2">
               <div className="re-t">아직 면접 기록이 없어요. 3단계면 시작할 수 있어요!</div>
@@ -4622,7 +5123,7 @@ export default function App() {
               </li>
             ))}
           </ol>
-          <button className="guide-btn" onClick={() => setShowGuide(true)}>가이드 보기 <IconArrowR size={13} /></button>
+          <button className="guide-btn" ref={guideBtnRef} onClick={() => setShowGuide(true)}>가이드 보기 <IconArrowR size={13} /></button>
           <StairsIllust />
         </div>
       </section>
@@ -4695,10 +5196,10 @@ export default function App() {
       {/* 면접 이용 가이드 모달 */}
       {showGuide && (
         <div className="modal-overlay" onClick={() => setShowGuide(false)}>
-          <div className="dcard guide-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="dcard guide-modal" role="dialog" aria-modal="true" aria-labelledby="guide-title" onClick={(e) => e.stopPropagation()}>
             <div className="dcard-head">
-              <div className="dcard-t">면접 이용 가이드</div>
-              <button className="gm-close" onClick={() => setShowGuide(false)}>닫기</button>
+              <h2 className="dcard-t" id="guide-title">면접 이용 가이드</h2>
+              <button className="gm-close" ref={guideCloseRef} onClick={() => setShowGuide(false)}>닫기</button>
             </div>
             <ol className="gm-steps">
               <li>

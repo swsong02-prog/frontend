@@ -285,6 +285,23 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
     ? `${pathOf(primary.key)} L ${x(n - 1).toFixed(1)} ${(PT + ih).toFixed(1)} L ${x(0).toFixed(1)} ${(PT + ih).toFixed(1)} Z`
     : "";
 
+  // 방향키로 회차 이동 (키보드 사용자도 툴팁 값 확인)
+  const onKey = (e) => {
+    if (n === 0) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      setHover((h) => {
+        const cur = h == null ? n - 1 : h;
+        if (e.key === "Home") return 0;
+        if (e.key === "End") return n - 1;
+        return e.key === "ArrowRight" ? Math.min(n - 1, cur + 1) : Math.max(0, cur - 1);
+      });
+    } else if (e.key === "Escape") {
+      setHover(null);
+    }
+  };
+  const onTouch = (e) => { if (e.touches && e.touches[0]) onMove(e.touches[0]); };
+
   const onMove = (e) => {
     const svg = svgRef.current;
     if (!svg || n === 0) return;
@@ -335,8 +352,12 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
     <div className="chart-wrap lc-wrap">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel}
+        viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${ariaLabel} (방향키로 회차별 점수 확인)`}
+        tabIndex={n > 0 ? 0 : undefined}
         onMouseMove={onMove} onMouseLeave={() => setHover(null)}
+        onTouchStart={onTouch} onTouchMove={onTouch}
+        onFocus={() => setHover((h) => (h == null && n > 0 ? n - 1 : h))} onBlur={() => setHover(null)}
+        onKeyDown={onKey}
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -407,6 +428,21 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
 
         {tip}
       </svg>
+      {/* 스크린리더용: 차트와 같은 값을 표로 제공 */}
+      <table className="sr-only">
+        <caption>{ariaLabel}</caption>
+        <thead>
+          <tr><th scope="col">회차</th>{series.map((s) => <th scope="col" key={s.key}>{s.label}</th>)}</tr>
+        </thead>
+        <tbody>
+          {points.map((p, i) => (
+            <tr key={p.round ?? i}>
+              <th scope="row">{p.round}회차{p.created_at ? ` (${fmtMD(p.created_at)})` : ""}</th>
+              {series.map((s) => <td key={s.key}>{typeof p[s.key] === "number" ? `${p[s.key]}점` : "-"}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
