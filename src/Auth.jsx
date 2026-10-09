@@ -23,7 +23,7 @@ function AuthIllust() {
           <stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E4E9F7" />
         </linearGradient>
         <linearGradient id="ccAuTie" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
+          <stop offset="0" stopColor="#4C93F7" /><stop offset="1" stopColor="#4453D6" />
         </linearGradient>
       </defs>
 
@@ -35,7 +35,7 @@ function AuthIllust() {
       {/* 좌측 문서 데코 */}
       <g>
         <rect x="14" y="58" width="44" height="56" rx="10" fill="#DCE2FF" />
-        <line x1="23" y1="72" x2="49" y2="72" stroke="#4757D8" strokeWidth="2.8" strokeLinecap="round" />
+        <line x1="23" y1="72" x2="49" y2="72" stroke="#1B64DA" strokeWidth="2.8" strokeLinecap="round" />
         <line x1="23" y1="83" x2="49" y2="83" stroke="#8A97FF" strokeWidth="2.8" strokeLinecap="round" />
         <line x1="23" y1="94" x2="41" y2="94" stroke="#8A97FF" strokeWidth="2.8" strokeLinecap="round" />
       </g>
@@ -44,7 +44,7 @@ function AuthIllust() {
       <g>
         <rect x="178" y="42" width="52" height="40" rx="14" fill="#FFFFFF" />
         <path d="M186 80 L181 93 L198 82 Z" fill="#FFFFFF" />
-        <path d="M193 61 l6 6 l12 -12" stroke="#4757D8" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M193 61 l6 6 l12 -12" stroke="#1B64DA" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </g>
 
       {/* 정장 면접자 상반신 (소프트 3D: 그라데이션 볼륨 + 하이라이트 + 홍조 + 바닥 그림자) */}
@@ -72,7 +72,7 @@ function AuthIllust() {
         {/* 손에 든 서류 */}
         <g transform="rotate(8 40 116)">
           <rect x="22" y="104" width="34" height="24" rx="5" fill="url(#ccAuShirt)" />
-          <line x1="28" y1="112" x2="50" y2="112" stroke="#7B8CFF" strokeWidth="2.4" strokeLinecap="round" />
+          <line x1="28" y1="112" x2="50" y2="112" stroke="#4C93F7" strokeWidth="2.4" strokeLinecap="round" />
           <line x1="28" y1="119" x2="44" y2="119" stroke="#A9B6F2" strokeWidth="2.4" strokeLinecap="round" />
         </g>
         <circle cx="44" cy="123" r="8" fill="url(#ccAuFace)" />

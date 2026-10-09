@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import Auth from "./Auth";
 import Growth from "./Growth";
 import { searchCompanies } from "./companies";
+import DreamCompanies from "./DreamCompanies";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 import {
   prefersReducedMotion, CountUp, ArcProgress, AnimatedBar, keyActivate,
@@ -88,20 +89,27 @@ const TIPS = [
   "어깨를 펴고 미소를 유지하면 자신감이 전달돼요.",
 ];
 
+/* 질문 준비 화면: 기다리는 동안 4초마다 면접 팁을 돌려 보여준다 */
+function RotatingTip() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setI((n) => (n + 1) % TIPS.length), 4000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <div className="load-tip" aria-live="off">
+      <span className="lt-k">면접 팁</span>
+      <span key={i} className="lt-v">{TIPS[i]}</span>
+    </div>
+  );
+}
+
 /* AI 코치 카드: 최근 세션에 개선점 데이터가 없을 때 보여줄 정직한 정적 팁 */
 const COACH_STATIC_TIPS = [
   "답변 첫 문장에 결론부터 말해보세요.",
   "시선은 카메라 렌즈에 두면 안정적으로 보여요.",
 ];
 const COACH_DEFAULT_LINE = "결론부터 말하고, 구체적인 경험을 근거로 덧붙여보세요. 오늘 한 문항 연습이면 충분해요.";
-
-/* 가이드 카드: 4단계 학습 로드맵 (정적 안내) */
-const GUIDE_STEPS = [
-  { t: "직무·자소서 설정", d: "직무를 고르고 자기소개서를 붙여넣어요" },
-  { t: "모의면접 응시", d: "웹캠 앞에서 실전처럼 답변해요" },
-  { t: "AI 피드백 확인", d: "자세·내용 점수와 개선점을 받아요" },
-  { t: "성장 곡선 추적", d: "회차별 점수 변화를 확인해요" },
-];
 
 /* 면접 전 체크리스트 (정적 실용 체크, 체크 상태만 localStorage에 저장) */
 const CHECKLIST_ITEMS = [
@@ -656,9 +664,9 @@ function BubbleLogoIcon({ size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M12 3C6.9 3 3 6.4 3 10.7c0 2.5 1.3 4.7 3.4 6.1l-.9 3.5c-.1.5.4.9.8.6l3.9-2.2c.6.1 1.2.2 1.8.2 5.1 0 9-3.4 9-7.7S17.1 3 12 3z" fill="#FFFFFF" />
-      <circle cx="8.6" cy="10.9" r="1.15" fill="#5A6CF3" />
-      <circle cx="12" cy="10.9" r="1.15" fill="#5A6CF3" />
-      <circle cx="15.4" cy="10.9" r="1.15" fill="#5A6CF3" />
+      <circle cx="8.6" cy="10.9" r="1.15" fill="#3182F6" />
+      <circle cx="12" cy="10.9" r="1.15" fill="#3182F6" />
+      <circle cx="15.4" cy="10.9" r="1.15" fill="#3182F6" />
     </svg>
   );
 }
@@ -707,7 +715,7 @@ function HeroIllust() {
           <stop offset="0" stopColor="#EEF2FF" /><stop offset="1" stopColor="#C0CCFA" />
         </linearGradient>
         <linearGradient id="ccTie" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
+          <stop offset="0" stopColor="#4C93F7" /><stop offset="1" stopColor="#4453D6" />
         </linearGradient>
       </defs>
 
@@ -725,7 +733,7 @@ function HeroIllust() {
         <path d="M178 66 L170 82 L192 69 Z" fill="#FFFFFF" />
         <circle cx="188" cy="47" r="4" fill="#98A5FF" />
         <circle cx="202" cy="47" r="4" fill="#6B7CFF" />
-        <circle cx="216" cy="47" r="4" fill="#4757D8" />
+        <circle cx="216" cy="47" r="4" fill="#1B64DA" />
       </g>
 
       {/* 목 */}
@@ -748,7 +756,7 @@ function HeroIllust() {
       <g transform="rotate(-7 122 174)">
         <rect x="96" y="158" width="56" height="36" rx="7" fill="url(#ccTab)" />
         <rect x="96" y="158" width="56" height="36" rx="7" fill="none" stroke="#A9B6F2" strokeWidth="1.4" />
-        <line x1="105" y1="169" x2="139" y2="169" stroke="#7B8CFF" strokeWidth="3" strokeLinecap="round" />
+        <line x1="105" y1="169" x2="139" y2="169" stroke="#4C93F7" strokeWidth="3" strokeLinecap="round" />
         <line x1="105" y1="178" x2="129" y2="178" stroke="#A9B6F2" strokeWidth="3" strokeLinecap="round" />
         <ellipse cx="106" cy="163" rx="6" ry="2.4" fill="#FFFFFF" opacity="0.7" transform="rotate(-14 106 163)" />
       </g>
@@ -781,210 +789,6 @@ function HeroIllust() {
   );
 }
 
-/* 2. 사이드바 마스코트: 정장 면접자 (히어로와 동일 인물, 한 손 인사) */
-function MascotIllust() {
-  return (
-    <svg viewBox="0 0 150 140" fill="none" aria-hidden="true" className="mascot-illust">
-      <defs>
-        <linearGradient id="ccMiSuit" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#3B486C" /><stop offset="1" stopColor="#212B4B" />
-        </linearGradient>
-        <linearGradient id="ccMiArm" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#4A5680" /><stop offset="1" stopColor="#2C3757" />
-        </linearGradient>
-        <radialGradient id="ccMiFace" cx="0.38" cy="0.3" r="1">
-          <stop offset="0" stopColor="#FFE7D3" /><stop offset="1" stopColor="#F4C09B" />
-        </radialGradient>
-        <linearGradient id="ccMiHair" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#3D455F" /><stop offset="1" stopColor="#1F2539" />
-        </linearGradient>
-        <linearGradient id="ccMiShirt" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E4E9F7" />
-        </linearGradient>
-        <linearGradient id="ccMiTie" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
-        </linearGradient>
-      </defs>
-      {/* 바닥 그림자 */}
-      <ellipse cx="75" cy="131" rx="42" ry="7" fill="rgba(90,108,243,.16)" />
-      {/* 흔드는 팔(뒤) */}
-      <path d="M108 92 Q127 78 127 52" stroke="url(#ccMiArm)" strokeWidth="14" strokeLinecap="round" fill="none" />
-      <circle cx="128" cy="46" r="9" fill="url(#ccMiFace)" />
-      {/* 목 */}
-      <rect x="67" y="72" width="16" height="16" rx="7" fill="#EFB58E" />
-      {/* 몸통(정장) */}
-      <path d="M40 131 C40 98 54 85 75 85 C96 85 110 98 110 131 Z" fill="url(#ccMiSuit)" />
-      <ellipse cx="58" cy="97" rx="10" ry="5" fill="#FFFFFF" opacity="0.08" transform="rotate(-26 58 97)" />
-      {/* 셔츠 */}
-      <path d="M64 88 L75 113 L86 88 Q75 82 64 88 Z" fill="url(#ccMiShirt)" />
-      {/* 라펠 */}
-      <path d="M64 87 L75 101 L58 99 Z" fill="#182140" />
-      <path d="M86 87 L75 101 L92 99 Z" fill="#182140" />
-      {/* 넥타이 */}
-      <path d="M75 99 L79.5 106 L75 126 L70.5 106 Z" fill="url(#ccMiTie)" />
-      <ellipse cx="73.5" cy="103" rx="1.5" ry="2.2" fill="#FFFFFF" opacity="0.35" />
-      {/* 내린 팔 */}
-      <path d="M45 100 Q37 111 43 120" stroke="url(#ccMiArm)" strokeWidth="13" strokeLinecap="round" fill="none" />
-      <circle cx="44" cy="123" r="8" fill="url(#ccMiFace)" />
-      {/* 귀 */}
-      <circle cx="46" cy="56" r="5.5" fill="#F2BA92" />
-      <circle cx="104" cy="56" r="5.5" fill="#F2BA92" />
-      {/* 얼굴 */}
-      <circle cx="75" cy="52" r="30" fill="url(#ccMiFace)" />
-      {/* 머리카락 */}
-      <path d="M45 54 C44.4 29 57.5 19 75 19 C92.5 19 105.6 29 105 54 C104 40.5 96.7 32 75 32 C53.3 32 46 40.5 45 54 Z" fill="url(#ccMiHair)" />
-      <ellipse cx="61" cy="26" rx="7.5" ry="3" fill="#FFFFFF" opacity="0.16" transform="rotate(-16 61 26)" />
-      {/* 눈썹/눈 */}
-      <path d="M58 45 q4 -2.5 8 -1" stroke="#2A3148" strokeWidth="2" strokeLinecap="round" fill="none" />
-      <path d="M84 44 q4 -1.5 8 1" stroke="#2A3148" strokeWidth="2" strokeLinecap="round" fill="none" />
-      <circle cx="63" cy="53" r="3" fill="#2A3148" />
-      <circle cx="87" cy="53" r="3" fill="#2A3148" />
-      <circle cx="64" cy="52" r="0.9" fill="#FFFFFF" />
-      <circle cx="88" cy="52" r="0.9" fill="#FFFFFF" />
-      {/* 미소 */}
-      <path d="M66 63 Q75 70.5 84 63" stroke="#C96F4A" strokeWidth="2.4" strokeLinecap="round" fill="none" />
-      {/* 뺨 홍조 */}
-      <ellipse cx="56" cy="61" rx="4.6" ry="3" fill="#FFB9A0" opacity="0.8" />
-      <ellipse cx="94" cy="61" rx="4.6" ry="3" fill="#FFB9A0" opacity="0.8" />
-      {/* 얼굴 하이라이트 */}
-      <ellipse cx="60" cy="39" rx="6" ry="3" fill="#FFFFFF" opacity="0.35" transform="rotate(-20 60 39)" />
-    </svg>
-  );
-}
-
-/* 3. AI 코치 로봇 (흰 몸통 + 블루 스크린 얼굴, 인사) */
-function RobotIllust() {
-  return (
-    <svg viewBox="0 0 130 140" fill="none" aria-hidden="true" className="robot-illust">
-      <defs>
-        <radialGradient id="ccRBody" cx="0.36" cy="0.3" r="1">
-          <stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#DFE5F4" />
-        </radialGradient>
-        <linearGradient id="ccRScreen" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#333D6E" /><stop offset="1" stopColor="#1C2340" />
-        </linearGradient>
-        <linearGradient id="ccRBlue" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
-        </linearGradient>
-      </defs>
-      {/* 바닥 그림자 */}
-      <ellipse cx="65" cy="132" rx="38" ry="6" fill="rgba(90,108,243,.16)" />
-      {/* 흔드는 팔 */}
-      <path d="M96 92 Q113 84 115 66" stroke="#E9EDF8" strokeWidth="11" strokeLinecap="round" fill="none" />
-      <circle cx="116" cy="62" r="7" fill="url(#ccRBody)" />
-      {/* 내린 팔 */}
-      <path d="M35 94 Q28 102 31 111" stroke="#E9EDF8" strokeWidth="10" strokeLinecap="round" fill="none" />
-      <circle cx="32" cy="113" r="6" fill="url(#ccRBody)" />
-      {/* 발 */}
-      <rect x="46" y="119" width="16" height="10" rx="5" fill="#CBD3EA" />
-      <rect x="68" y="119" width="16" height="10" rx="5" fill="#CBD3EA" />
-      {/* 몸통 */}
-      <rect x="38" y="80" width="54" height="44" rx="20" fill="url(#ccRBody)" />
-      <circle cx="65" cy="101" r="11" fill="url(#ccRBlue)" />
-      <circle cx="61" cy="97" r="2.6" fill="#FFFFFF" opacity="0.55" />
-      {/* 안테나 */}
-      <line x1="65" y1="20" x2="65" y2="30" stroke="#A9B3D6" strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="65" cy="15" r="5" fill="url(#ccRBlue)" />
-      <circle cx="63.4" cy="13.4" r="1.4" fill="#FFFFFF" opacity="0.7" />
-      {/* 이어캡 */}
-      <circle cx="28" cy="53" r="7" fill="url(#ccRBlue)" />
-      <circle cx="102" cy="53" r="7" fill="url(#ccRBlue)" />
-      {/* 머리 */}
-      <rect x="30" y="28" width="70" height="50" rx="22" fill="url(#ccRBody)" />
-      <ellipse cx="46" cy="36" rx="9" ry="4" fill="#FFFFFF" opacity="0.75" transform="rotate(-14 46 36)" />
-      {/* 스크린 얼굴 */}
-      <rect x="40" y="38" width="50" height="32" rx="14" fill="url(#ccRScreen)" />
-      <circle cx="56" cy="52" r="3.4" fill="#9FE8FF" />
-      <circle cx="74" cy="52" r="3.4" fill="#9FE8FF" />
-      <path d="M58 60 Q65 65 72 60" stroke="#9FE8FF" strokeWidth="2.4" strokeLinecap="round" fill="none" />
-      {/* 뺨 홍조(스크린 위) */}
-      <ellipse cx="49" cy="58" rx="3.4" ry="2.2" fill="#FF9FB0" opacity="0.65" />
-      <ellipse cx="81" cy="58" rx="3.4" ry="2.2" fill="#FF9FB0" opacity="0.65" />
-    </svg>
-  );
-}
-
-/* 4. 가이드 카드: 큐브 계단 + 깃발 */
-function StairsIllust() {
-  const cube = (cx, topY, h, top, left, right, key) => {
-    const w = 26, dy = 13;
-    return (
-      <g key={key}>
-        <polygon points={`${cx - w},${topY} ${cx},${topY - dy} ${cx + w},${topY} ${cx},${topY + dy}`} fill={top} />
-        <polygon points={`${cx - w},${topY} ${cx},${topY + dy} ${cx},${topY + dy + h} ${cx - w},${topY + h}`} fill={left} />
-        <polygon points={`${cx + w},${topY} ${cx},${topY + dy} ${cx},${topY + dy + h} ${cx + w},${topY + h}`} fill={right} />
-        <polyline points={`${cx - w},${topY} ${cx},${topY - dy} ${cx + w},${topY}`} fill="none" stroke="#FFFFFF" strokeWidth="1.4" opacity="0.5" strokeLinejoin="round" />
-      </g>
-    );
-  };
-  return (
-    <svg viewBox="0 0 210 150" fill="none" aria-hidden="true" className="stairs-illust">
-      <defs>
-        <linearGradient id="ccFlag" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FFB25E" /><stop offset="1" stopColor="#F58A2E" />
-        </linearGradient>
-      </defs>
-      {/* 구름 */}
-      <g fill="#FFFFFF" opacity="0.9">
-        <ellipse cx="30" cy="42" rx="14" ry="7" /><ellipse cx="42" cy="38" rx="9" ry="6" />
-      </g>
-      <g fill="#FFFFFF" opacity="0.75">
-        <ellipse cx="112" cy="20" rx="12" ry="6" /><ellipse cx="122" cy="17" rx="8" ry="5" />
-      </g>
-      {/* 나무 점경 */}
-      <rect x="16" y="116" width="5" height="14" rx="2" fill="#B98A5E" />
-      <circle cx="18.5" cy="108" r="10" fill="#86D9AC" />
-      <circle cx="12" cy="112" r="6.5" fill="#5FC493" />
-      {/* 바닥 그림자 */}
-      <ellipse cx="112" cy="144" rx="86" ry="6" fill="rgba(110,96,235,.14)" />
-      {/* 큐브 계단 3단 */}
-      {cube(56, 104, 32, "#DFE3FF", "#A4ADFA", "#7883EE", "s1")}
-      {cube(108, 78, 58, "#D3D8FF", "#96A0F7", "#6A76E9", "s2")}
-      {cube(160, 52, 84, "#C8CEFF", "#8A94F4", "#5D69E5", "s3")}
-      {/* 깃발 */}
-      <line x1="160" y1="42" x2="160" y2="8" stroke="#8B93B8" strokeWidth="3" strokeLinecap="round" />
-      <path d="M161 9 L190 16.5 L161 24 Z" fill="url(#ccFlag)" />
-      {/* 반짝임 */}
-      <path d="M188 66 v8 M184 70 h8" stroke="#B9C0FF" strokeWidth="2" strokeLinecap="round" />
-      <path d="M74 24 v6 M71 27 h6" stroke="#C9CFFF" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/* 5. 하단 배너: 과녁 + 다트 */
-function TargetIllust() {
-  return (
-    <svg viewBox="0 0 130 120" fill="none" aria-hidden="true" className="target-illust">
-      <defs>
-        <radialGradient id="ccTRed" cx="0.38" cy="0.32" r="1">
-          <stop offset="0" stopColor="#FF7B72" /><stop offset="1" stopColor="#DE4747" />
-        </radialGradient>
-        <linearGradient id="ccDart" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
-        </linearGradient>
-      </defs>
-      {/* 바닥 그림자 */}
-      <ellipse cx="65" cy="110" rx="42" ry="7" fill="rgba(90,108,243,.14)" />
-      {/* 스탠드 */}
-      <path d="M52 106 L60 88 M78 106 L70 88" stroke="#C2C9E2" strokeWidth="5" strokeLinecap="round" />
-      {/* 과녁판 (뒤 림 + 앞판) */}
-      <circle cx="66" cy="57" r="40" fill="#B93A40" />
-      <circle cx="64" cy="54" r="40" fill="url(#ccTRed)" />
-      <circle cx="64" cy="54" r="30" fill="#FFF6F4" />
-      <circle cx="64" cy="54" r="20.5" fill="#EF5A55" />
-      <circle cx="64" cy="54" r="11.5" fill="#FFF6F4" />
-      <circle cx="64" cy="54" r="5" fill="#E04848" />
-      {/* 하이라이트 아크 */}
-      <path d="M34 40 A 36 36 0 0 1 56 20" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" opacity="0.55" fill="none" />
-      {/* 다트 */}
-      <line x1="64" y1="54" x2="94" y2="27" stroke="#33406B" strokeWidth="3.6" strokeLinecap="round" />
-      <path d="M92 29 L108 13 L111 26 L98 36 Z" fill="url(#ccDart)" />
-      <path d="M92 29 L104 33 L96 40 Z" fill="#38449E" />
-      <circle cx="64" cy="54" r="2.4" fill="#FFFFFF" />
-    </svg>
-  );
-}
-
 /* 6. 설정 히어로: 클립보드를 든 정장 면접자 + 물음표 말풍선 (히어로와 동일 인물) */
 function SetupBearIllust() {
   return (
@@ -1006,7 +810,7 @@ function SetupBearIllust() {
           <stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E4E9F7" />
         </linearGradient>
         <linearGradient id="ccSiTie" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
+          <stop offset="0" stopColor="#4C93F7" /><stop offset="1" stopColor="#4453D6" />
         </linearGradient>
         <linearGradient id="ccSiBoard" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E9EDFC" />
@@ -1019,8 +823,8 @@ function SetupBearIllust() {
       <g>
         <circle cx="128" cy="42" r="13" fill="#FFFFFF" />
         <path d="M120 52 L114 61 L126 55 Z" fill="#FFFFFF" />
-        <path d="M124.5 38.5a3.5 3.5 0 1 1 5 3.2c-1 .5-1.5 1-1.5 2.1" stroke="#5A6CF3" strokeWidth="2" strokeLinecap="round" fill="none" />
-        <circle cx="128" cy="47.6" r="1.3" fill="#5A6CF3" />
+        <path d="M124.5 38.5a3.5 3.5 0 1 1 5 3.2c-1 .5-1.5 1-1.5 2.1" stroke="#3182F6" strokeWidth="2" strokeLinecap="round" fill="none" />
+        <circle cx="128" cy="47.6" r="1.3" fill="#3182F6" />
       </g>
       {/* 귀 */}
       <circle cx="46" cy="58" r="5.5" fill="#F2BA92" />
@@ -1067,7 +871,7 @@ function SetupBearIllust() {
         <rect x="67" y="95" width="16" height="9" rx="4" fill="#98A5FF" />
         <polyline points="59 111 63 115 70 107" stroke="#35C08E" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         <line x1="76" y1="111" x2="91" y2="111" stroke="#C3CCF2" strokeWidth="3" strokeLinecap="round" />
-        <line x1="59" y1="123" x2="91" y2="123" stroke="#7B8CFF" strokeWidth="3" strokeLinecap="round" />
+        <line x1="59" y1="123" x2="91" y2="123" stroke="#4C93F7" strokeWidth="3" strokeLinecap="round" />
         <line x1="59" y1="131" x2="83" y2="131" stroke="#C3CCF2" strokeWidth="3" strokeLinecap="round" />
       </g>
       {/* 손 */}
@@ -1175,7 +979,7 @@ function InterviewerAvatar({ state = "idle", size = 132 }) {
             <stop offset="0" stopColor="#FFFFFF" /><stop offset="1" stopColor="#E4E9F7" />
           </linearGradient>
           <linearGradient id="ccAvTie" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#7B8CFF" /><stop offset="1" stopColor="#4453D6" />
+            <stop offset="0" stopColor="#4C93F7" /><stop offset="1" stopColor="#4453D6" />
           </linearGradient>
         </defs>
         {/* 목 */}
@@ -1291,7 +1095,7 @@ function CareerIllust() {
       <rect x="37" y="41" width="10" height="9" rx="2.5" fill="#FFFFFF" opacity="0.92" />
       <ellipse cx="24" cy="36" rx="7" ry="3" fill="#FFFFFF" opacity="0.3" transform="rotate(-18 24 36)" />
       {/* 메달 리본 */}
-      <path d="M63 46l5 9 5-9-3-5h-4z" fill="#5A6CF3" />
+      <path d="M63 46l5 9 5-9-3-5h-4z" fill="#3182F6" />
       {/* 메달 */}
       <circle cx="68" cy="58" r="11" fill="url(#ccCbrMedal)" />
       <circle cx="68" cy="58" r="6.5" fill="#FFF3D6" />
@@ -1314,12 +1118,12 @@ function DocPencilIllust() {
         </linearGradient>
       </defs>
       {/* 바닥 그림자 */}
-      <ellipse cx="48" cy="76" rx="30" ry="5" fill="rgba(90,108,243,.13)" />
+      <ellipse cx="48" cy="76" rx="30" ry="5" fill="rgba(49, 130, 246,.13)" />
       {/* 문서 */}
       <g transform="rotate(-3 46 40)">
         <rect x="24" y="8" width="44" height="58" rx="8" fill="url(#ccDocpP)" />
         <rect x="24" y="8" width="44" height="58" rx="8" stroke="#CBD5F2" strokeWidth="1.4" fill="none" />
-        <line x1="33" y1="24" x2="59" y2="24" stroke="#7B8CFF" strokeWidth="3.2" strokeLinecap="round" />
+        <line x1="33" y1="24" x2="59" y2="24" stroke="#4C93F7" strokeWidth="3.2" strokeLinecap="round" />
         <line x1="33" y1="34" x2="55" y2="34" stroke="#C7D0F1" strokeWidth="3.2" strokeLinecap="round" />
         <line x1="33" y1="44" x2="59" y2="44" stroke="#C7D0F1" strokeWidth="3.2" strokeLinecap="round" />
         <line x1="33" y1="54" x2="49" y2="54" stroke="#C7D0F1" strokeWidth="3.2" strokeLinecap="round" />
@@ -1349,12 +1153,12 @@ function FeedbackEmptyIllust() {
         <linearGradient id="ccFbLens" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#DCEBFF" /><stop offset="1" stopColor="#9CC4F5" /></linearGradient>
         <linearGradient id="ccFbHandle" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFB25E" /><stop offset="1" stopColor="#F58A2E" /></linearGradient>
       </defs>
-      <ellipse cx="100" cy="138" rx="78" ry="7" fill="rgba(90,108,243,.13)" />
+      <ellipse cx="100" cy="138" rx="78" ry="7" fill="rgba(49, 130, 246,.13)" />
       <g fill="#FFFFFF" opacity="0.9"><ellipse cx="160" cy="30" rx="14" ry="7" /><ellipse cx="172" cy="26" rx="9" ry="6" /></g>
       {/* 리포트 카드 */}
       <g transform="rotate(-4 90 80)">
         <rect x="42" y="34" width="96" height="92" rx="12" fill="url(#ccFbCard)" stroke="#CBD5F2" strokeWidth="1.4" />
-        <rect x="56" y="50" width="30" height="7" rx="3.5" fill="#7B8CFF" />
+        <rect x="56" y="50" width="30" height="7" rx="3.5" fill="#4C93F7" />
         <rect x="56" y="66" width="66" height="6" rx="3" fill="#C7D0F1" />
         <rect x="56" y="78" width="52" height="6" rx="3" fill="#C7D0F1" />
         <rect x="56" y="96" width="18" height="18" rx="6" fill="#EAF8F1" />
@@ -1362,11 +1166,11 @@ function FeedbackEmptyIllust() {
         <rect x="80" y="96" width="18" height="18" rx="6" fill="#FDF1E7" />
         <path d="M86 101v7 M86 111v0.5" stroke="#E08A3C" strokeWidth="2.4" strokeLinecap="round" />
         <rect x="104" y="96" width="18" height="18" rx="6" fill="#EDF1FE" />
-        <path d="M108 109 l4-6 4 4 3-5" stroke="#5A6CF3" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M108 109 l4-6 4 4 3-5" stroke="#3182F6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </g>
       {/* 돋보기 */}
       <circle cx="136" cy="72" r="24" fill="url(#ccFbLens)" opacity="0.92" />
-      <circle cx="136" cy="72" r="24" stroke="#5A6CF3" strokeWidth="5" fill="none" />
+      <circle cx="136" cy="72" r="24" stroke="#3182F6" strokeWidth="5" fill="none" />
       <path d="M124 62 A 16 16 0 0 1 134 56" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" opacity="0.8" />
       <line x1="154" y1="90" x2="176" y2="112" stroke="url(#ccFbHandle)" strokeWidth="11" strokeLinecap="round" />
       <path d="M22 96v7 M18.5 99.5h7" stroke="#B9C0FF" strokeWidth="2" strokeLinecap="round" />
@@ -1522,11 +1326,50 @@ class QuestionJobError extends Error {
   constructor(msg) { super(msg || "question_job_failed"); this.name = "QuestionJobError"; }
 }
 
+/* 분석 결과가 쓸 만한지: 자세(영상) 측정이 안 돼도 답변 내용 점수가 있으면 살린다 */
+const isNum = (v) => typeof v === "number" && isFinite(v);
+function hasAnalysis(r) {
+  return !!r && !r.failed && !r.error && (isNum(r.posture_score) || isNum(r.content_score));
+}
+
 /* 비동기 분석 폴링 status → 사용자 문구 */
 const ANALYSIS_STATUS_TEXT = {
   pending: "분석 대기 중",
   processing: "AI 분석 중",
 };
+
+/* 답변 분석 대기 오버레이: 업로드 → 대기 → AI 분석 단계를 카메라 위에 크게 보여준다 */
+const ANALYSIS_STEPS = ["답변 업로드", "분석 대기", "AI 분석 중"];
+function AnalysisOverlay({ note, seconds, canFinish, onFinish, workerOnline }) {
+  const stage = note === ANALYSIS_STATUS_TEXT.processing ? 2 : note === ANALYSIS_STATUS_TEXT.pending ? 1 : 0;
+  const slow = seconds >= 90;
+  return (
+    <div className="analysis-overlay" role="status" aria-live="polite">
+      <div className="ao-card">
+        <InterviewerAvatar state="idle" size={88} />
+        <div className="ao-title">답변을 분석하고 있어요</div>
+        <ol className="ao-steps">
+          {ANALYSIS_STEPS.map((label, i) => (
+            <li key={label} className={i < stage ? "done" : i === stage ? "cur" : ""}>
+              <span className="ao-dot">{i < stage ? "✓" : i + 1}</span>{label}
+            </li>
+          ))}
+        </ol>
+        <div className="ao-time">{seconds}초 경과 · 보통 20~60초 걸려요</div>
+        {workerOnline === false && !slow && (
+          <div className="ao-hint">AI 분석 서버가 대기 상태라 평소보다 늦을 수 있어요.</div>
+        )}
+        {slow && (
+          <div className="ao-hint">
+            분석이 평소보다 오래 걸리고 있어요. 계속 기다리거나{canFinish ? " 지금까지의 답변만 저장하고 끝낼 수 있어요." : " 잠시만 더 기다려주세요."}
+            {canFinish && <button className="btn-redo ao-finish" onClick={onFinish}>여기까지 저장하고 끝내기</button>}
+          </div>
+        )}
+        <div className="ao-sub">화면을 닫지 마세요 · 지금 말하는 내용은 녹음되지 않아요</div>
+      </div>
+    </div>
+  );
+}
 
 /* 카메라·마이크 오류 + 새로고침 없이 다시 연결 */
 function CamErrorPanel({ message, onRetry, after }) {
@@ -1639,7 +1482,7 @@ export default function App() {
   function showToast(type, message) {
     const id = ++toastIdRef.current;
     setToasts((prev) => [...prev.slice(-3), { id, type, message, closing: false }]);
-    setTimeout(() => dismissToast(id), 3500);
+    setTimeout(() => dismissToast(id), type === "error" ? 7000 : 3500); // 오류는 읽을 시간을 더 준다
   }
 
   // 면접 기록 상세보기
@@ -1666,6 +1509,7 @@ export default function App() {
   const [fbData, setFbData] = useState(null); // { list, details }
   const [fbLoading, setFbLoading] = useState(false);
   const [fbErr, setFbErr] = useState("");
+  const [fbReload, setFbReload] = useState(0); // 피드백 분석 '다시 시도'
   // 피드백 분석 레일 "다음 연습에서 집중할 것" 체크 상태 (버킷 key 배열, localStorage)
   const [fbFocus, setFbFocus] = useState(() => {
     try {
@@ -1705,6 +1549,9 @@ export default function App() {
   const camGenRef = useRef(0); // 장치 연결 세대 (화면 이탈·재연결 시 늦게 끝난 연결 폐기)
   const levelRef = useRef(null); // 마이크 입력 막대 (매 프레임 DOM 직접 갱신)
   const runIdRef = useRef(0); // 면접 실행 세대: 화면을 떠난 뒤 도착한 질문·분석 응답을 버린다
+  const authHandlerRef = useRef(() => {}); // 항상 최신 렌더의 만료 핸들러를 부른다 (초기 클로저 고정 방지)
+  const detailReqRef = useRef(0); // 기록 상세 요청 세대
+  const lastDetailIdRef = useRef(null); // 상세 '다시 시도'용
   const accountGenRef = useRef(0); // 로그인 계정 세대: 계정이 바뀐 뒤 도착한 응답을 버린다
   const replayResumeRef = useRef(null); // 질문 다시 듣기 중 녹화 재개 함수 (음소거 시 즉시 호출)
   const savingRef = useRef(false); // 결과 중복 저장 방지
@@ -1834,12 +1681,17 @@ export default function App() {
     setScreen("home");
   }
   // 전역 401 처리: 토큰 삭제 → 로그인 화면 → 토스트 1회 (authFetch에서 호출)
-  function handleAuthExpired() {
+  function handleAuthExpired(reqToken) {
+    // 이미 로그아웃·다른 계정으로 바뀐 뒤 도착한 옛 요청의 401은 무시한다
+    const active = localStorage.getItem("cc_token");
+    if (reqToken && active && reqToken !== active) return;
+    if (!active && reqToken) return;
     if (authExpiredRef.current) return;
     authExpiredRef.current = true;
     handleLogout();
     showToast("info", "로그인이 만료되어 다시 로그인해주세요");
   }
+  authHandlerRef.current = handleAuthExpired;
   function handleLogout() {
     runIdRef.current += 1; // 진행 중이던 질문 생성·분석 응답 폐기
     accountGenRef.current += 1;
@@ -1883,6 +1735,10 @@ export default function App() {
       .then((r) => { if (!r.ok) throw new Error("http"); return r.json(); })
       .then((data) => {
         if (!data || typeof data !== "object" || Object.keys(data).length === 0) throw new Error("empty");
+        // 항목별 검증: subs가 문자열 배열이 아닌 직군은 버린다 (렌더링 중 크래시 방지)
+        data = Object.fromEntries(Object.entries(data).filter(([, v]) =>
+          v && typeof v === "object" && Array.isArray(v.subs) && v.subs.every((x) => typeof x === "string")));
+        if (Object.keys(data).length === 0) throw new Error("empty");
         setJobData(data);
         // 첫 항목 자동 선택 금지: 마지막으로 고른 직무(cc_last_job)가 있을 때만 복원, 없으면 "선택 전"
         const last = loadLastJob(data);
@@ -1895,7 +1751,7 @@ export default function App() {
   // 전역 401 핸들러 등록 + 앱 시작 시 저장된 토큰 유효성 확인 (/me 1회)
   // 죽은 토큰으로 대시보드에 들어가지 않도록, 401이면 즉시 로그인 화면으로 보낸다
   useEffect(() => {
-    setAuthExpiredHandler(handleAuthExpired);
+    setAuthExpiredHandler((reqToken) => authHandlerRef.current(reqToken));
     const saved = localStorage.getItem("cc_token");
     if (saved) {
       authFetch(`${API}/me`, { headers: { "Authorization": "Bearer " + saved } }).catch(() => {});
@@ -1925,6 +1781,8 @@ export default function App() {
       .then((r) => { if (!r.ok) throw new Error("http"); return r.json(); })
       .then(async (list) => {
         if (cancelled) return;
+        // 깨진 항목(null 등)은 걸러서 저장 → 대시보드·피드백 집계가 죽지 않게
+        if (Array.isArray(list)) list = list.filter((x) => x && typeof x === "object");
         setHistoryData(Array.isArray(list) ? list : null);
         // 최근 면접의 피드백 한 줄 (상세 API에서 feedback 필드 사용)
         if (Array.isArray(list) && list.length > 0 && list[0].session_id != null) {
@@ -1995,7 +1853,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [token, screen]);
+  }, [token, screen, fbReload]);
 
   // 자기소개서 저장/삭제 (localStorage cc_resume)
   function saveResume() {
@@ -2176,6 +2034,11 @@ export default function App() {
 
   // 면접 기록 상세 열기
   async function openHistoryDetail(sessionId) {
+    // 기록 A를 열고 바로 B를 열면 A의 늦은 응답이 B를 덮지 않도록 요청 세대 확인
+    const reqId = ++detailReqRef.current;
+    lastDetailIdRef.current = sessionId;
+    const gen = accountGenRef.current;
+    const stale = () => detailReqRef.current !== reqId || accountGenRef.current !== gen;
     setDetailData(null);
     setDetailErr("");
     setScreen("historyDetail");
@@ -2184,13 +2047,14 @@ export default function App() {
         headers: { "Authorization": "Bearer " + token },
       });
       const data = await res.json();
+      if (stale()) return;
       if (res.ok) {
         setDetailData(data);
       } else {
         setDetailErr(data.detail || "면접 기록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       }
     } catch (e) {
-      if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
+      if (isAuthExpired(e) || stale()) return; // 자동 로그아웃 처리됨 / 이미 다른 기록을 연 경우
       setDetailErr("일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
     }
   }
@@ -2434,7 +2298,7 @@ export default function App() {
 
   // 분석 워커 상태 확인 (자기소개서 화면·면접 설정 진입 시). 로컬 백엔드엔 API가 없을 수 있어 실패 시 칩 숨김
   useEffect(() => {
-    if (screen !== "resume" && screen !== "start") return;
+    if (screen !== "resume" && screen !== "start" && screen !== "interview") return;
     let cancelled = false;
     fetch(`${API}/api/worker-status`, token ? { headers: { "Authorization": "Bearer " + token } } : undefined)
       .then((res) => (res.ok ? res.json() : null))
@@ -2518,8 +2382,8 @@ export default function App() {
   // onEnd(status): "ended" 낭독 정상 종료 | "skipped" 음소거·미지원·빈 텍스트 | "error" 재생 실패
   function speakQuestion(text, onEnd) {
     const finish = typeof onEnd === "function" ? onEnd : () => {};
+    cancelSpeech(); // 이전 오디오·발화 정리 (세대 토큰도 올라감)
     const seq = ++speakSeqRef.current;
-    cancelSpeech(); // 이전 오디오·발화 정리
     if (ttsMuted || !text) { setAvatarState("idle"); finish("skipped"); return; }
     (async () => {
       let blob = null;
@@ -2548,6 +2412,7 @@ export default function App() {
 
   // 낭독 중단 (질문 전환/화면 이탈/면접 종료 시): 뉴럴 Audio + 브라우저 발화 모두 정지
   function cancelSpeech() {
+    speakSeqRef.current += 1; // fetch 진행 중인 낭독도 폐기 (화면 이탈 후 뒤늦게 재생 방지)
     stopTtsAudio();
     if (ttsSupported) { try { window.speechSynthesis.cancel(); } catch (e) {} }
     setAvatarState("idle");
@@ -2755,6 +2620,7 @@ export default function App() {
   }
 
   async function sendForAnalysis(blob, index) {
+    setAnalysisNote("");
     const form = new FormData();
     form.append("video", blob, "answer.webm");
     form.append("question", questions[index] || "");
@@ -2782,7 +2648,7 @@ export default function App() {
   async function saveSession(finalResults) {
     if (savingRef.current) return; // 저장 중 중복 요청 방지
     // 분석에 실패한 문항은 저장에서 제외한다 (가짜 점수를 만들지 않는다)
-    const valid = finalResults.filter((r) => !r.failed && !r.error && r.posture_score != null);
+    const valid = finalResults.filter(hasAnalysis);
     if (valid.length === 0) {
       setSaveErr(true);
       setSaveState("skipped");
@@ -2888,7 +2754,7 @@ export default function App() {
     if (runIdRef.current !== runId) return; // 면접 화면을 떠난 뒤 도착한 응답은 버린다
 
     // 분석 실패: 가짜 점수를 만들지 않고, 같은 답변을 다시 분석·다시 답변·건너뛰기 중에서 고르게 한다
-    if (!result || result.error || result.posture_score == null) {
+    if (!hasAnalysis(result)) {
       setBusy(false);
       setFailedAnswer({
         index,
@@ -2932,8 +2798,9 @@ export default function App() {
   }
 
   // 지금까지 분석된 답변만으로 면접을 끝내고 기록에 저장
-  function finishEarly() {
-    if (busy) return;
+  // force: 분석 대기 중(busy)에도 진행 중인 분석을 버리고 끝낸다 (오래 걸릴 때 오버레이에서 호출)
+  function finishEarly(force = false) {
+    if (busy && force !== true) return;
     if (!window.confirm("지금까지 분석된 답변만 저장하고 면접을 마칠까요?\n진행 중인 질문의 녹화는 저장되지 않아요.")) return;
     const rec = recorderRef.current;
     if (rec && rec.state !== "inactive") { rec.onstop = null; try { rec.stop(); } catch (e) {} }
@@ -2941,6 +2808,7 @@ export default function App() {
     cancelSpeech();
     runIdRef.current += 1;
     setFailedAnswer(null);
+    setBusy(false);
     endInterview(results);
   }
 
@@ -3037,6 +2905,17 @@ export default function App() {
     { key: "settings", label: "설정", short: "설정", icon: <IconGear />, go: goSettings },
   ];
 
+  const appbarTitle =
+    screen === "interview" ? "면접 진행"
+      : screen === "loading" ? "질문 준비"
+        : screen === "result" ? "면접 결과"
+          : screen === "historyDetail" ? "기록 상세"
+            : (NAV_ITEMS.find((it) => it.key === navActive) || {}).label || "코치코치";
+  const greetDate = (() => {
+    const d = new Date();
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일`;
+  })();
+
   // 면접 진행 중(녹화 시작·분석 중·답변 있음)이거나 결과를 아직 저장하지 못했으면 이동 전에 확인
   // 이동하면 진행 중이던 질문 생성·분석 응답은 runId로 폐기한다
   const confirmLeaveInterview = () => {
@@ -3054,7 +2933,20 @@ export default function App() {
   //  textarea 포커스/카메라 video가 깨지기 때문)
   function renderShell(children, greeting = false) {
     return (
-      <div className="shell">
+      <div className={"shell scr-" + screen}>
+        {/* 모바일 전용 상단 앱바: 현재 화면 제목 + 프로필(설정) */}
+        <header className="appbar">
+          {screen === "home" ? (
+            <button type="button" className="appbar-brand" aria-label="코치코치 홈" onClick={() => { if (confirmLeaveInterview()) goHomeNav(); }}>
+              <span className="mark"><BubbleLogoIcon /></span>코치코치
+            </button>
+          ) : (
+            <h2 className="appbar-title">{appbarTitle}</h2>
+          )}
+          <button type="button" className="appbar-me" aria-label="설정" onClick={() => { if (confirmLeaveInterview()) goSettings(); }}>
+            {initial}
+          </button>
+        </header>
         <aside className="sidebar">
           <button type="button" className="logo" aria-label="코치코치 홈으로" onClick={() => { if (confirmLeaveInterview()) goHomeNav(); }}>
             <span className="mark"><BubbleLogoIcon /></span>
@@ -3076,10 +2968,9 @@ export default function App() {
           </nav>
           <div className="side-bottom">
             <div className="side-tip">
-              <div className="tt"><BulbIllust />오늘의 면접 Tip</div>
+              <div className="tt">오늘의 팁</div>
               <div className="td">{tip}</div>
             </div>
-            <MascotIllust />
           </div>
         </aside>
 
@@ -3087,8 +2978,8 @@ export default function App() {
           {greeting && (
             <div className="greet-bar">
               <div className="greet">
-                <h1>안녕하세요, {emailName}님! 👋</h1>
-                <p>오늘도 좋은 면접을 응원할게요!</p>
+                <h1>{emailName}님, 안녕하세요</h1>
+                <p>{greetDate}</p>
               </div>
               <div className="greet-right">
                 <div className="avatar" title={userEmail}>{initial}</div>
@@ -3097,6 +2988,20 @@ export default function App() {
           )}
           {children}
         </main>
+        {/* 모바일 전용 하단 탭바 (설정은 상단 프로필 버튼) */}
+        <nav className="tabbar" aria-label="하단 메뉴">
+          {NAV_ITEMS.filter((it) => it.key !== "settings").map((it) => (
+            <button
+              key={it.key}
+              type="button"
+              className={"tab" + (navActive === it.key ? " on" : "")}
+              aria-current={navActive === it.key ? "page" : undefined}
+              onClick={() => { if (confirmLeaveInterview()) it.go(); }}
+            >
+              {it.icon}<span>{it.short}</span>
+            </button>
+          ))}
+        </nav>
         <ToastHost toasts={toasts} onClose={dismissToast} />
       </div>
     );
@@ -3526,7 +3431,10 @@ export default function App() {
           <div className="growth-empty rise">
             <div className="t">분석 데이터를 불러오지 못했어요</div>
             <div className="d">{fbErr}</div>
-            <button onClick={goHomeNav} className="btn-primary">홈으로 돌아가기</button>
+            <div className="err-actions">
+              <button onClick={() => setFbReload((n) => n + 1)} className="btn-primary">다시 시도</button>
+              <button onClick={goHomeNav} className="btn-ghost">홈으로</button>
+            </div>
           </div>
         ) : fbLoading || !fbData ? (
           <div className="skel-wrap" aria-label="분석 데이터를 불러오는 중">
@@ -3841,10 +3749,21 @@ export default function App() {
 
     return renderShell(
       <div className="page">
-        <h1 className="page-title">면접 기록 상세</h1>
+        <div className="growth-head">
+          <h1 className="page-title">면접 기록 상세</h1>
+          <button className="btn-ghost" onClick={() => { if (navHint === "feedback") goFeedback(); else goRecords(); }}>목록으로</button>
+        </div>
 
         {detailErr ? (
-          <p className="save-msg err" style={{ marginTop: 16 }}>{detailErr}</p>
+          <div className="growth-empty rise">
+            <div className="t">기록을 불러오지 못했어요</div>
+            <div className="d">{detailErr}</div>
+            <div className="err-actions">
+              {lastDetailIdRef.current != null && (
+                <button className="btn-primary" onClick={() => openHistoryDetail(lastDetailIdRef.current)}>다시 시도</button>
+              )}
+            </div>
+          </div>
         ) : !sess ? (
           <DetailSkeleton />
         ) : (
@@ -3937,16 +3856,22 @@ export default function App() {
   /* ===== 로딩 화면 ===== */
   if (screen === "loading") {
     return renderShell(
-      <div className="loading">
-        <div className="spinner"></div>
+      <div className="loading" role="status">
+        <InterviewerAvatar state="speaking" size={120} />
         <div className="lt">면접을 준비하고 있습니다</div>
-        <div className="ls">{job}{sub ? " · " + sub : ""} · {career} 직무에 맞는 질문을 만들고 있어요</div>
+        <div className="load-chips">
+          {[company.trim(), job, sub, career, LEVEL_LABEL[level] || level].filter(Boolean).map((c) => (
+            <span key={c} className="load-chip">{c}</span>
+          ))}
+        </div>
+        <div className="ls">{resumeText.trim() ? "직무와 자기소개서를 읽고 맞춤 질문을 만들고 있어요" : "직무에 맞는 질문을 고르고 있어요"}</div>
         {qGenActive && (
           <div className="analysis-note qgen-note" data-testid="qgen-note">
             <span className="d"></span>
             자소서를 읽고 맞춤 질문을 만들고 있어요 · {qGenSeconds}초
           </div>
         )}
+        <RotatingTip />
         <button className="btn-secondary loading-cancel" onClick={cancelLoading}>취소하고 설정으로 돌아가기</button>
       </div>
     );
@@ -3954,15 +3879,25 @@ export default function App() {
 
   /* ===== 결과 화면 ===== */
   if (screen === "result") {
-    const valid = results.filter((r) => !r.failed && !r.error && r.posture_score != null);
+    const valid = results.filter(hasAnalysis);
     const failedCount = results.length - valid.length;
-    const pAvg = valid.length
-      ? Math.round(valid.reduce((a, r) => a + (r.posture_score || 0), 0) / valid.length)
+    const pVals = valid.filter((r) => isNum(r.posture_score)); // 자세 측정 못 한 문항은 평균에서 제외
+    const pAvg = pVals.length
+      ? Math.round(pVals.reduce((a, r) => a + r.posture_score, 0) / pVals.length)
       : null;
     const cVals = valid.filter((r) => typeof r.content_score === "number");
     const cAvg = cVals.length
       ? Math.round(cVals.reduce((a, r) => a + r.content_score, 0) / cVals.length)
       : null;
+    // 문항별 개선점을 모아 중복 없이 상위 3개 (결과 레일 "다음에 고칠 것")
+    const topFixes = [];
+    valid.forEach((r) => {
+      const imp = r.content && Array.isArray(r.content.improvements) ? r.content.improvements : [];
+      imp.forEach((t) => {
+        const v = typeof t === "string" ? t.trim() : "";
+        if (v && !topFixes.includes(v) && topFixes.length < 3) topFixes.push(v);
+      });
+    });
     const totalParts = [pAvg, cAvg].filter((v) => v != null);
     const total = totalParts.length
       ? Math.round(totalParts.reduce((a, v) => a + v, 0) / totalParts.length)
@@ -3971,6 +3906,10 @@ export default function App() {
     return renderShell(
       <div className="page result-page">
           <h1 className="page-title">모의면접 결과</h1>
+          <p className="page-sub">
+            {[company.trim(), jobRole, LEVEL_LABEL[level] || level, career].filter(Boolean).join(" · ")}
+            {" · "}{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
+          </p>
 
           <div className="result-cols">
           <aside className="result-rail rise" style={{ "--ri": 0 }}>
@@ -4009,9 +3948,21 @@ export default function App() {
             <button className="btn-primary save-retry" onClick={() => saveSession(results)}>기록 다시 저장</button>
           )}
 
+          {topFixes.length > 0 && (
+            <div className="rail-fixes">
+              <div className="rf-t">다음 연습에서 이것만 고쳐보세요</div>
+              <ol>{topFixes.map((t, i) => <li key={i}>{t}</li>)}</ol>
+            </div>
+          )}
+
           <div className="rail-actions">
-            <button onClick={() => { if (confirmLeaveInterview()) goHome(); }} className="btn-primary">홈으로</button>
-            <button onClick={() => setScreen("growth")} className="btn-secondary" disabled={saveState === "saving"}>나의 성장 보기</button>
+            <button
+              onClick={() => startWithPreset({ job, sub, level, career, company })}
+              className="btn-primary"
+              disabled={saveState === "saving"}
+            >같은 조건으로 다시 연습</button>
+            <button onClick={goRecords} className="btn-secondary" disabled={saveState === "saving"}>나의 기록 보기</button>
+            <button onClick={() => { if (confirmLeaveInterview()) goHome(); }} className="btn-ghost">홈으로</button>
           </div>
           </aside>
 
@@ -4020,7 +3971,7 @@ export default function App() {
             <div className="rcard rise" style={{ "--ri": Math.min(i + 1, 6) }} key={i}>
               <div className="rq">Q{i + 1}. {r.question}</div>
 
-              {(r.failed || r.error || r.posture_score == null) ? (
+              {!hasAnalysis(r) ? (
                 <>
                   <div className="rfail">분석 실패</div>
                   <div className="rfail-desc">
@@ -4125,7 +4076,7 @@ export default function App() {
 
           <div className="result-actions">
             <button onClick={() => { if (confirmLeaveInterview()) goHome(); }} className="btn-primary">홈으로</button>
-            <button onClick={() => setScreen("growth")} className="btn-secondary" disabled={saveState === "saving"}>나의 성장 보기</button>
+            <button onClick={goRecords} className="btn-secondary" disabled={saveState === "saving"}>나의 기록 보기</button>
           </div>
           </div>
           </div>
@@ -4149,7 +4100,7 @@ export default function App() {
             ? { badge: "녹화 멈춤", msg: "오른쪽에서 다시 분석하거나 다시 답변할 수 있어요", state: "녹화가 멈춰 있어요" }
             : recError
               ? { badge: "녹화 오류", msg: "'다시 답변'을 눌러 다시 녹화해주세요", state: "녹화가 멈춰 있어요" }
-              : { badge: "REC", msg: "답변이 끝나면 아래 '답변 완료'를 눌러주세요", state: "답변을 녹화하고 있어요" };
+              : { badge: "REC", msg: "답변이 끝나면 '답변 완료'를 눌러주세요", state: "답변을 녹화하고 있어요" };
 
     /* 녹화 전 준비 화면 (카메라 미리보기 + 안내) → 3-2-1 카운트다운 → 녹화 개시 */
     if (phase !== "live") {
@@ -4168,7 +4119,7 @@ export default function App() {
                     <div className="count-overlay connecting" role="status"><span>카메라·마이크를 연결하고 있어요...<br />브라우저 권한 요청이 뜨면 '허용'을 눌러주세요</span></div>
                   )}
                   {phase === "countdown" && (
-                    <div className="count-overlay"><b>{countdown}</b><span>곧 녹화가 시작됩니다</span></div>
+                    <div className="count-overlay" role="status" aria-live="assertive"><b>{countdown}</b><span>곧 녹화가 시작됩니다</span></div>
                   )}
                   <div className="cam-msg">아직 녹화 전이에요 · 자세와 조명을 점검해보세요</div>
                 </>
@@ -4205,6 +4156,13 @@ export default function App() {
                   </div>
                 )}
               </div>
+              <button
+                className="btn-done ready-start"
+                onClick={beginInterview}
+                disabled={!!camError || camState !== "ready" || phase === "countdown"}
+              >
+                {phase === "countdown" ? `${countdown}초 후 시작...` : camState === "connecting" ? "카메라 연결 중..." : "면접 시작"}
+              </button>
               <div className="card">
                 <div className="card-t"><IconChatDots size={15} />AI 면접관</div>
                 <div className="av-ready-row">
@@ -4221,21 +4179,14 @@ export default function App() {
                   <div className="rf"><span className="k">난이도</span><span className="v">{LEVEL_LABEL[level] || level}</span></div>
                   <div className="rf"><span className="k">경력</span><span className="v">{career}</span></div>
                 </div>
-              </div>
-              <div className="card">
-                <div className="card-t"><IconTip />시작 전 안내</div>
-                <div className="hint-line">
+                {workerStatus && workerStatus.online === false && (
+                  <div className="ready-warn">AI 분석 서버가 대기 상태예요. 답변 결과가 평소보다 늦게 나올 수 있어요.</div>
+                )}
+                <div className="hint-line ready-guide">
                   · 질문마다 답변을 녹화하고 '답변 완료'를 누르면 다음 질문으로 넘어가요<br />
                   · 답변 영상은 분석 직후 삭제되며, 답변 텍스트와 점수만 기록에 저장됩니다
                 </div>
               </div>
-              <button
-                className="btn-done ready-start"
-                onClick={beginInterview}
-                disabled={!!camError || camState !== "ready" || phase === "countdown"}
-              >
-                {phase === "countdown" ? `${countdown}초 후 시작...` : camState === "connecting" ? "카메라 연결 중..." : "면접 시작"}
-              </button>
             </div>
           </div>
         </div>
@@ -4253,9 +4204,9 @@ export default function App() {
           </div>
           <div className="ibar-right">
             {results.length > 0 && !busy && (
-              <button className="ibar-end" onClick={finishEarly}>여기까지 저장하고 끝내기</button>
+              <button className="ibar-end" onClick={() => finishEarly()}>여기까지 저장하고 끝내기</button>
             )}
-            <div className="timer" aria-label={`답변 시간 ${mm}분 ${ss}초`}>
+            <div className="timer" aria-hidden="true">
               <span className={"rec" + (liveRecording ? "" : " off")}></span>{mm}:{ss}
             </div>
           </div>
@@ -4304,27 +4255,12 @@ export default function App() {
                 <video ref={videoRef} autoPlay muted playsInline></video>
                 <div className={"cam-rec" + (liveRecording ? "" : " listening")}><span className="d"></span>{liveStatus.badge}</div>
                 <div className="cam-msg">{liveStatus.msg}</div>
+                {busy && <AnalysisOverlay note={analysisNote} seconds={analysisSeconds} canFinish={results.length > 0} onFinish={() => finishEarly(true)} workerOnline={workerStatus ? workerStatus.online : null} />}
               </>
             )}
           </div>
 
           <div className="iside">
-            <div className="card tips-card">
-              <div className="card-t"><IconTip />면접 팁</div>
-              <div className="hint-line">
-                · 카메라(렌즈)를 면접관이라 생각하고 바라보세요<br />
-                · 어깨를 펴고 바른 자세를 유지하세요<br />
-                · 결론부터 말하고 구체적 경험을 덧붙이면 좋아요
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-t"><IconMic />녹화 상태</div>
-              <div className={"rec-state" + (liveRecording ? "" : " listen")} role="status"><span className="d"></span>{liveStatus.state}</div>
-              <MicMeter barRef={levelRef} />
-              {micSilent && liveRecording && (
-                <div className="mic-warn" role="alert">마이크 소리가 들어오지 않아요. 음소거나 입력 장치를 확인해주세요.</div>
-              )}
-            </div>
             {recError && <div className="mic-warn" role="alert">{recError}</div>}
             {failedAnswer ? (
               <div className="card fail-card" role="alert">
@@ -4352,6 +4288,22 @@ export default function App() {
                 {(analysisNote || "답변을 분석하고 있어요")} · {analysisSeconds}초 경과
               </div>
             )}
+            <div className="card">
+              <div className="card-t"><IconMic />녹화 상태</div>
+              <div className={"rec-state" + (liveRecording ? "" : " listen")} role="status"><span className="d"></span>{liveStatus.state}</div>
+              <MicMeter barRef={levelRef} />
+              {micSilent && liveRecording && (
+                <div className="mic-warn" role="alert">마이크 소리가 들어오지 않아요. 음소거나 입력 장치를 확인해주세요.</div>
+              )}
+            </div>
+            <div className="card tips-card">
+              <div className="card-t"><IconTip />면접 팁</div>
+              <div className="hint-line">
+                · 카메라(렌즈)를 면접관이라 생각하고 바라보세요<br />
+                · 어깨를 펴고 바른 자세를 유지하세요<br />
+                · 결론부터 말하고 구체적 경험을 덧붙이면 좋아요
+              </div>
+            </div>
           </div>
         </div>
       </>
@@ -4886,7 +4838,7 @@ export default function App() {
       : null;
 
   // 주간 학습 도넛: 이번 주 세션 수 기반, 목표 12회 대비 완료율 (상한 100%)
-  const WEEK_GOAL = 12;
+  const WEEK_GOAL = 3; // 성장 화면 '주 3회 연습' 목표와 동일
   const doneCount = Math.min(weeklyCount, WEEK_GOAL);
   const donutPct = Math.min(Math.round((weeklyCount / WEEK_GOAL) * 100), 100);
   const recentList = Array.isArray(historyData) ? historyData.slice(0, 5) : [];
@@ -4924,12 +4876,10 @@ export default function App() {
   })();
   const jobDistMax = jobDist.length > 0 ? jobDist[0][1] : 0;
 
-  const FEATURES = [
-    { key: "mock", cls: "lav", icon: <IconVideo size={19} />, title: "모의면접", desc: "실전처럼 연습하기", go: goMock },
-    { key: "records", cls: "mint", icon: <IconClock size={19} />, title: "면접 기록", desc: "지난 면접 다시 보기", go: goRecords },
-    { key: "feedback", cls: "peach", icon: <IconChart size={19} />, title: "피드백 분석", desc: "AI 피드백 확인하기", go: goFeedback },
-    { key: "resume", cls: "sky", icon: <IconDoc size={19} />, title: "자기소개서", desc: "자소서 맞춤 질문 받기", go: goResume },
-  ];
+  const lastSess = Array.isArray(historyData) && historyData.length > 0 ? historyData[0] : null;
+  const lastPreset = lastSess
+    ? { job: lastSess.job, sub: lastSess.sub_job, company: lastSess.company, level: lastSess.level, career: lastSess.career }
+    : null;
 
   // 최근 피드백이 비었거나 "[object Object]"가 섞인 깨진 문자열이면 기본 코칭 문구로 대체
   const hasHistory = Array.isArray(historyData) && historyData.length > 0;
@@ -4940,19 +4890,88 @@ export default function App() {
       ? COACH_DEFAULT_LINE
       : "첫 면접을 시작하면 맞춤 코칭이 여기에 표시돼요. " + COACH_DEFAULT_LINE;
   const coachTips = coachPoints.length > 0 ? coachPoints.slice(0, 2) : COACH_STATIC_TIPS;
-  const coachTipsLabel = coachPoints.length > 0 ? "최근 개선 포인트" : "이번 주 연습 포인트";
 
   return renderShell(
     <>
-      {/* 1. 히어로 배너 */}
-      <section className="hero-banner rise" style={{ "--ri": 0 }}>
-        <div className="hb-text">
-          <h2>실전 같은 모의면접으로<br />합격을 준비하세요!</h2>
-          <p>AI 면접관과 함께 실전처럼 연습하고,<br />상세한 피드백으로 실력을 향상시켜보세요.</p>
-          <button className="hb-cta" onClick={goMock}>모의면접 시작하기 <IconArrowR size={14} /></button>
+      {/* 1. 다음 면접 시작 카드 (지난 조건 이어하기) + 이번 주 현황 */}
+      <section className="home-top rise" style={{ "--ri": 0 }}>
+        <div className="dcard start-card">
+          <div className="sc-text">
+            <div className="sc-eyebrow">{lastSess ? "지난 조건으로 이어서" : "첫 연습"}</div>
+            <h2 className="sc-title">
+              {lastSess ? sessionTitle(lastSess) : "직무를 고르고 첫 모의면접을 시작해보세요"}
+            </h2>
+            {lastSess ? (
+              <div className="sc-chips">
+                {lastSess.sub_job && <span className="sc-chip">{lastSess.sub_job}</span>}
+                {lastSess.career && <span className="sc-chip">{lastSess.career}</span>}
+                {LEVEL_LABEL[lastSess.level] && <span className="sc-chip">난이도 {LEVEL_LABEL[lastSess.level]}</span>}
+                <span className="sc-chip">질문 {EXPECT_Q}개</span>
+              </div>
+            ) : (
+              <p className="sc-desc">질문 {EXPECT_Q}개 · 답변마다 자세와 내용을 따로 채점해요</p>
+            )}
+            <div className="sc-actions">
+              {lastSess ? (
+                <>
+                  <button className="btn-primary" onClick={() => startWithPreset(lastPreset)}>이 조건으로 시작</button>
+                  <button className="btn-secondary" onClick={goMock}>새로 설정</button>
+                </>
+              ) : (
+                <button className="btn-primary" onClick={goMock}>면접 설정하기</button>
+              )}
+              <button className="sc-guide" ref={guideBtnRef} onClick={() => setShowGuide(true)}>이용 방법</button>
+            </div>
+          </div>
+          <HeroIllust />
         </div>
-        <HeroIllust />
+
+        <div className="dcard week-card">
+          <div className="dcard-head">
+            <div className="dcard-t">이번 주</div>
+            <button className="dlink" onClick={goRecords}>기록 <IconChevron size={12} /></button>
+          </div>
+          {!dashLoaded && historyData == null ? (
+            <SkelStatus />
+          ) : (
+            <>
+              <div className="wk-goal">
+                <b>{statUnknown ? "-" : doneCount}</b><span>/ {WEEK_GOAL}회</span>
+              </div>
+              <div className="wk-bar"><AnimatedBar className="wk-fill" pct={donutPct} /></div>
+              <div className="wk-cap">
+                {statUnknown ? "기록을 불러오지 못했어요"
+                  : weeklyCount >= WEEK_GOAL ? "이번 주 목표 달성"
+                    : `목표까지 ${WEEK_GOAL - weeklyCount}회 남았어요`}
+              </div>
+              <dl className="wk-stats">
+                <div><dt>누적</dt><dd>{statUnknown ? "-" : `${totalCount != null ? totalCount : 0}회`}</dd></div>
+                <div><dt>최근 점수</dt><dd>{lastScore != null ? `${lastScore}점` : "-"}</dd></div>
+              </dl>
+              {sparkPts && (
+                <svg className="sparkline" viewBox="0 0 300 56" aria-label={`최근 ${sparkScores.length}회 점수 추이`} role="img">
+                  <polyline
+                    points={sparkPts.map((p) => p.join(",")).join(" ")}
+                    fill="none" stroke="var(--primary)" strokeWidth="2.2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                  />
+                  {sparkPts.map(([x, y], i) => (
+                    <circle
+                      key={i} cx={x} cy={y}
+                      r={i === sparkPts.length - 1 ? 4 : 2.4}
+                      fill={i === sparkPts.length - 1 ? "var(--primary)" : "#FFFFFF"}
+                      stroke="var(--primary)" strokeWidth="1.6"
+                    />
+                  ))}
+                </svg>
+              )}
+            </>
+          )}
+        </div>
       </section>
+
+      {/* 1.5 관심 회사 (최대 3곳, 회사+직무 저장 → 그 조건으로 바로 설정) */}
+      <DreamCompanies key={userEmail} email={userEmail} jobData={jobData} onStart={startWithPreset} />
 
       {dashErr && (
         <div className="dash-err" role="alert">
@@ -4961,110 +4980,11 @@ export default function App() {
         </div>
       )}
 
-      {/* 2. 기능 카드 4개 */}
-      <section className="feature-row rise" style={{ "--ri": 1 }}>
-        {FEATURES.map((f) => (
-          <button key={f.key} className={"feature-card " + f.cls} onClick={f.go}>
-            <span className="fi">{f.icon}</span>
-            <span className="ft">{f.title}</span>
-            <span className="fd">{f.desc}</span>
-          </button>
-        ))}
-      </section>
-
-      {/* 3. 이번 주 학습 현황 + AI 면접 코치 */}
-      <section className="dash-cols rise" style={{ "--ri": 2 }}>
-        <div className="dcard">
-          <div className="dcard-head">
-            <div className="dcard-t">이번 주 학습 현황</div>
-            <button className="dlink" onClick={goRecords}>상세 보기 <IconChevron size={12} /></button>
-          </div>
-          {!dashLoaded && historyData == null ? (
-            <SkelStatus />
-          ) : (
-          <div className="status-body">
-            <div className="donut-wrap">
-              <div className="donut">
-                <ArcProgress value={donutPct} r={52} strokeWidth={14} size={132} rotated />
-                <div className="num"><b><CountUp value={donutPct} suffix="%" /></b></div>
-              </div>
-              <div className="donut-cap">이번 주 목표 {WEEK_GOAL}회 중 {doneCount}회 완료</div>
-            </div>
-            <div className="mini-stats">
-              <div className="ms">
-                <span className="chip lav"><IconVideo size={14} /></span>
-                <span className="mtxt">
-                  <span className="mk">이번 주 면접</span>
-                  <span className="mv">{statUnknown ? "-" : `${weeklyCount}회`}</span>
-                </span>
-              </div>
-              <div className="ms">
-                <span className="chip mint"><IconClock size={14} /></span>
-                <span className="mtxt">
-                  <span className="mk">전체 누적</span>
-                  <span className="mv">{statUnknown ? "-" : totalCount != null ? `${totalCount}회` : "0회"}</span>
-                </span>
-              </div>
-              <div className="ms">
-                <span className="chip peach"><IconChart size={14} /></span>
-                <span className="mtxt">
-                  <span className="mk">최근 종합 점수</span>
-                  <span className="mv">{lastScore != null ? `${lastScore}점` : "-"}</span>
-                </span>
-              </div>
-            </div>
-          </div>
-          )}
-          {sparkPts && (
-            <div className="spark-row">
-              <div className="spark-head">
-                <span className="spark-cap">최근 {sparkScores.length}회 추이</span>
-                <span className="spark-last">최근 {sparkScores[sparkScores.length - 1]}점</span>
-              </div>
-              <svg className="sparkline" viewBox="0 0 300 56" aria-hidden="true">
-                <polyline
-                  points={sparkPts.map((p) => p.join(",")).join(" ")}
-                  fill="none" stroke="var(--primary)" strokeWidth="2.4"
-                  strokeLinecap="round" strokeLinejoin="round"
-                />
-                {sparkPts.map(([x, y], i) => (
-                  <circle
-                    key={i} cx={x} cy={y}
-                    r={i === sparkPts.length - 1 ? 4.4 : 2.6}
-                    fill={i === sparkPts.length - 1 ? "var(--primary)" : "#FFFFFF"}
-                    stroke="var(--primary)" strokeWidth="1.8"
-                  />
-                ))}
-              </svg>
-            </div>
-          )}
-        </div>
-
-        <div className="dcard coach-card">
-          <div className="dcard-head">
-            <div className="dcard-t">AI 면접 코치</div>
-          </div>
-          <div className="coach-quote">&ldquo;{coachText}&rdquo;</div>
-          <div className="coach-points">
-            <div className="cp-t">{coachTipsLabel}</div>
-            <ul>
-              {coachTips.map((t, i) => (
-                <li key={i}><span className="cp-dot"><IconCheck size={9} /></span>{t}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="coach-foot">
-            <div className="dots"><span className="on" /><span /><span /></div>
-            <RobotIllust />
-          </div>
-        </div>
-      </section>
-
-      {/* 4. 최근 모의면접 기록 + 향상 가이드 */}
-      <section className="dash-cols bottom rise" style={{ "--ri": 3 }}>
+      {/* 2. 최근 기록 + (고칠 점 · 체크리스트) */}
+      <section className="dash-cols rise" style={{ "--ri": 1 }}>
         <div className="dcard recent-card">
           <div className="dcard-head">
-            <div className="dcard-t">최근 모의면접 기록</div>
+            <div className="dcard-t">최근 면접</div>
             <button className="dlink" onClick={goRecords}>전체 보기 <IconChevron size={12} /></button>
           </div>
           {!dashLoaded && historyData == null ? (
@@ -5075,13 +4995,12 @@ export default function App() {
             </div>
           ) : recentList.length === 0 ? (
             <div className="recent-empty2">
-              <div className="re-t">아직 면접 기록이 없어요. 3단계면 시작할 수 있어요!</div>
+              <div className="re-t">아직 면접 기록이 없어요</div>
               <ol className="re-steps">
                 <li><span className="re-num">1</span>직무·난이도를 고르고 자기소개서를 붙여넣어요</li>
                 <li><span className="re-num">2</span>웹캠 앞에서 실전처럼 답변해요</li>
-                <li><span className="re-num">3</span>AI 점수와 피드백이 이곳에 쌓여요</li>
+                <li><span className="re-num">3</span>점수와 피드백이 여기에 쌓여요</li>
               </ol>
-              <button className="re-cta" onClick={goMock}>첫 모의면접 시작하기 <IconArrowR size={13} /></button>
             </div>
           ) : (
             <div className="recent-list">
@@ -5104,7 +5023,7 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                  <ScoreBadge score={typeof s.total_score === "number" ? s.total_score : null} />
+                  <span className="rscore">{typeof s.total_score === "number" ? s.total_score : "-"}<small>점</small></span>
                   {s.session_id != null && <span className="rgo"><IconChevron /></span>}
                 </div>
               ))}
@@ -5112,86 +5031,66 @@ export default function App() {
           )}
         </div>
 
-        <div className="dcard guide-card">
-          <div className="dcard-t">면접 실력 향상 가이드</div>
-          <p className="gd">면접 고수가 되는 길, 단계별로 따라해보세요!</p>
-          <ol className="guide-steps">
-            {GUIDE_STEPS.map((g, i) => (
-              <li key={i}>
-                <span className="gs-num">{i + 1}</span>
-                <div className="gs-body"><b>{g.t}</b><span>{g.d}</span></div>
-              </li>
-            ))}
-          </ol>
-          <button className="guide-btn" ref={guideBtnRef} onClick={() => setShowGuide(true)}>가이드 보기 <IconArrowR size={13} /></button>
-          <StairsIllust />
-        </div>
-      </section>
-
-      {/* 4.5 직무별 연습 분포 + 면접 전 체크리스트 */}
-      <section className="dash-cols bottom rise" style={{ "--ri": 4 }}>
-        <div className="dcard dist-card">
-          <div className="dcard-head">
-            <div className="dcard-t">직무별 연습 분포</div>
-            {totalCount != null && totalCount > 0 && <span className="dist-total">총 {totalCount}회</span>}
-          </div>
-          {jobDist.length === 0 ? (
-            <div className="dist-empty">
-              아직 데이터가 없어요. 모의면접을 시작하면 직무별 연습 횟수가 여기에 쌓여요.
+        <div className="side-stack">
+          <div className="dcard coach-card">
+            <div className="dcard-head">
+              <div className="dcard-t">{coachPoints.length > 0 ? "지난 면접에서 고칠 점" : "연습할 때 기억할 것"}</div>
+              {hasHistory && <button className="dlink" onClick={goFeedback}>피드백 <IconChevron size={12} /></button>}
             </div>
-          ) : (
-            <div className="dist-list">
-              {jobDist.map(([name, cnt]) => {
-                const m = jobMeta(name);
+            <ul className="coach-list">
+              {coachTips.map((t, i) => (
+                <li key={i}><span className="cl-num">{i + 1}</span>{t}</li>
+              ))}
+            </ul>
+            {coachRaw && <p className="coach-quote">{coachText}</p>}
+          </div>
+
+          <div className="dcard check-card">
+            <div className="dcard-head">
+              <div className="dcard-t">시작 전 체크</div>
+              <span className="check-cnt">{checks.length}/{CHECKLIST_ITEMS.length}</span>
+            </div>
+            <ul className="check-list">
+              {CHECKLIST_ITEMS.map((label, i) => {
+                const on = checks.includes(i);
                 return (
-                  <div className="dist-row" key={name}>
-                    <span className="dist-ic" style={{ background: `var(--${m.tone})`, color: `var(--${m.tone}-ink)` }}>{m.icon}</span>
-                    <div className="dist-body">
-                      <div className="dist-top">
-                        <span className="dist-nm">{name}</span>
-                        <span className="dist-cnt">{cnt}회</span>
-                      </div>
-                      <div className="dist-bar">
-                        <AnimatedBar className="dist-fill" pct={(cnt / jobDistMax) * 100} style={{ background: `var(--${m.tone}-ink)` }} />
-                      </div>
-                    </div>
-                  </div>
+                  <li key={i}>
+                    <button type="button" className={"check-item" + (on ? " on" : "")} onClick={() => toggleCheck(i)} aria-pressed={on}>
+                      <span className="cbox"><IconCheck size={10} /></span>
+                      <span className="clabel">{label}</span>
+                    </button>
+                  </li>
                 );
               })}
-            </div>
-          )}
-        </div>
-
-        <div className="dcard check-card">
-          <div className="dcard-head">
-            <div className="dcard-t">면접 전 체크리스트</div>
-            <span className="check-cnt">{checks.length}/{CHECKLIST_ITEMS.length}</span>
+            </ul>
           </div>
-          <ul className="check-list">
-            {CHECKLIST_ITEMS.map((label, i) => {
-              const on = checks.includes(i);
-              return (
-                <li key={i}>
-                  <button type="button" className={"check-item" + (on ? " on" : "")} onClick={() => toggleCheck(i)} aria-pressed={on}>
-                    <span className="cbox"><IconCheck size={10} /></span>
-                    <span className="clabel">{label}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
         </div>
       </section>
 
-      {/* 5. 최하단 목표 배너 */}
-      <section className="goal-banner rise" style={{ "--ri": 5 }}>
-        <TargetIllust />
-        <div className="gb-text">
-          <b>꾸준한 연습이 합격의 지름길입니다!</b>
-          <p>매일 조금씩 연습하고, 피드백을 통해 성장해보세요.</p>
-        </div>
-        <button className="gb-btn" onClick={goMock}>모의면접 시작하기</button>
-      </section>
+      {/* 3. 직무별 연습 분포 (기록 있을 때만) */}
+      {jobDist.length > 0 && (
+        <section className="dcard dist-card rise" style={{ "--ri": 2 }}>
+          <div className="dcard-head">
+            <div className="dcard-t">직무별 연습</div>
+            {totalCount != null && totalCount > 0 && <span className="dist-total">총 {totalCount}회</span>}
+          </div>
+          <div className="dist-list">
+            {jobDist.map(([name, cnt]) => (
+              <div className="dist-row" key={name}>
+                <div className="dist-body">
+                  <div className="dist-top">
+                    <span className="dist-nm">{name}</span>
+                    <span className="dist-cnt">{cnt}회</span>
+                  </div>
+                  <div className="dist-bar">
+                    <AnimatedBar className="dist-fill" pct={(cnt / jobDistMax) * 100} style={{ background: "var(--primary)" }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 면접 이용 가이드 모달 */}
       {showGuide && (

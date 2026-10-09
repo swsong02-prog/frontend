@@ -25,7 +25,7 @@ function GrowthEmptyIllust() {
         <linearGradient id="grB3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#AEB8FF" /><stop offset="1" stopColor="#6B7CFF" /></linearGradient>
         <linearGradient id="grLeaf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#9FE9C6" /><stop offset="1" stopColor="#35C08E" /></linearGradient>
       </defs>
-      <ellipse cx="100" cy="138" rx="80" ry="7" fill="rgba(90,108,243,.13)" />
+      <ellipse cx="100" cy="138" rx="80" ry="7" fill="rgba(49, 130, 246,.13)" />
       <g fill="#FFFFFF" opacity="0.9"><ellipse cx="34" cy="38" rx="14" ry="7" /><ellipse cx="46" cy="34" rx="9" ry="6" /></g>
       <rect x="36" y="92" width="34" height="40" rx="8" fill="url(#grB1)" />
       <rect x="83" y="66" width="34" height="66" rx="8" fill="url(#grB2)" />
@@ -77,6 +77,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
   const [data, setData] = useState(null);
   const [history, setHistory] = useState(null);
   const [err, setErr] = useState("");
+  const [reload, setReload] = useState(0); // '다시 시도'
   const [show, setShow] = useState({ total_score: true, posture_score: false, content_score: false });
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
     // (r.ok 미확인 시 401 만료 토큰·서버 오류의 {"detail": ...}이 data로 들어가
     //  count가 undefined가 되고, 빈 상태도 본문도 렌더되지 않는 '완전 빈 화면'이 된다)
     let cancelled = false;
+    setErr("");
     const headers = { "Authorization": "Bearer " + token };
     authFetch(`${API}/growth`, { headers })
       .then(async (r) => {
@@ -103,7 +105,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
       .then((l) => { if (!cancelled) setHistory(Array.isArray(l) ? l : []); })
       .catch(() => { if (!cancelled) setHistory([]); });
     return () => { cancelled = true; };
-  }, [token]);
+  }, [token, reload]);
 
   // 응답 형식 방어: points가 배열이 아니거나 count가 숫자가 아니어도 안전하게 계산
   const points = data && Array.isArray(data.points)
@@ -206,7 +208,10 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
         <div className="growth-empty rise">
           <div className="t">기록을 불러오지 못했어요</div>
           <div className="d">{err}</div>
-          <button onClick={onBack} className="btn-primary">홈으로 돌아가기</button>
+          <div className="err-actions">
+            <button onClick={() => setReload((n) => n + 1)} className="btn-primary">다시 시도</button>
+            <button onClick={onBack} className="btn-ghost">홈으로</button>
+          </div>
         </div>
       )}
       {!data && !err && <GrowthSkeleton />}

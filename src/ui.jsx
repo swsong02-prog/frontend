@@ -20,7 +20,14 @@ export function isAuthExpired(e) { return !!e && (e instanceof AuthExpiredError 
 export async function authFetch(url, opts) {
   const res = await fetch(url, opts);
   if (res.status === 401) {
-    try { if (authExpiredHandler) authExpiredHandler(); } catch (e) {}
+    // 요청에 실린 토큰을 넘겨, 이미 다른 계정으로 바뀐 뒤의 옛 요청 401이 현재 로그인을 끊지 않게 한다
+    let reqToken = null;
+    try {
+      const h = opts && opts.headers;
+      const auth = h ? (typeof h.get === "function" ? h.get("Authorization") : h.Authorization || h.authorization) : null;
+      if (auth && auth.startsWith("Bearer ")) reqToken = auth.slice(7);
+    } catch (e) {}
+    try { if (authExpiredHandler) authExpiredHandler(reqToken); } catch (e) {}
     throw new AuthExpiredError();
   }
   return res;
@@ -278,10 +285,19 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
     return () => cancelAnimationFrame(raf);
   }, [drawn]);
 
-  const pathOf = (key) =>
-    points.map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(p[key]).toFixed(1)}`).join(" ");
+  // 측정 못 한 회차(null)는 0점으로 떨어뜨리지 않고 선을 끊는다
+  const pathOf = (key) => {
+    let pen = "M";
+    return points.map((p, i) => {
+      if (typeof p[key] !== "number") { pen = "M"; return ""; }
+      const seg = `${pen} ${x(i).toFixed(1)} ${y(p[key]).toFixed(1)}`;
+      pen = "L";
+      return seg;
+    }).filter(Boolean).join(" ");
+  };
   const primary = series[0];
-  const areaPath = n > 1 && primary
+  const primaryComplete = !!primary && points.every((p) => typeof p[primary.key] === "number");
+  const areaPath = n > 1 && primaryComplete
     ? `${pathOf(primary.key)} L ${x(n - 1).toFixed(1)} ${(PT + ih).toFixed(1)} L ${x(0).toFixed(1)} ${(PT + ih).toFixed(1)} Z`
     : "";
 
