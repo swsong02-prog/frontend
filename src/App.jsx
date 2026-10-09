@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import Auth from "./Auth";
 import Growth from "./Growth";
 import { searchCompanies } from "./companies";
-import DreamCompanies from "./DreamCompanies";
+import DreamCompanies, { loadDreams } from "./DreamCompanies";
+import JobPostings from "./JobPostings";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 import {
   prefersReducedMotion, CountUp, ArcProgress, AnimatedBar, keyActivate,
@@ -1465,6 +1466,7 @@ export default function App() {
   const pendingStartRef = useRef(null); // 낭독 대기 중 강제 녹화 시작 훅 (음소거 토글용)
   const [recPending, setRecPending] = useState(false); // 낭독 종료 대기 중 (녹화 지연 시작)
   const [showGuide, setShowGuide] = useState(false); // 정적 가이드 모달
+  const [, setDreamVer] = useState(0); // 관심 회사 변경 시 홈(공고 카드) 다시 그리기용
 
   // 토스트 알림 스택 (alert 대체) + 대시보드 첫 로드 완료 플래그 (스켈레톤 표시 판단 전용)
   const [toasts, setToasts] = useState([]);
@@ -4877,6 +4879,11 @@ export default function App() {
   const jobDistMax = jobDist.length > 0 ? jobDist[0][1] : 0;
 
   const lastSess = Array.isArray(historyData) && historyData.length > 0 ? historyData[0] : null;
+  // 공고 추천 기준 직무: 최근 면접 → 없으면 첫 관심 회사의 직무
+  const dreamList = loadDreams(userEmail);
+  const postJob = lastSess && lastSess.job
+    ? { job: lastSess.job, sub: lastSess.sub_job || "", career: lastSess.career || "" }
+    : dreamList[0] ? { job: dreamList[0].job || "", sub: dreamList[0].sub || "", career: "" } : { job: "", sub: "", career: "" };
   const lastPreset = lastSess
     ? { job: lastSess.job, sub: lastSess.sub_job, company: lastSess.company, level: lastSess.level, career: lastSess.career }
     : null;
@@ -4971,7 +4978,17 @@ export default function App() {
       </section>
 
       {/* 1.5 관심 회사 (최대 3곳, 회사+직무 저장 → 그 조건으로 바로 설정) */}
-      <DreamCompanies key={userEmail} email={userEmail} jobData={jobData} onStart={startWithPreset} />
+      <DreamCompanies key={userEmail} email={userEmail} jobData={jobData} onStart={startWithPreset} onChange={() => setDreamVer((n) => n + 1)} />
+
+      {/* 1.6 지금 열린 공공기관 공고 (내 직무 / 대전·충청 / 관심 회사) */}
+      <JobPostings
+        api={API}
+        job={postJob.job}
+        sub={postJob.sub}
+        career={postJob.career}
+        companies={dreamList.map((d) => d.company)}
+        onPractice={startWithPreset}
+      />
 
       {dashErr && (
         <div className="dash-err" role="alert">

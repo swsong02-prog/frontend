@@ -11,7 +11,7 @@ const MAX = 3;
 function storageKey(email) {
   return `${DREAM_KEY}:${String(email || "").trim().toLowerCase()}`;
 }
-function loadDreams(email) {
+export function loadDreams(email) {
   try {
     const arr = JSON.parse(localStorage.getItem(storageKey(email)) || "[]");
     return Array.isArray(arr)
@@ -23,11 +23,11 @@ function saveDreams(email, list) {
   try { localStorage.setItem(storageKey(email), JSON.stringify(list)); } catch (e) { /* 저장 실패 시 화면 상태만 유지 */ }
 }
 
-export default function DreamCompanies({ email, jobData, onStart }) {
+export default function DreamCompanies({ email, jobData, onStart, onChange }) {
   const [list, setList] = useState(() => loadDreams(email));
   const [editing, setEditing] = useState(null); // null | { idx: number | -1 }
 
-  const update = (next) => { setList(next); saveDreams(email, next); };
+  const update = (next) => { setList(next); saveDreams(email, next); if (onChange) onChange(next); };
   const remove = (i) => update(list.filter((_, k) => k !== i));
   const commit = (item) => {
     if (editing && editing.idx >= 0) update(list.map((d, k) => (k === editing.idx ? item : d)));
