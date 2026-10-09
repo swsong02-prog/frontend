@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
    탭: 내 직무 / 대전·충청 / 관심 회사. 공고 원문은 새 창, "면접 연습"은 그 기관 조건으로 설정 화면 이동 */
 const TABS = [
   { key: "job", label: "내 직무" },
-  { key: "local", label: "대전·충청" },
+  { key: "region", label: "지역" },
   { key: "company", label: "관심 회사" },
 ];
+const REGION_KEY = "cc_post_region";
+const DEFAULT_REGIONS = ["전체", "서울", "경기", "인천", "대전", "세종", "충남", "충북", "대전·충청", "부산", "대구", "울산",
+  "광주·전남", "전북", "경북", "경남", "강원", "제주"];
+function loadRegion() {
+  try { return localStorage.getItem(REGION_KEY) || "대전·충청"; } catch (e) { return "대전·충청"; }
+}
 
 function ddayText(d) {
   if (d == null) return "상시";
@@ -16,7 +22,8 @@ function ddayText(d) {
 }
 
 export default function JobPostings({ api, job, sub, career, companies, onPractice }) {
-  const [scope, setScope] = useState(job ? "job" : "local");
+  const [scope, setScope] = useState(job ? "job" : "region");
+  const [region, setRegion] = useState(loadRegion);
   const [data, setData] = useState(null);
   const [err, setErr] = useState(false);
   const [reload, setReload] = useState(0);
@@ -24,13 +31,18 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
 
   useEffect(() => {
     let alive = true;
-    const q = new URLSearchParams({ job: job || "", sub: sub || "", career: career || "", companies: compKey, scope, limit: "6" });
+    const q = new URLSearchParams({ job: job || "", sub: sub || "", career: career || "", companies: compKey, scope, region, limit: "6" });
     fetch(`${api}/api/postings?${q}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => { if (alive) { setData(d); setErr(false); } })
       .catch(() => { if (alive) setErr(true); });
     return () => { alive = false; };
-  }, [api, job, sub, career, compKey, scope, reload]);
+  }, [api, job, sub, career, compKey, scope, region, reload]);
+
+  const pickRegion = (r) => {
+    setRegion(r);
+    try { localStorage.setItem(REGION_KEY, r); } catch (e) { /* 기억 못 해도 동작엔 지장 없음 */ }
+  };
 
   // 서버에 인증키가 없거나 공고를 아직 못 받았으면 카드 자체를 숨긴다 (죽은 UI 금지)
   if (data && !data.available) return null;
@@ -58,9 +70,20 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
           >
             {t.label}
             {t.key === "job" && job ? <small>{sub || job}</small> : null}
+            {t.key === "region" ? <small>{region}</small> : null}
           </button>
         ))}
       </div>
+
+      {(scope === "region" || scope === "job") && (
+        <div className="post-region">
+          <label htmlFor="post-region-sel">근무 지역</label>
+          <select id="post-region-sel" value={region} onChange={(e) => pickRegion(e.target.value)}>
+            {["전체", ...((data && data.regions) || DEFAULT_REGIONS.slice(1))].map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          {scope === "job" && region !== "전체" && <span className="post-region-hint">이 지역 공고를 먼저 보여드려요</span>}
+        </div>
+      )}
 
       {err ? (
         <div className="dist-empty">

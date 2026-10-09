@@ -123,9 +123,10 @@ function AuthPointIcon() {
   );
 }
 
-// 로그인/회원가입 화면. 로그인 성공하면 onLogin(토큰, 이메일)을 불러준다.
+// 로그인/회원가입 화면. 로그인 성공하면 onLogin(토큰, 이메일, 이름)을 불러준다.
 export default function Auth({ onLogin }) {
   const [mode, setMode] = useState("login"); // login | signup
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
@@ -135,6 +136,10 @@ export default function Auth({ onLogin }) {
   async function handleSubmit() {
     setMsg("");
     setMsgOk(false);
+    if (mode === "signup" && !name.trim()) {
+      setMsg("이름을 입력해주세요.");
+      return;
+    }
     if (!email || !password) {
       setMsg("이메일과 비밀번호를 모두 입력해주세요.");
       return;
@@ -146,7 +151,7 @@ export default function Auth({ onLogin }) {
         const res = await fetch(`${API}/signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, name: name.trim() }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -154,11 +159,7 @@ export default function Auth({ onLogin }) {
           setBusy(false);
           return;
         }
-        setMsgOk(true);
-        setMsg("회원가입이 완료되었습니다. 이제 로그인해주세요.");
-        setMode("login");
-        setBusy(false);
-        return;
+        // 가입 성공 → 바로 아래 로그인 요청으로 이어서 자동 로그인
       }
 
       // 2) 로그인 요청
@@ -174,7 +175,7 @@ export default function Auth({ onLogin }) {
         return;
       }
       // 3) 로그인 성공 → 토큰을 부모(App)에게 넘김
-      onLogin(data.access_token, email);
+      onLogin(data.access_token, email, data.name || (mode === "signup" ? name.trim() : ""));
     } catch (e) {
       setMsg("일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
       setBusy(false);
@@ -239,6 +240,21 @@ export default function Auth({ onLogin }) {
 
           {/* form으로 감싸 이메일 칸에서도 Enter로 제출 + 브라우저 비밀번호 저장 지원 */}
           <form onSubmit={(e) => { e.preventDefault(); if (!busy) handleSubmit(); }} noValidate>
+            {mode === "signup" && (
+              <>
+                <label className="sr-only" htmlFor="auth-name">이름</label>
+                <input
+                  id="auth-name"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="이름 (예: 송경원)"
+                  maxLength={20}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="auth-input"
+                />
+              </>
+            )}
             <label className="sr-only" htmlFor="auth-email">이메일</label>
             <input
               id="auth-email"

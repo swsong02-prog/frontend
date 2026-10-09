@@ -1402,6 +1402,10 @@ export default function App() {
     migrateLegacyResume(em);
     return em;
   });
+  // 표시 이름 (회원가입 때 입력한 실명). 예전 회원은 비어 있어 설정에서 입력하게 한다
+  const [userName, setUserName] = useState(() => localStorage.getItem("cc_name") || "");
+  const [nameDraft, setNameDraft] = useState(null); // 설정 화면 이름 편집값 (null = 편집 전)
+  const [nameSaving, setNameSaving] = useState(false);
 
   const [screen, setScreen] = useState("home"); // home | start | loading | interview | result | growth | settings | historyDetail
   const [navHint, setNavHint] = useState(""); // 사이드바에서 어떤 항목으로 진입했는지 (start 계열 구분용)
@@ -1670,10 +1674,13 @@ export default function App() {
   }
 
   // 로그인/로그아웃 처리 (localStorage에도 같이 저장/삭제)
-  function handleLogin(tk, em) {
+  function handleLogin(tk, em, nm) {
     accountGenRef.current += 1;
     localStorage.setItem("cc_token", tk);
     localStorage.setItem("cc_email", em);
+    if (nm) localStorage.setItem("cc_name", nm); else localStorage.removeItem("cc_name");
+    setUserName(nm || "");
+    setNameDraft(null);
     authExpiredRef.current = false;
     setToken(tk);
     setUserEmail(em);
@@ -1700,8 +1707,11 @@ export default function App() {
     saveResumeDraft(userEmail, resumeText); // 디바운스 대기 중이던 초안까지 보관
     localStorage.removeItem("cc_token");
     localStorage.removeItem("cc_email");
+    localStorage.removeItem("cc_name");
     setToken(null);
     setUserEmail("");
+    setUserName("");
+    setNameDraft(null);
     setGrowthData(null);
     setHistoryData(null);
     setCoachLine("");
@@ -1756,7 +1766,15 @@ export default function App() {
     setAuthExpiredHandler((reqToken) => authHandlerRef.current(reqToken));
     const saved = localStorage.getItem("cc_token");
     if (saved) {
-      authFetch(`${API}/me`, { headers: { "Authorization": "Bearer " + saved } }).catch(() => {});
+      authFetch(`${API}/me`, { headers: { "Authorization": "Bearer " + saved } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d && typeof d.name === "string" && d.name.trim()) {
+            setUserName(d.name.trim());
+            localStorage.setItem("cc_name", d.name.trim());
+          }
+        })
+        .catch(() => {});
     }
     return () => setAuthExpiredHandler(null);
   }, []);
@@ -2849,7 +2867,30 @@ export default function App() {
   }
 
   /* ===== 사이드바 셸 ===== */
-  const emailName = displayNameFromEmail(userEmail);
+  const emailName = userName || displayNameFromEmail(userEmail);
+
+  async function saveName() {
+    const nm = (nameDraft || "").trim().replace(/\s+/g, " ");
+    if (!nm) { showToast("error", "이름을 입력해주세요."); return; }
+    setNameSaving(true);
+    try {
+      const res = await authFetch(`${API}/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ name: nm }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.detail || "이름을 저장하지 못했어요.");
+      setUserName(d.name || nm);
+      localStorage.setItem("cc_name", d.name || nm);
+      setNameDraft(null);
+      showToast("success", "이름을 저장했어요.");
+    } catch (e) {
+      if (!isAuthExpired(e)) showToast("error", e.message || "이름을 저장하지 못했어요.");
+    } finally {
+      setNameSaving(false);
+    }
+  }
   const initial = emailName && emailName !== "회원" ? emailName.charAt(0).toUpperCase() : "C";
 
   // 사이드바 이동 핸들러 (기능 카드에서도 재사용)
@@ -3023,6 +3064,23 @@ export default function App() {
               <div className="sv">{userEmail || "-"}</div>
             </div>
           </div>
+          <form className="set-name" onSubmit={(e) => { e.preventDefault(); if (!nameSaving) saveName(); }}>
+            <label className="sk" htmlFor="set-name-input">이름</label>
+            {!userName && nameDraft === null && <p className="set-hint">이름을 등록하면 이메일 아이디 대신 이름으로 불러드려요.</p>}
+            <div className="set-name-row">
+              <input
+                id="set-name-input"
+                className="auth-input"
+                maxLength={20}
+                placeholder="이름 (예: 송경원)"
+                value={nameDraft !== null ? nameDraft : userName}
+                onChange={(e) => setNameDraft(e.target.value)}
+              />
+              <button type="submit" className="btn-primary" disabled={nameSaving || nameDraft === null || nameDraft.trim() === userName}>
+                {nameSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </form>
           <div className="set-actions">
             <button className="btn-secondary" onClick={handleLogout}>
               <IconLogout size={15} /> 로그아웃
