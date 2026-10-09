@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { searchCompanies } from "./companies";
-import { RecordLogo } from "./ui";
+import { Building2, Plus } from "lucide-react";
+import FavoriteCompanyCard from "./components/FavoriteCompanyCard";
+import EmptyState from "./components/home/EmptyState";
 
 /* 홈 "관심 회사" — 가고 싶은 회사 최대 3곳을 직무와 함께 저장해두고 한 번에 그 조건으로 면접 설정
    저장 위치: localStorage (계정 이메일별 키), [{ company, job, sub }] */
@@ -36,39 +38,16 @@ export default function DreamCompanies({ email, jobData, onStart, onChange }) {
   };
 
   return (
-    <section className="dcard dream-card rise" style={{ "--ri": 1 }}>
-      <div className="dcard-head">
-        <div className="dcard-t">관심 회사</div>
-        <span className="check-cnt">{list.length}/{MAX}</span>
-      </div>
+    <section className="dream-card" id="favorite-companies" aria-labelledby="favorite-companies-title">
+      <div className="home-section-heading"><h2 id="favorite-companies-title">관심 회사</h2><span className="section-caption">{list.length} / {MAX}곳</span></div>
+      {list.length === 0 ? <div className="favorite-empty"><EmptyState icon={Building2} title="관심 있는 회사를 등록해보세요"
+        description="관심 회사를 등록하면 관련 면접과 채용 정보를 빠르게 확인할 수 있어요."
+        action="관심 회사 추가" onAction={() => setEditing({ idx: -1 })} /></div> :
       <div className="dream-grid">
-        {list.map((d, i) => (
-          <div className="dream-item" key={d.company + i}>
-            <RecordLogo company={d.company} job={d.job} idx={i} />
-            <div className="dream-info">
-              <div className="dream-co">{d.company}</div>
-              <div className="dream-job">{[d.job, d.sub].filter(Boolean).join(" · ") || "직무 미정"}</div>
-            </div>
-            <div className="dream-acts">
-              <button type="button" className="dream-go" onClick={() => onStart({ company: d.company, job: d.job, sub: d.sub })}>
-                면접
-              </button>
-              <button type="button" className="dream-more" aria-label={`${d.company} 수정`} onClick={() => setEditing({ idx: i })}>
-                수정
-              </button>
-            </div>
-          </div>
-        ))}
-        {list.length < MAX && (
-          <button type="button" className="dream-add" onClick={() => setEditing({ idx: -1 })}>
-            <span className="dream-plus" aria-hidden="true">+</span>
-            <span>
-              <b>{list.length === 0 ? "가고 싶은 회사를 추가해보세요" : "관심 회사 추가"}</b>
-              <small>회사와 직무를 저장해두면 그 조건으로 바로 연습할 수 있어요</small>
-            </span>
-          </button>
-        )}
-      </div>
+        {list.map((d, i) => <FavoriteCompanyCard key={d.company + i} company={d} index={i}
+          onStart={() => onStart({ company: d.company, job: d.job, sub: d.sub })} onEdit={() => setEditing({ idx: i })} />)}
+        {list.length < MAX && <button type="button" className="dream-add" onClick={() => setEditing({ idx: -1 })}><Plus size={20} aria-hidden="true" /><b>관심 회사 추가</b></button>}
+      </div>}
 
       {editing && (
         <DreamEditor

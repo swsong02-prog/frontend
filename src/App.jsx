@@ -1,4 +1,11 @@
+import * as Lucide from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import AppShell from "./components/AppShell";
+import HomeHeader from "./components/home/HomeHeader";
+import InterviewHero from "./components/home/InterviewHero";
+import PreparationProgress from "./components/home/PreparationProgress";
+import RecentInterviewCard from "./components/home/RecentInterviewCard";
+import TodayPreparation from "./components/home/TodayPreparation";
 import Auth from "./Auth";
 import Growth from "./Growth";
 import { searchCompanies } from "./companies";
@@ -228,402 +235,135 @@ const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 /* ===== 인라인 SVG 아이콘 (stroke 기반, 라이브러리 미사용) ===== */
 function IconMark({ size = 16 }) {
-  // 로고 마크: 대화(코칭)를 상징하는 말풍선 + 체크
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-      <polyline points="8.5 11.5 11 14 15.5 9.5" />
-    </svg>
-  );
+  return <Lucide.MessageCircle size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconHome({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 10.5 12 3l9 7.5" />
-      <path d="M5 9.5V21h14V9.5" />
-      <path d="M9.5 21v-6h5v6" />
-    </svg>
-  );
+  return <Lucide.House size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconChart({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 20V10" /><path d="M10 20V4" /><path d="M16 20v-7" /><path d="M22 20H2" />
-    </svg>
-  );
+  return <Lucide.ChartNoAxesCombined size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconLogout({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
-  );
+  return <Lucide.LogOut size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconSettings({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="7" x2="20" y2="7" /><circle cx="9" cy="7" r="2" fill="var(--surface)" />
-      <line x1="4" y1="17" x2="20" y2="17" /><circle cx="15" cy="17" r="2" fill="var(--surface)" />
-    </svg>
-  );
+  return <Lucide.Settings size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconTip({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 18h6" /><path d="M10 22h4" />
-      <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z" />
-    </svg>
-  );
+  return <Lucide.Lightbulb size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconMic({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="9" y="2" width="6" height="12" rx="3" />
-      <path d="M5 10v1a7 7 0 0 0 14 0v-1" /><line x1="12" y1="18" x2="12" y2="22" />
-    </svg>
-  );
+  return <Lucide.Mic size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconClip({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
-  );
+  return <Lucide.Paperclip size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconEdit({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
+  return <Lucide.Pencil size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconSpark({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3v4" /><path d="M12 17v4" /><path d="M3 12h4" /><path d="M17 12h4" />
-      <path d="M5.6 5.6l2.8 2.8" /><path d="M15.6 15.6l2.8 2.8" />
-      <path d="M18.4 5.6l-2.8 2.8" /><path d="M8.4 15.6l-2.8 2.8" />
-    </svg>
-  );
+  return <Lucide.ChartNoAxesCombined size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconCalendar({ size = 13 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="3" />
-      <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
+  return <Lucide.CalendarDays size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 function IconVideo({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2.5" y="6" width="13" height="12" rx="3" />
-      <path d="M15.5 10.5 21 7.5v9l-5.5-3" />
-    </svg>
-  );
+  return <Lucide.Video size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconChatDots({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-      <circle cx="8.5" cy="11.5" r="0.6" fill="currentColor" stroke="none" />
-      <circle cx="12.2" cy="11.5" r="0.6" fill="currentColor" stroke="none" />
-      <circle cx="15.9" cy="11.5" r="0.6" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <Lucide.MessageSquareText size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconDoc({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" />
-    </svg>
-  );
+  return <Lucide.FileText size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconClock({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <polyline points="12 7 12 12 15.5 14" />
-    </svg>
-  );
+  return <Lucide.History size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconGear({ size = 17 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
+  return <Lucide.Settings size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 /* ===== 직무 아이콘 13종 + 폴백 (24×24, stroke 1.9, round) ===== */
 function IconJobDev({ size = 18 }) {
-  // 개발: 코드 브래킷 </>
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="8 7 3.5 12 8 17" />
-      <polyline points="16 7 20.5 12 16 17" />
-      <line x1="13.5" y1="5" x2="10.5" y2="19" />
-    </svg>
-  );
+  return <Lucide.CodeXml size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobData({ size = 18 }) {
-  // 데이터·AI: CPU 칩 + 핀
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="7" y="7" width="10" height="10" rx="2" />
-      <rect x="10.4" y="10.4" width="3.2" height="3.2" rx="0.8" />
-      <path d="M9.5 7V3.5 M14.5 7V3.5 M9.5 20.5V17 M14.5 20.5V17 M7 9.5H3.5 M7 14.5H3.5 M20.5 9.5H17 M20.5 14.5H17" />
-    </svg>
-  );
+  return <Lucide.Database size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobDesign({ size = 18 }) {
-  // 디자인: 펜툴 닙 + 베지어 곡선
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3l4.2 5.2L12 15 7.8 8.2 12 3z" />
-      <circle cx="12" cy="8.8" r="1.5" />
-      <path d="M4 20.5q8-6 16 0" />
-    </svg>
-  );
+  return <Lucide.Palette size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobMkt({ size = 18 }) {
-  // 마케팅: 확성기 + 전파
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M16 4.5 4.5 9v6L16 19.5V4.5z" />
-      <line x1="8" y1="16.4" x2="8" y2="20" />
-      <path d="M19.5 9.5q2 2.5 0 5" />
-    </svg>
-  );
+  return <Lucide.Megaphone size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobSales({ size = 18 }) {
-  // 영업: 우상향 꺾은선 + 화살촉
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="3.5 17.5 9.5 11.5 13.5 15 20.5 7.5" />
-      <polyline points="14.5 7.5 20.5 7.5 20.5 13.5" />
-    </svg>
-  );
+  return <Lucide.Handshake size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobOffice({ size = 18 }) {
-  // 경영사무: 클립보드 + 체크
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="4.5" width="14" height="17" rx="2.5" />
-      <rect x="9" y="2.5" width="6" height="4" rx="1.5" />
-      <polyline points="8.5 13.5 11 16 15.5 11" />
-    </svg>
-  );
+  return <Lucide.BriefcaseBusiness size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobFin({ size = 18 }) {
-  // 금융: 동전 스택
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <ellipse cx="12" cy="6" rx="7.5" ry="3" />
-      <path d="M4.5 6v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6" />
-      <path d="M4.5 12v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6" />
-    </svg>
-  );
+  return <Lucide.Landmark size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobLab({ size = 18 }) {
-  // 연구·엔지니어링: 플라스크 + 기포
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9.5 2.5h5" />
-      <path d="M10.5 2.5v6L5.2 17.6a2.6 2.6 0 0 0 2.4 3.9h8.8a2.6 2.6 0 0 0 2.4-3.9L13.5 8.5v-6" />
-      <circle cx="10.3" cy="16.5" r="1.1" />
-      <circle cx="13.9" cy="14" r="0.7" />
-    </svg>
-  );
+  return <Lucide.FlaskConical size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobGov({ size = 18 }) {
-  // 공공·행정: 관청 기둥 건물
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 9.5 12 3.5l8.5 6" />
-      <line x1="5" y1="12.5" x2="19" y2="12.5" />
-      <path d="M7 12.5v5.5 M12 12.5v5.5 M17 12.5v5.5" />
-      <line x1="4" y1="20.5" x2="20" y2="20.5" />
-    </svg>
-  );
+  return <Lucide.Building2 size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobEdu({ size = 18 }) {
-  // 교육: 학사모 + 태슬
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2.5 9.5 12 5l9.5 4.5L12 14 2.5 9.5z" />
-      <path d="M6.5 11.7v4.1c0 1.4 2.46 2.7 5.5 2.7s5.5-1.3 5.5-2.7v-4.1" />
-      <path d="M21.5 9.5v5" />
-      <circle cx="21.5" cy="16.2" r="0.9" />
-    </svg>
-  );
+  return <Lucide.GraduationCap size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobMed({ size = 18 }) {
-  // 의료·보건: 십자 + 심전도
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9.3 3.5h5.4v5.8h5.8v5.4h-5.8v5.8H9.3v-5.8H3.5V9.3h5.8V3.5z" />
-      <polyline points="7.6 12 10.2 12 11.5 9.7 12.8 14.3 14.1 12 16.4 12" strokeWidth="1.6" />
-    </svg>
-  );
+  return <Lucide.Stethoscope size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobSvc({ size = 18 }) {
-  // 서비스·유통: 쇼핑백 + 반짝임
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5.5 8h13l-1.1 11.6a2 2 0 0 1-2 1.9H8.6a2 2 0 0 1-2-1.9L5.5 8z" />
-      <path d="M9 8V6.4a3 3 0 0 1 6 0V8" />
-      <path d="M12 12.6v4.2 M9.9 14.7h4.2" />
-    </svg>
-  );
+  return <Lucide.ShoppingBag size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobMedia({ size = 18 }) {
-  // 미디어·콘텐츠: 클래퍼보드 + 재생 삼각
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3.5" y="6" width="17" height="14" rx="2.5" />
-      <line x1="3.5" y1="10.2" x2="20.5" y2="10.2" />
-      <path d="M8 6l2.2 4.2 M13 6l2.2 4.2 M17.6 6l1.9 3.6" />
-      <path d="M10.6 13.2v4.4l3.8-2.2-3.8-2.2z" />
-    </svg>
-  );
+  return <Lucide.Clapperboard size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconJobEtc({ size = 18 }) {
-  // 폴백: 서류가방
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3.5" y="7.5" width="17" height="13" rx="2.5" />
-      <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" />
-      <line x1="3.5" y1="13" x2="20.5" y2="13" />
-    </svg>
-  );
+  return <Lucide.BriefcaseBusiness size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 /* ===== 단과대학 아이콘 10종 (24×24, stroke 1.9, round — 직무 아이콘 문법 재활용) ===== */
 function IconColSw({ size = 16 }) {
-  // SW융합대학: 코드 브래킷 + 칩
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="5" width="14" height="14" rx="2.5" />
-      <path d="M9 2.5V5 M15 2.5V5 M9 19v2.5 M15 19v2.5 M2.5 9H5 M2.5 15H5 M19 9h2.5 M19 15h2.5" />
-      <polyline points="10.6 9.6 8.6 12 10.6 14.4" />
-      <polyline points="13.4 9.6 15.4 12 13.4 14.4" />
-    </svg>
-  );
+  return <Lucide.Cpu size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColEng({ size = 16 }) {
-  // 공과대학: 기어
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="6" />
-      <circle cx="12" cy="12" r="2.2" />
-      <path d="M12 3v3 M12 18v3 M3 12h3 M18 12h3 M5.6 5.6l2.2 2.2 M16.2 16.2l2.2 2.2 M18.4 5.6l-2.2 2.2 M7.8 16.2l-2.2 2.2" />
-    </svg>
-  );
+  return <Lucide.Cog size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColArt({ size = 16 }) {
-  // 디자인·아트대학: 팔레트 + 붓
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 21.5a9.5 9.5 0 1 1 9.5-9.9c.1 1.9-1.3 3.4-3.2 3.4h-2c-1.2 0-1.9 1.2-1.4 2.3.5 1.2-.3 4.2-2.9 4.2z" />
-      <circle cx="7.8" cy="10.4" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="16.2" cy="10.4" r="0.9" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <Lucide.Palette size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColHealth({ size = 16 }) {
-  // 보건의료과학대학: 라운드 십자
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9.5 3.5h5a1 1 0 0 1 1 1v3h3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-3v3a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-3h-3a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h3v-3a1 1 0 0 1 1-1z" />
-    </svg>
-  );
+  return <Lucide.HeartPulse size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColKmed({ size = 16 }) {
-  // 한의과대학: 잎(약초)
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20.5 3.5c-8.5 0-14.5 4-14.5 11 0 3.3 2.2 5.5 5.5 5.5 7 0 9-8.5 9-16.5z" />
-      <path d="M4 21c3-6.5 7.5-10.5 13-13.5" />
-    </svg>
-  );
+  return <Lucide.Leaf size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColSoc({ size = 16 }) {
-  // 사회과학대학: 저울
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="12" y1="4" x2="12" y2="20" />
-      <path d="M8.5 20.5h7" />
-      <line x1="5.3" y1="7" x2="18.7" y2="7" />
-      <path d="m5.3 7-2.8 6.8a4.3 4.3 0 0 0 5.6 0L5.3 7z" />
-      <path d="m18.7 7-2.8 6.8a4.3 4.3 0 0 0 5.6 0L18.7 7z" />
-    </svg>
-  );
+  return <Lucide.Scale size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColBiz({ size = 16 }) {
-  // 경영대학: 상승 막대 차트
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 3.5v17h17" />
-      <line x1="8" y1="20.5" x2="8" y2="15" />
-      <line x1="12.5" y1="20.5" x2="12.5" y2="11" />
-      <line x1="17" y1="20.5" x2="17" y2="7" />
-    </svg>
-  );
+  return <Lucide.ChartNoAxesCombined size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColLib({ size = 16 }) {
-  // 혜화리버럴아츠칼리지: 펼친 책
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 6C10.5 4.4 8 3.8 5.5 3.8c-1 0-2 .1-3 .4v14.6c1-.3 2-.4 3-.4 2.5 0 5 .6 6.5 2.1 1.5-1.5 4-2.1 6.5-2.1 1 0 2 .1 3 .4V4.2c-1-.3-2-.4-3-.4-2.5 0-5 .6-6.5 2.2z" />
-      <line x1="12" y1="6" x2="12" y2="20.5" />
-    </svg>
-  );
+  return <Lucide.BookOpen size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColFuture({ size = 16 }) {
-  // 미래인재융합대학: 로켓
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 2.5c2.9 2.3 4.3 5.6 4.3 9.4 0 1.5-.3 2.9-.9 4.1H8.6a10.6 10.6 0 0 1-.9-4.1c0-3.8 1.4-7.1 4.3-9.4z" />
-      <circle cx="12" cy="9.8" r="1.9" />
-      <path d="M8.6 13.5 6 17h3.2 M15.4 13.5 18 17h-3.2" />
-      <path d="M12 18.5v3" />
-    </svg>
-  );
+  return <Lucide.Rocket size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconColComm({ size = 16 }) {
-  // 혜화커뮤니티칼리지: 사람 2명
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="9" cy="8.5" r="3.2" />
-      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
-      <path d="M15.8 5.6a3.2 3.2 0 0 1 0 5.8" />
-      <path d="M17.6 14.3a6.5 6.5 0 0 1 3.9 5.7" />
-    </svg>
-  );
+  return <Lucide.Users size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconUser({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="3.8" />
-      <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
-    </svg>
-  );
+  return <Lucide.UserRound size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 /* 난이도 게이지: 막대 1~3개 */
 function IconGauge({ bars = 1, size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
-      <line x1="6.5" y1="18" x2="6.5" y2="13.5" opacity={bars >= 1 ? 1 : 0.25} />
-      <line x1="12" y1="18" x2="12" y2="9.5" opacity={bars >= 2 ? 1 : 0.25} />
-      <line x1="17.5" y1="18" x2="17.5" y2="5.5" opacity={bars >= 3 ? 1 : 0.25} />
-    </svg>
-  );
+  const Icon = bars >= 3 ? Lucide.SignalHigh : bars >= 2 ? Lucide.SignalMedium : Lucide.SignalLow;
+  return <Icon size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 /* 단과대학명(departments.js college 문자열) → 칩 아이콘 매핑. 미등록 단과대는 학사모 폴백 */
@@ -885,30 +625,13 @@ function SetupBearIllust() {
 /* ===== AI 면접관 아바타 ===== */
 /* 음성 안내용 스피커/다시 듣기 아이콘 (기존 stroke 아이콘 문법) */
 function IconSoundOn({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 5 6.5 8.5H3v7h3.5L11 19V5z" />
-      <path d="M15 9.3a4.2 4.2 0 0 1 0 5.4" />
-      <path d="M18 7a8 8 0 0 1 0 10" />
-    </svg>
-  );
+  return <Lucide.Volume2 size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconSoundOff({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 5 6.5 8.5H3v7h3.5L11 19V5z" />
-      <line x1="15.5" y1="9.5" x2="20.5" y2="14.5" />
-      <line x1="20.5" y1="9.5" x2="15.5" y2="14.5" />
-    </svg>
-  );
+  return <Lucide.VolumeX size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconReplay({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
-      <polyline points="3 3 3 8 8 8" />
-    </svg>
-  );
+  return <Lucide.RotateCcw size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 /* 면접관 아바타: 히어로/마스코트와 동일 인물(동일 팔레트)의 정면 상반신.
@@ -1184,32 +907,16 @@ function FeedbackEmptyIllust() {
 
 /* ===== 토스트 알림 (alert 대체: 성공=민트 / 오류=danger / 정보=블루) ===== */
 function IconToastOk({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" /><polyline points="8 12.5 11 15.5 16 9.5" />
-    </svg>
-  );
+  return <Lucide.CircleCheck size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconToastErr({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" /><line x1="12" y1="7.5" x2="12" y2="13" /><circle cx="12" cy="16.5" r="0.6" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <Lucide.CircleAlert size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconToastInfo({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" /><line x1="12" y1="11" x2="12" y2="16.5" /><circle cx="12" cy="7.5" r="0.6" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <Lucide.Info size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function IconX({ size = 13 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-      <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
-    </svg>
-  );
+  return <Lucide.X size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 function ToastHost({ toasts, onClose }) {
   if (!toasts.length) return null;
@@ -2974,80 +2681,10 @@ export default function App() {
   // 주의: 컴포넌트가 아니라 일반 함수로 호출한다.
   // (렌더마다 새 컴포넌트 타입이 되면 서브트리가 리마운트되어
   //  textarea 포커스/카메라 video가 깨지기 때문)
-  function renderShell(children, greeting = false) {
-    return (
-      <div className={"shell scr-" + screen}>
-        {/* 모바일 전용 상단 앱바: 현재 화면 제목 + 프로필(설정) */}
-        <header className="appbar">
-          {screen === "home" ? (
-            <button type="button" className="appbar-brand" aria-label="코치코치 홈" onClick={() => { if (confirmLeaveInterview()) goHomeNav(); }}>
-              <span className="mark"><BubbleLogoIcon /></span>코치코치
-            </button>
-          ) : (
-            <h2 className="appbar-title">{appbarTitle}</h2>
-          )}
-          <button type="button" className="appbar-me" aria-label="설정" onClick={() => { if (confirmLeaveInterview()) goSettings(); }}>
-            {initial}
-          </button>
-        </header>
-        <aside className="sidebar">
-          <button type="button" className="logo" aria-label="코치코치 홈으로" onClick={() => { if (confirmLeaveInterview()) goHomeNav(); }}>
-            <span className="mark"><BubbleLogoIcon /></span>
-            <span className="word" aria-hidden="true"><span>코치</span><span className="w2">코치</span></span>
-          </button>
-          <nav className="snav" aria-label="주요 메뉴">
-            {NAV_ITEMS.map((it) => (
-              <button
-                key={it.key}
-                className={"snav-item" + (navActive === it.key ? " active" : "")}
-                aria-label={it.label}
-                aria-current={navActive === it.key ? "page" : undefined}
-                title={it.label}
-                onClick={() => { if (confirmLeaveInterview()) it.go(); }}
-              >
-                {it.icon}<span className="lb">{it.label}</span><span className="lb-s" aria-hidden="true">{it.short}</span>
-              </button>
-            ))}
-          </nav>
-          <div className="side-bottom">
-            <div className="side-tip">
-              <div className="tt">오늘의 팁</div>
-              <div className="td">{tip}</div>
-            </div>
-          </div>
-        </aside>
-
-        <main className="smain">
-          {greeting && (
-            <div className="greet-bar">
-              <div className="greet">
-                <h1>{emailName}님, 안녕하세요</h1>
-                <p>{greetDate}</p>
-              </div>
-              <div className="greet-right">
-                <div className="avatar" title={userEmail}>{initial}</div>
-              </div>
-            </div>
-          )}
-          {children}
-        </main>
-        {/* 모바일 전용 하단 탭바 (설정은 상단 프로필 버튼) */}
-        <nav className="tabbar" aria-label="하단 메뉴">
-          {NAV_ITEMS.filter((it) => it.key !== "settings").map((it) => (
-            <button
-              key={it.key}
-              type="button"
-              className={"tab" + (navActive === it.key ? " on" : "")}
-              aria-current={navActive === it.key ? "page" : undefined}
-              onClick={() => { if (confirmLeaveInterview()) it.go(); }}
-            >
-              {it.icon}<span>{it.short}</span>
-            </button>
-          ))}
-        </nav>
-        <ToastHost toasts={toasts} onClose={dismissToast} />
-      </div>
-    );
+  function renderShell(children) {
+    return <AppShell screen={screen} title={appbarTitle} items={NAV_ITEMS} active={navActive}
+      onHome={goHomeNav} confirmLeave={confirmLeaveInterview} name={emailName} initial={initial}
+      footer={<ToastHost toasts={toasts} onClose={dismissToast} />}>{children}</AppShell>;
   }
 
   /* ===== 설정 화면 ===== */
@@ -4958,214 +4595,27 @@ export default function App() {
 
   return renderShell(
     <>
-      {/* 1. 다음 면접 시작 카드 (지난 조건 이어하기) + 이번 주 현황 */}
-      <section className="home-top rise" style={{ "--ri": 0 }}>
-        <div className="dcard start-card">
-          <div className="sc-text">
-            <div className="sc-eyebrow">{lastSess ? "지난 조건으로 이어서" : "첫 연습"}</div>
-            <h2 className="sc-title">
-              {lastSess ? sessionTitle(lastSess) : "직무를 고르고 첫 모의면접을 시작해보세요"}
-            </h2>
-            {lastSess ? (
-              <div className="sc-chips">
-                {lastSess.sub_job && <span className="sc-chip">{lastSess.sub_job}</span>}
-                {lastSess.career && <span className="sc-chip">{lastSess.career}</span>}
-                {LEVEL_LABEL[lastSess.level] && <span className="sc-chip">난이도 {LEVEL_LABEL[lastSess.level]}</span>}
-                <span className="sc-chip">질문 {EXPECT_Q}개</span>
-              </div>
-            ) : (
-              <p className="sc-desc">질문 {EXPECT_Q}개 · 답변마다 자세와 내용을 따로 채점해요</p>
-            )}
-            <div className="sc-actions">
-              {lastSess ? (
-                <>
-                  <button className="btn-primary" onClick={() => startWithPreset(lastPreset)}>이 조건으로 시작</button>
-                  <button className="btn-secondary" onClick={goMock}>새로 설정</button>
-                </>
-              ) : (
-                <button className="btn-primary" onClick={goMock}>면접 설정하기</button>
-              )}
-              <button className="sc-guide" ref={guideBtnRef} onClick={() => setShowGuide(true)}>이용 방법</button>
-            </div>
-          </div>
-          <HeroIllust />
-        </div>
-
-        <div className="dcard week-card">
-          <div className="dcard-head">
-            <div className="dcard-t">이번 주</div>
-            <button className="dlink" onClick={goRecords}>기록 <IconChevron size={12} /></button>
-          </div>
-          {!dashLoaded && historyData == null ? (
-            <SkelStatus />
-          ) : (
-            <>
-              <div className="wk-goal">
-                <b>{statUnknown ? "-" : doneCount}</b><span>/ {WEEK_GOAL}회</span>
-              </div>
-              <div className="wk-bar"><AnimatedBar className="wk-fill" pct={donutPct} /></div>
-              <div className="wk-cap">
-                {statUnknown ? "기록을 불러오지 못했어요"
-                  : weeklyCount >= WEEK_GOAL ? "이번 주 목표 달성"
-                    : `목표까지 ${WEEK_GOAL - weeklyCount}회 남았어요`}
-              </div>
-              <dl className="wk-stats">
-                <div><dt>누적</dt><dd>{statUnknown ? "-" : `${totalCount != null ? totalCount : 0}회`}</dd></div>
-                <div><dt>최근 점수</dt><dd>{lastScore != null ? `${lastScore}점` : "-"}</dd></div>
-              </dl>
-              {sparkPts && (
-                <svg className="sparkline" viewBox="0 0 300 56" aria-label={`최근 ${sparkScores.length}회 점수 추이`} role="img">
-                  <polyline
-                    points={sparkPts.map((p) => p.join(",")).join(" ")}
-                    fill="none" stroke="var(--primary)" strokeWidth="2.2"
-                    strokeLinecap="round" strokeLinejoin="round"
-                  />
-                  {sparkPts.map(([x, y], i) => (
-                    <circle
-                      key={i} cx={x} cy={y}
-                      r={i === sparkPts.length - 1 ? 4 : 2.4}
-                      fill={i === sparkPts.length - 1 ? "var(--primary)" : "#FFFFFF"}
-                      stroke="var(--primary)" strokeWidth="1.6"
-                    />
-                  ))}
-                </svg>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* 1.5 관심 회사 (최대 3곳, 회사+직무 저장 → 그 조건으로 바로 설정) */}
-      <DreamCompanies key={userEmail} email={userEmail} jobData={jobData} onStart={startWithPreset} onChange={() => setDreamVer((n) => n + 1)} />
-
-      {/* 1.6 지금 열린 공공기관 공고 (내 직무 / 대전·충청 / 관심 회사) */}
-      <JobPostings
-        api={API}
-        job={postJob.job}
-        sub={postJob.sub}
-        career={postJob.career}
-        companies={dreamList.map((d) => d.company)}
-        onPractice={startWithPreset}
-      />
-
-      {dashErr && (
-        <div className="dash-err" role="alert">
-          <span>면접 기록을 불러오지 못했어요. 아래 숫자가 실제와 다를 수 있어요.</span>
-          <button type="button" className="link-btn" onClick={() => setDashReload((n) => n + 1)}>다시 불러오기</button>
-        </div>
-      )}
-
-      {/* 2. 최근 기록 + (고칠 점 · 체크리스트) */}
-      <section className="dash-cols rise" style={{ "--ri": 1 }}>
-        <div className="dcard recent-card">
-          <div className="dcard-head">
-            <div className="dcard-t">최근 면접</div>
-            <button className="dlink" onClick={goRecords}>전체 보기 <IconChevron size={12} /></button>
-          </div>
-          {!dashLoaded && historyData == null ? (
-            <SkelRecentRows n={3} />
-          ) : statUnknown ? (
-            <div className="dist-empty">
-              기록을 불러오지 못했어요. <button type="button" className="link-btn" onClick={() => setDashReload((n) => n + 1)}>다시 시도</button>
-            </div>
-          ) : recentList.length === 0 ? (
-            <div className="recent-empty2">
-              <div className="re-t">아직 면접 기록이 없어요</div>
-              <ol className="re-steps">
-                <li><span className="re-num">1</span>직무·난이도를 고르고 자기소개서를 붙여넣어요</li>
-                <li><span className="re-num">2</span>웹캠 앞에서 실전처럼 답변해요</li>
-                <li><span className="re-num">3</span>점수와 피드백이 여기에 쌓여요</li>
-              </ol>
-            </div>
-          ) : (
-            <div className="recent-list">
-              {recentList.map((s, i) => (
-                <div
-                  className={"recent-row" + (s.session_id != null ? " clickable" : "")}
-                  key={s.session_id ?? i}
-                  onClick={() => { if (s.session_id != null) openHistoryDetail(s.session_id); }}
-                  {...(s.session_id != null
-                    ? { role: "button", tabIndex: 0, onKeyDown: keyActivate(() => openHistoryDetail(s.session_id)) }
-                    : {})}
-                >
-                  <RecordLogo company={s.company} job={s.job} idx={i} />
-                  <div className="rinfo">
-                    <div className="rjob">{sessionTitle(s)}</div>
-                    <div className="rdate">
-                      {fmtDateDot(s.created_at)}
-                      {typeof s.posture_score === "number" && typeof s.content_score === "number" && (
-                        <span className="rmini"> · 자세 {s.posture_score} · 내용 {s.content_score}</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="rscore">{typeof s.total_score === "number" ? s.total_score : "-"}<small>점</small></span>
-                  {s.session_id != null && <span className="rgo"><IconChevron /></span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="side-stack">
-          <div className="dcard coach-card">
-            <div className="dcard-head">
-              <div className="dcard-t">{coachPoints.length > 0 ? "지난 면접에서 고칠 점" : "연습할 때 기억할 것"}</div>
-              {hasHistory && <button className="dlink" onClick={goFeedback}>피드백 <IconChevron size={12} /></button>}
-            </div>
-            <ul className="coach-list">
-              {coachTips.map((t, i) => (
-                <li key={i}><span className="cl-num">{i + 1}</span>{t}</li>
-              ))}
-            </ul>
-            {coachRaw && <p className="coach-quote">{coachText}</p>}
-          </div>
-
-          <div className="dcard check-card">
-            <div className="dcard-head">
-              <div className="dcard-t">시작 전 체크</div>
-              <span className="check-cnt">{checks.length}/{CHECKLIST_ITEMS.length}</span>
-            </div>
-            <ul className="check-list">
-              {CHECKLIST_ITEMS.map((label, i) => {
-                const on = checks.includes(i);
-                return (
-                  <li key={i}>
-                    <button type="button" className={"check-item" + (on ? " on" : "")} onClick={() => toggleCheck(i)} aria-pressed={on}>
-                      <span className="cbox"><IconCheck size={10} /></span>
-                      <span className="clabel">{label}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. 직무별 연습 분포 (기록 있을 때만) */}
-      {jobDist.length > 0 && (
-        <section className="dcard dist-card rise" style={{ "--ri": 2 }}>
-          <div className="dcard-head">
-            <div className="dcard-t">직무별 연습</div>
-            {totalCount != null && totalCount > 0 && <span className="dist-total">총 {totalCount}회</span>}
-          </div>
-          <div className="dist-list">
-            {jobDist.map(([name, cnt]) => (
-              <div className="dist-row" key={name}>
-                <div className="dist-body">
-                  <div className="dist-top">
-                    <span className="dist-nm">{name}</span>
-                    <span className="dist-cnt">{cnt}회</span>
-                  </div>
-                  <div className="dist-bar">
-                    <AnimatedBar className="dist-fill" pct={(cnt / jobDistMax) * 100} style={{ background: "var(--primary)" }} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <HomeHeader name={emailName} hasHistory={hasHistory} weeklyCount={weeklyCount} unknown={statUnknown} />
+      <div className="home-primary-row">
+        <InterviewHero job={job || lastSess?.job} sub={sub || lastSess?.sub_job} lastSession={lastSess}
+          onStart={lastSess && !job ? () => startWithPreset(lastPreset) : goMock} onSelectJob={goMock} onContinue={() => startWithPreset(lastPreset)}
+          onGuide={() => setShowGuide(true)} guideRef={guideBtnRef} />
+        <PreparationProgress savedResume={rsSaved} selectedJob={job || lastSess?.job} companies={dreamList}
+          count={totalCount || 0} loading={!dashLoaded && historyData == null} unknown={statUnknown}
+          onSelectJob={goMock} onResume={goResume} onInterview={goMock} />
+      </div>
+      {dashErr && <div className="dash-err" role="alert"><span>면접 기록을 불러오지 못했어요.</span><button type="button" className="link-btn" onClick={() => setDashReload((n) => n + 1)}>다시 불러오기</button></div>}
+      <div className="home-secondary-row">
+        <RecentInterviewCard session={lastSess} comment={coachRaw} loading={!dashLoaded && historyData == null}
+          unknown={statUnknown} onRetry={() => setDashReload((n) => n + 1)} onStart={goMock}
+          onRecords={goRecords} onDetail={openHistoryDetail} />
+        <TodayPreparation hasHistory={hasHistory} tips={coachTips} checklist={CHECKLIST_ITEMS} checks={checks}
+          onToggleCheck={toggleCheck} onFeedback={goFeedback} />
+      </div>
+      <JobPostings api={API} job={postJob.job} sub={postJob.sub} career={postJob.career}
+        companies={dreamList.map((d) => d.company)} onPractice={startWithPreset} />
+      <DreamCompanies key={userEmail} email={userEmail} jobData={jobData} onStart={startWithPreset}
+        onChange={() => setDreamVer((n) => n + 1)} />
 
       {/* 면접 이용 가이드 모달 */}
       {showGuide && (

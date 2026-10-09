@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { ArrowRight, ChevronDown } from "lucide-react";
+import JobPostingCard from "./components/JobPostingCard";
 
 /* 홈 "지금 열린 공공기관 공고" — 서버 /api/postings (잡알리오 데이터, 2시간 캐시)
    탭: 내 직무 / 대전·충청 / 관심 회사. 공고 원문은 새 창, "면접 연습"은 그 기관 조건으로 설정 화면 이동 */
@@ -12,13 +14,6 @@ const DEFAULT_REGIONS = ["전체", "서울", "경기", "인천", "대전", "세�
   "광주·전남", "전북", "경북", "경남", "강원", "제주"];
 function loadRegion() {
   try { return localStorage.getItem(REGION_KEY) || "대전·충청"; } catch (e) { return "대전·충청"; }
-}
-
-function ddayText(d) {
-  if (d == null) return "상시";
-  if (d < 0) return "마감";
-  if (d === 0) return "오늘 마감";
-  return `D-${d}`;
 }
 
 export default function JobPostings({ api, job, sub, career, companies, onPractice }) {
@@ -52,12 +47,18 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
   const privateOnly = scope === "company" && companies.length > 0 && Object.values(counts).every((n) => n === 0);
 
   return (
-    <section className="dcard post-card rise" style={{ "--ri": 2 }}>
-      <div className="dcard-head">
-        <div className="dcard-t">지금 열린 공공기관 공고</div>
-        {data && <span className="dist-total">진행 중 {data.total_open}건</span>}
+    <section className="post-card" aria-labelledby="recommended-jobs-title">
+      <div className="home-section-heading">
+        <h2 id="recommended-jobs-title">추천 채용공고</h2>
+        <button type="button" className="text-action" aria-controls="all-job-postings" onClick={(event) => {
+          const details = event.currentTarget.closest("section").querySelector("details");
+          details.open = !details.open;
+          if (details.open) details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }}>전체보기<ArrowRight size={16} aria-hidden="true" /></button>
       </div>
 
+      <details className="post-explorer" id="all-job-postings">
+      <summary>공고 탐색 · {TABS.find(tab => tab.key === scope).label}{scope === "region" ? ` · ${region}` : ""}<ChevronDown size={16} aria-hidden="true" /></summary>
       <div className="post-tabs" role="tablist" aria-label="공고 보기 기준">
         {TABS.map((t) => (
           <button
@@ -85,6 +86,10 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
         </div>
       )}
 
+      {data && items.length > 0 && <ul className="post-list post-list-all">{items.map(p => <JobPostingCard key={p.id} posting={p} onPractice={() => onPractice({ company: p.inst, job: p.suggest_job || job, sub: p.suggest_sub || sub })} />)}</ul>}
+      {data && <p className="post-total">진행 중 {data.total_open}건 · 아래 추천은 선택한 조건을 따릅니다</p>}
+      </details>
+
       {err ? (
         <div className="dist-empty">
           공고를 불러오지 못했어요. <button type="button" className="link-btn" onClick={() => setReload((n) => n + 1)}>다시 시도</button>
@@ -94,7 +99,7 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
       ) : scope === "job" && !job ? (
         <div className="dist-empty">면접을 한 번 보거나 관심 회사를 추가하면 내 직무에 맞는 공고를 골라드려요.</div>
       ) : scope === "company" && companies.length === 0 ? (
-        <div className="dist-empty">위에서 관심 회사를 추가하면 그 기관의 공고를 모아 보여드려요.</div>
+        <div className="dist-empty">관심 회사를 추가하면 그 기관의 공고를 모아 보여드려요.</div>
       ) : items.length === 0 ? (
         <div className="dist-empty">
           {privateOnly
@@ -103,25 +108,7 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
         </div>
       ) : (
         <ul className="post-list">
-          {items.map((p) => (
-            <li key={p.id} className="post-row">
-              <div className="post-main">
-                <div className="post-top">
-                  <span className="post-inst">{p.inst}</span>
-                  <span className={"post-dday" + (p.dday != null && p.dday <= 3 ? " soon" : "")}>{ddayText(p.dday)}</span>
-                </div>
-                <a className="post-title" href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a>
-                <div className="post-meta">
-                  {[p.region && p.region.split(",").length > 3 ? "전국" : p.region, p.hire, p.se, p.nope ? `${p.nope}명` : ""]
-                    .filter(Boolean).join(" · ")}
-                </div>
-              </div>
-              <div className="post-acts">
-                <button type="button" className="dream-go" onClick={() => onPractice({ company: p.inst, job: p.suggest_job || job, sub: p.suggest_sub || sub })}>면접 연습</button>
-                {p.url && <a className="dream-more" href={p.url} target="_blank" rel="noopener noreferrer">공고</a>}
-              </div>
-            </li>
-          ))}
+          {items.slice(0, 3).map(p => <JobPostingCard key={p.id} posting={p} onPractice={() => onPractice({ company: p.inst, job: p.suggest_job || job, sub: p.suggest_sub || sub })} />)}
         </ul>
       )}
 

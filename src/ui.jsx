@@ -1,3 +1,4 @@
+import * as Lucide from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { COMPANIES } from "./companies";
 
@@ -188,78 +189,34 @@ export function weekStartDate(base = new Date()) {
 
 /* ===== 공용 소형 아이콘 ===== */
 export function IconCheck({ size = 11 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
+  return <Lucide.Check size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconChevron({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
+  return <Lucide.ChevronRight size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconArrowR({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="12" x2="19" y2="12" />
-      <polyline points="13 6 19 12 13 18" />
-    </svg>
-  );
+  return <Lucide.ArrowRight size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconTrendUp({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="3 17 9 11 13 15 21 7" /><polyline points="15 7 21 7 21 13" />
-    </svg>
-  );
+  return <Lucide.TrendingUp size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconTrendDown({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="3 7 9 13 13 9 21 17" /><polyline points="15 17 21 17 21 11" />
-    </svg>
-  );
+  return <Lucide.TrendingDown size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconTrendFlat({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="4" y1="12" x2="20" y2="12" /><polyline points="15 7 20 12 15 17" />
-    </svg>
-  );
+  return <Lucide.MoveRight size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconTrophy({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 21h8" /><path d="M12 17v4" />
-      <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
-      <path d="M7 6H4.5a1.5 1.5 0 0 0 0 3H7" /><path d="M17 6h2.5a1.5 1.5 0 0 1 0 3H17" />
-    </svg>
-  );
+  return <Lucide.Trophy size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconCalendarSm({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="3" />
-      <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
+  return <Lucide.CalendarDays size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconTarget({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <Lucide.Target size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 export function IconPlay({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-      <path d="M7 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 7 5.5z" />
-    </svg>
-  );
+  return <Lucide.Play size={size} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 /* ============================================================
