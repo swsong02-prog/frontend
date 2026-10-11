@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, ChartNoAxesCombined } from "lucide-react";
 
 export default function PreparationProgress({ savedResume, selectedJob, companies, count, loading, unknown, onSelectJob, onResume, onInterview }) {
   // 표시용 집계만 수행한다. 완료 근거가 없는 약점 재연습은 항목에 포함하지 않는다.
@@ -13,7 +13,7 @@ export default function PreparationProgress({ savedResume, selectedJob, companie
   const next = milestones.find(item => !item.done);
   const percent = Math.round(complete / milestones.length * 100);
   return <section className="preparation-progress" aria-labelledby="preparation-title">
-    <h2 id="preparation-title">면접 준비도</h2>
+    <h2 id="preparation-title"><span className="heading-icon lilac"><ChartNoAxesCombined size={16} aria-hidden="true" /></span>면접 준비도</h2>
     {loading ? <div className="preparation-skeleton" aria-label="준비 상태 불러오는 중"><span /><span /><span /></div> : unknown ? <p className="preparation-unavailable">기록을 불러온 뒤 준비도를 확인할 수 있어요.</p> : <>
       <div className="preparation-value"><b>{percent}<small>%</small></b><span>{complete} / {milestones.length} 완료</span></div>
       <div className="preparation-track" role="progressbar" aria-label="면접 준비도" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><span style={{ width: `${percent}%` }} /></div>

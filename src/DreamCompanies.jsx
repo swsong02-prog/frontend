@@ -39,7 +39,7 @@ export default function DreamCompanies({ email, jobData, onStart, onChange }) {
 
   return (
     <section className="dream-card" id="favorite-companies" aria-labelledby="favorite-companies-title">
-      <div className="home-section-heading"><h2 id="favorite-companies-title">관심 회사</h2><span className="section-caption">{list.length} / {MAX}곳</span></div>
+      <div className="home-section-heading"><h2 id="favorite-companies-title"><span className="heading-icon aqua"><Building2 size={16} aria-hidden="true" /></span>관심 회사</h2><span className="section-caption">{list.length} / {MAX}곳</span></div>
       {list.length === 0 ? <div className="favorite-empty"><EmptyState icon={Building2} title="관심 있는 회사를 등록해보세요"
         description="관심 회사를 등록하면 관련 면접과 채용 정보를 빠르게 확인할 수 있어요."
         action="관심 회사 추가" onAction={() => setEditing({ idx: -1 })} /></div> :

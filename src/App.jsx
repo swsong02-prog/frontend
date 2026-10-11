@@ -14,7 +14,7 @@ import JobPostings from "./JobPostings";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 import {
   prefersReducedMotion, CountUp, ArcProgress, AnimatedBar, keyActivate,
-  ScoreBadge, RecordLogo, fmtDate, fmtDateDot, LineChart, sessionTitle,
+  ScoreBadge, scoreGrade, RecordLogo, fmtDate, fmtDateDot, LineChart, sessionTitle,
   IconCheck, IconChevron, IconArrowR, IconTarget,
   authFetch, setAuthExpiredHandler, isAuthExpired,
 } from "./ui";
@@ -226,7 +226,7 @@ const FB_FOCUS_KEY = "cc_fb_focus";
 
 /* 피드백 분석: 3축(논리성·구체성·직무적합도) 라벨 매칭 + 게이지 색 */
 const FB_AXES = [
-  { key: "논리성", match: /논리/, color: "var(--primary)", track: "var(--lav)" },
+  { key: "논리성", match: /논리/, color: "var(--lilac-ink)", track: "var(--lilac-soft)" },
   { key: "구체성", match: /구체/, color: "var(--peach-ink)", track: "var(--peach)" },
   { key: "직무적합도", match: /직무|적합/, color: "var(--mint-ink)", track: "var(--mint)" },
 ];
@@ -2755,7 +2755,7 @@ export default function App() {
             {/* 1. 자소서 입력 (붙여넣기 + 파일 업로드, 기존 컴포넌트 문법 재활용) */}
             <section className="dcard setup-sec rise" style={{ "--ri": 0 }}>
               <div className="sec-head">
-                <span className="sec-chip sky"><IconDoc size={16} /></span>
+                <span className="sec-chip peach"><IconDoc size={16} /></span>
                 <div className="sec-tt">자기소개서 입력</div>
                 <span className="sec-hint">붙여넣거나 파일로 불러올 수 있어요</span>
               </div>
@@ -3175,7 +3175,7 @@ export default function App() {
                 </p>
                 <div className="fb-mini">
                   <div className="fb-ms">
-                    <span className="chip lav"><IconVideo size={14} /></span>
+                    <span className="chip sky"><IconVideo size={14} /></span>
                     <span className="mtxt"><span className="mk">평균 자세·표정</span><span className="mv">{avgPosture != null ? `${avgPosture}점` : "-"}</span></span>
                   </div>
                   <div className="fb-ms">
@@ -3236,7 +3236,7 @@ export default function App() {
                               <span className="cnt">{b.count}회 언급</span>
                             </div>
                             <div className="dist-bar">
-                              <AnimatedBar className="dist-fill" pct={(b.count / issueMax) * 100} style={{ background: i === 0 ? "var(--peach-ink)" : i === 1 ? "var(--primary)" : "var(--mint-ink)" }} />
+                              <AnimatedBar className="dist-fill" pct={(b.count / issueMax) * 100} style={{ background: i === 0 ? "var(--peach-ink)" : i === 1 ? "var(--lilac-ink)" : "var(--mint-ink)" }} />
                             </div>
                             <div className="fb-issue-tip">{b.tip}</div>
                           </div>
@@ -3477,20 +3477,20 @@ export default function App() {
               {sess.created_at ? " · " + fmtDate(sess.created_at) : ""}
             </p>
 
-            <div className="result-head rise" style={{ "--ri": 0 }}>
+            <div className="result-head rise" data-score={scoreGrade(dTotal)?.cls} style={{ "--ri": 0 }}>
               <div className="score-gauge">
-                <ArcProgress value={dTotal} r={54} strokeWidth={10} size={128} />
+                <ArcProgress value={dTotal} r={54} strokeWidth={10} size={128} color="var(--score-ink, var(--primary))" track="var(--score-soft, var(--sky-soft))" />
                 <div className="num">
                   <b>{dTotal != null ? <CountUp value={dTotal} /> : "-"}</b>
                   <span>종합 점수</span>
                 </div>
               </div>
               <div className="score-split">
-                <div className="score-item">
+                <div className="score-item" data-score={scoreGrade(sess.posture_score)?.cls}>
                   <div className="k">자세·표정</div>
                   <div className="v">{sess.posture_score ?? "-"}<small>/ 100</small></div>
                 </div>
-                <div className="score-item">
+                <div className="score-item" data-score={scoreGrade(sess.content_score)?.cls}>
                   <div className="k">답변 내용</div>
                   <div className="v">{sess.content_score ?? "-"}<small>/ 100</small></div>
                 </div>
@@ -3503,7 +3503,7 @@ export default function App() {
 
             {dResults.map((r, i) => (
               <div className="rcard rise" style={{ "--ri": Math.min(i + 1, 6) }} key={r.result_id ?? i}>
-                <div className="rq">Q{i + 1}. {r.question}</div>
+                <div className="rq"><span className="question-badge">Q{i + 1}.</span><span>{r.question}</span></div>
                 <div className="rscores">
                   <span className="ps">자세 {r.posture_score != null ? r.posture_score + "점" : "-"}</span>
                   <span className="cs">내용 {r.content_score != null ? r.content_score + "점" : "-"}</span>
@@ -3515,7 +3515,7 @@ export default function App() {
                 </div>
 
                 {r.feedback && (
-                  <details className="model-toggle">
+                  <details className="model-toggle feedback-toggle">
                     <summary>
                       <span className="arrow"><IconChevron /></span>
                       피드백 보기
@@ -3525,7 +3525,7 @@ export default function App() {
                 )}
 
                 {r.model_answer && (
-                  <details className="model-toggle">
+                  <details className="model-toggle answer-toggle">
                     <summary>
                       <span className="arrow"><IconChevron /></span>
                       모범 답변 보기
@@ -3610,20 +3610,20 @@ export default function App() {
 
           <div className="result-cols">
           <aside className="result-rail rise" style={{ "--ri": 0 }}>
-          <div className="result-head">
+          <div className="result-head" data-score={scoreGrade(total)?.cls}>
             <div className="score-gauge">
-              <ArcProgress value={total} r={54} strokeWidth={10} size={128} />
+              <ArcProgress value={total} r={54} strokeWidth={10} size={128} color="var(--score-ink, var(--primary))" track="var(--score-soft, var(--sky-soft))" />
               <div className="num">
                 <b>{total != null ? <CountUp value={total} /> : "-"}</b>
                 <span>종합 점수</span>
               </div>
             </div>
             <div className="score-split">
-              <div className="score-item">
+              <div className="score-item" data-score={scoreGrade(pAvg)?.cls}>
                 <div className="k">자세·표정</div>
                 <div className="v">{pAvg ?? "-"}<small>/ 100</small></div>
               </div>
-              <div className="score-item">
+              <div className="score-item" data-score={scoreGrade(cAvg)?.cls}>
                 <div className="k">답변 내용</div>
                 <div className="v">{cAvg ?? "-"}<small>/ 100</small></div>
               </div>
@@ -3666,7 +3666,7 @@ export default function App() {
           <div className="result-main">
           {results.map((r, i) => (
             <div className="rcard rise" style={{ "--ri": Math.min(i + 1, 6) }} key={i}>
-              <div className="rq">Q{i + 1}. {r.question}</div>
+              <div className="rq"><span className="question-badge">Q{i + 1}.</span><span>{r.question}</span></div>
 
               {!hasAnalysis(r) ? (
                 <>
@@ -3746,7 +3746,7 @@ export default function App() {
                   )}
 
                   {r.content && r.content.model_answer && (
-                    <details className="model-toggle">
+                    <details className="model-toggle answer-toggle">
                       <summary>
                         <span className="arrow"><IconChevron /></span>
                         모범 답변 보기
@@ -4369,7 +4369,7 @@ export default function App() {
           {/* 5. 자기소개서 (선택) */}
           <section className="dcard setup-sec rise" style={{ "--ri": 5 }}>
             <div className="sec-head">
-              <span className="sec-chip sky"><IconDoc size={16} /></span>
+              <span className="sec-chip peach"><IconDoc size={16} /></span>
               <div className="sec-tt">자기소개서</div>
               <span className="sec-optional">선택</span>
               <span className="sec-hint">붙여넣으면 내용 기반 질문이 추가돼요</span>

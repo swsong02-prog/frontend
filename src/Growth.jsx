@@ -9,7 +9,7 @@ const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 const GOAL = 80; // "우수" 기준선
 
 const SERIES_ALL = [
-  { key: "total_score", label: "종합", color: "var(--primary)" },
+  { key: "total_score", label: "종합", color: "var(--growth-ink)" },
   { key: "posture_score", label: "자세·표정", color: "var(--sky-ink)" },
   { key: "content_score", label: "답변 내용", color: "var(--accent)" },
 ];

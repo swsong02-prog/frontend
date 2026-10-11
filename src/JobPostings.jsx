@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown, BriefcaseBusiness } from "lucide-react";
 import JobPostingCard from "./components/JobPostingCard";
 
 /* 홈 "지금 열린 공공기관 공고" — 서버 /api/postings (잡알리오 데이터, 2시간 캐시)
@@ -49,7 +49,7 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
   return (
     <section className="post-card" aria-labelledby="recommended-jobs-title">
       <div className="home-section-heading">
-        <h2 id="recommended-jobs-title">추천 채용공고</h2>
+        <h2 id="recommended-jobs-title"><span className="heading-icon aqua"><BriefcaseBusiness size={16} aria-hidden="true" /></span>추천 채용공고</h2>
         <button type="button" className="text-action" aria-controls="all-job-postings" onClick={(event) => {
           const details = event.currentTarget.closest("section").querySelector("details");
           details.open = !details.open;

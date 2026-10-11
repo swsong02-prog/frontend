@@ -28,3 +28,4 @@ dist-ssr
 
 # Local design verification artifacts and temporary authenticated browser state
 .codex-shots/
+_backup_*/

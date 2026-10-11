@@ -5,9 +5,9 @@ const icons = { home: House, mock: Video, feedback: ChartNoAxesCombined, records
 function NavigationItem({ item, active, navigate, mobile = false }) {
   const Icon = icons[item.key];
   return (
-    <button type="button" className={mobile ? `tab${active ? " on" : ""}` : `snav-item${active ? " active" : ""}`}
+    <button type="button" className={(mobile ? `tab${active ? " on" : ""}` : `snav-item${active ? " active" : ""}`) + ` feature-${item.key}`}
       aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label} onClick={() => navigate(item.go)}>
-      <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
+      <span className="nav-icon"><Icon size={20} strokeWidth={1.8} aria-hidden="true" /></span>
       <span className={mobile ? undefined : "lb"}>{mobile ? item.short : item.label}</span>
     </button>
   );
