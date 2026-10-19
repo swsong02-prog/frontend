@@ -29,3 +29,9 @@ dist-ssr
 # Local design verification artifacts and temporary authenticated browser state
 .codex-shots/
 _backup_*/
+
+# 작업 중 메모와 보고서
+*-report.md
+design-qa.md
+.codex-*
+.codex-test/
