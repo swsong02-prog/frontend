@@ -1,0 +1,81 @@
+/* ============================================================
+   셸: 좌측 사이드바 + 본문 (PC) / 상단 앱바 + 하단 탭바 (≤768px)
+   ============================================================ */
+.shell { display: flex; max-width: var(--shell-max); margin: 0 auto; min-height: 100vh; background: var(--c-canvas); }
+@media (min-width: 1441px) {
+  .shell { border-left: 1px solid var(--c-line); border-right: 1px solid var(--c-line); }
+}
+
+.sidebar {
+  width: var(--sidebar-w); flex-shrink: 0;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 20px;
+  padding: 20px 12px 16px;
+  background: var(--c-surface); border-right: 1px solid var(--c-line);
+}
+.sb-brand { display: flex; align-items: center; gap: 8px; padding: 4px 8px; font-size: 16px; font-weight: 700; letter-spacing: -0.02em; color: var(--c-ink); border-radius: var(--r-2); }
+.sb-brand:hover { background: var(--c-sunken); }
+.sb-mark { width: 24px; height: 24px; border-radius: var(--r-2); background: var(--c-accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.sb-nav { display: flex; flex-direction: column; gap: 16px; }
+.sb-group { display: flex; flex-direction: column; gap: 2px; }
+.sb-group-label { padding: 0 10px 4px; font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--c-ink-3); }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px;
+  border-radius: var(--r-2); font-size: var(--fs-body); font-weight: 500; color: var(--c-ink-2); text-align: left;
+  transition: background-color .12s, color .12s;
+}
+.nav-item svg { color: var(--c-ink-3); }
+.nav-item:hover { background: var(--c-sunken); color: var(--c-ink); }
+.nav-item.on { background: var(--c-accent-weak); color: var(--c-accent-hover); font-weight: 600; }
+.nav-item.on svg { color: var(--c-accent); }
+.sb-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--c-line); }
+.sb-account { display: flex; align-items: center; gap: 10px; padding: 4px 10px; min-width: 0; }
+.sb-account-name { font-size: var(--fs-sub); color: var(--c-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.smain { flex: 1 1 auto; min-width: 0; padding: 32px 40px 64px; }
+
+/* 모바일 전용 요소는 PC에서 숨김 */
+.appbar, .tabbar { display: none; }
+
+@media (max-width: 1100px) {
+  .smain { padding: 28px 28px 96px; }
+}
+
+@media (max-width: 768px) {
+  .shell { display: block; max-width: none; border: 0; }
+  .sidebar { display: none; }
+  .appbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    position: sticky; top: 0; z-index: 30;
+    height: calc(52px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 16px 0;
+    background: var(--c-surface); border-bottom: 1px solid var(--c-line);
+  }
+  .appbar-brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--c-ink); min-height: 44px; }
+  .appbar-brand .sb-mark { width: 22px; height: 22px; }
+  .appbar-title { font-size: 16px; font-weight: 600; color: var(--c-ink); }
+  .profile-menu { position: relative; }
+  .profile-menu > summary { display: flex; align-items: center; gap: 4px; min-height: 44px; list-style: none; cursor: pointer; color: var(--c-ink-3); }
+  .profile-menu > summary::-webkit-details-marker { display: none; }
+  .profile-menu-panel { position: absolute; right: 0; top: calc(100% + 4px); width: 208px; z-index: 35; padding: 6px; background: var(--c-surface); border: 1px solid var(--c-line-strong); border-radius: var(--r-3); box-shadow: var(--shadow-pop); }
+  .profile-menu-panel p { padding: 8px 10px 10px; margin-bottom: 4px; font-size: var(--fs-sub); color: var(--c-ink-3); border-bottom: 1px solid var(--c-line); overflow-wrap: anywhere; }
+  .profile-menu-panel button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 10px; border-radius: var(--r-2); font-size: var(--fs-body); color: var(--c-ink); }
+  .profile-menu-panel button svg { color: var(--c-ink-3); }
+  .profile-menu-panel button:hover { background: var(--c-sunken); }
+
+  .tabbar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
+    background: var(--c-surface); border-top: 1px solid var(--c-line);
+  }
+  .tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 48px; font-size: 11px; font-weight: 500; color: var(--c-ink-3); }
+  .tab.on { color: var(--c-accent-hover); font-weight: 600; }
+  .scr-interview .tabbar, .scr-loading .tabbar { display: none; }
+  .scr-interview .appbar { display: none; }
+
+  .smain { padding: 20px 16px calc(var(--tabbar-h) + 32px + env(safe-area-inset-bottom)); overflow-x: clip; }
+  .scr-interview .smain, .scr-loading .smain { padding-bottom: 24px; }
+  .toast-host { right: 16px; left: 16px; width: auto; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); }
+  .scr-interview .toast-host { bottom: 90px; }
+  .scr-start .toast-host { bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom)); }
+}

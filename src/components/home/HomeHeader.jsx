@@ -1,7 +1,9 @@
-import { CalendarDays } from "lucide-react";
-
-export default function HomeHeader({ name, hasHistory, weeklyCount, unknown }) {
-  return <header className="home-header"><div><h1>안녕하세요, {name}님</h1><p>{hasHistory ? "오늘도 면접 준비를 이어가볼까요?" : "오늘은 첫 번째 모의면접에 도전해보세요."}</p></div>
-    <div className="home-weekly"><CalendarDays size={18} aria-hidden="true" /><span>이번 주 연습 <b>{unknown ? "—" : weeklyCount}<span> / 3회</span></b></span></div>
-  </header>;
+/* 홈 맨 위: 인사말은 작은 한 줄로 낮춘다 (무엇을 준비하는지가 먼저 보이게). 페이지 제목(h1)은 화면 읽기용 */
+export default function HomeHeader({ name, date }) {
+  return (
+    <header className="home-greet">
+      <h1 className="sr-only">홈</h1>
+      <p className="t-sub">{name}님, 오늘은 {date}이에요</p>
+    </header>
+  );
 }

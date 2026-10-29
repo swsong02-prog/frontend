@@ -1,5 +1,18 @@
 import { RecordLogo } from "../ui";
 
+/* 관심 회사 한 줄 */
 export default function FavoriteCompanyCard({ company, index, onStart, onEdit }) {
-  return <article className="dream-item"><RecordLogo company={company.company} job={company.job} idx={index} /><div className="dream-info"><h3 className="dream-co">{company.company}</h3><p className="dream-job">{[company.job, company.sub].filter(Boolean).join(" · ") || "직무 미정"}</p></div><div className="dream-acts"><button type="button" className="dream-go" onClick={onStart}>면접 연습</button><button type="button" className="dream-more" aria-label={`${company.company} 수정`} onClick={onEdit}>수정</button></div></article>;
+  return (
+    <li className="fav">
+      <RecordLogo company={company.company} job={company.job} idx={index} />
+      <div className="fav-main">
+        <span className="row-title">{company.company}</span>
+        <span className="row-sub">{[company.job, company.sub].filter(Boolean).join(" · ") || "직무 미정"}</span>
+      </div>
+      <div className="fav-acts">
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onStart}>면접 연습</button>
+        <button type="button" className="btn btn-text btn-sm" aria-label={`${company.company} 수정`} onClick={onEdit}>수정</button>
+      </div>
+    </li>
+  );
 }

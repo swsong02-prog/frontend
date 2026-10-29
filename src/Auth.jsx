@@ -72,23 +72,23 @@ export default function Auth({ onLogin }) {
       <div className="auth-card">
         <AuthIntro />
 
-        <div className="auth-body">
-          <h2 className="auth-form-title">{mode === "login" ? "다시 만나 반가워요" : "첫 면접 준비를 시작해요"}</h2>
-          <div className="auth-sub">
-            {mode === "login" ? "로그인하고 면접 기록을 쌓아보세요" : "회원가입하고 시작해보세요"}
-          </div>
+        <div className="auth-form">
+          <h2 className="t-page">{mode === "login" ? "면접 연습 이어가기" : "새 계정 만들기"}</h2>
+          <p className="t-sub">
+            {mode === "login" ? "로그인하고 지난 면접 기록을 이어서 확인하세요." : "이메일로 가입하면 바로 시작할 수 있어요."}
+          </p>
 
-          {/* 로그인/회원가입 탭 */}
-          <div className="auth-tabs">
+          {/* 로그인/회원가입 전환 */}
+          <div className="seg seg-block auth-tabs" role="group" aria-label="로그인 또는 회원가입">
             <button
               type="button"
-              className={"auth-tab" + (mode === "login" ? " active" : "")}
+              className={"seg-item" + (mode === "login" ? " on" : "")}
               aria-pressed={mode === "login"}
               onClick={() => { setMode("login"); setMsg(""); }}
             >로그인</button>
             <button
               type="button"
-              className={"auth-tab" + (mode === "signup" ? " active" : "")}
+              className={"seg-item" + (mode === "signup" ? " on" : "")}
               aria-pressed={mode === "signup"}
               onClick={() => { setMode("signup"); setMsg(""); }}
             >회원가입</button>
@@ -98,7 +98,7 @@ export default function Auth({ onLogin }) {
           <form onSubmit={(e) => { e.preventDefault(); if (!busy) handleSubmit(); }} noValidate>
             {mode === "signup" && (
               <>
-                <label className="auth-field-label" htmlFor="auth-name">이름</label>
+                <label className="field-label" htmlFor="auth-name">이름</label>
                 <input
                   id="auth-name"
                   type="text"
@@ -107,11 +107,11 @@ export default function Auth({ onLogin }) {
                   maxLength={20}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="auth-input"
+                  className="input"
                 />
               </>
             )}
-            <label className="auth-field-label" htmlFor="auth-email">이메일</label>
+            <label className="field-label" htmlFor="auth-email">이메일</label>
             <input
               id="auth-email"
               type="email"
@@ -119,11 +119,11 @@ export default function Auth({ onLogin }) {
               placeholder="이메일"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="auth-input"
+              className="input"
               aria-invalid={!!msg && !msgOk}
               aria-describedby={msg ? "auth-msg" : undefined}
             />
-            <label className="auth-field-label" htmlFor="auth-password">비밀번호</label>
+            <label className="field-label" htmlFor="auth-password">비밀번호</label>
             <input
               id="auth-password"
               type="password"
@@ -131,22 +131,22 @@ export default function Auth({ onLogin }) {
               placeholder="비밀번호"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="auth-input"
+              className="input"
               aria-invalid={!!msg && !msgOk}
               aria-describedby={msg ? "auth-msg" : undefined}
             />
 
             {msg && (
-              <div id="auth-msg" className={"auth-msg" + (msgOk ? " ok" : "")} role={msgOk ? "status" : "alert"}>{msg}</div>
+              <div id="auth-msg" className={"inline-note" + (msgOk ? " ok" : " err")} role={msgOk ? "status" : "alert"}>{msg}</div>
             )}
 
-            <button type="submit" disabled={busy} className="auth-submit">
+            <button type="submit" disabled={busy} className="btn btn-primary btn-lg btn-block auth-submit">
               {busy ? <><BtnSpinner />처리 중...</> : mode === "login" ? "로그인" : "회원가입"}
             </button>
           </form>
         </div>
       </div>
-      <p className="auth-note">웹캠과 마이크만 있으면, 어디서든 실전처럼 면접을 연습할 수 있어요.</p>
+      <p className="auth-note t-caption">웹캠과 마이크가 있는 PC에서 가장 정확하게 분석돼요.</p>
     </div>
   );
 }

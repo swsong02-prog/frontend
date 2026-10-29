@@ -1,5 +1,6 @@
-import { ArrowRight } from "lucide-react";
+import { SectionHeader } from "../../ds";
 
-export default function SectionHeading({ id, title, action, onAction, children, icon: Icon, tone }) {
-  return <div className="home-section-heading"><h2 id={id}>{Icon && <span className={`heading-icon ${tone}`}><Icon size={16} aria-hidden="true" /></span>}{title}</h2><div>{children}{action && <button type="button" className="text-action" onClick={onAction}>{action}<ArrowRight size={16} aria-hidden="true" /></button>}</div></div>;
+/* 홈 섹션 제목 (공통 SectionHeader 래퍼, 기존 호출부 호환) */
+export default function SectionHeading({ id, title, action, onAction, children, meta }) {
+  return <SectionHeader id={id} title={title} meta={meta} action={action} onAction={onAction}>{children}</SectionHeader>;
 }

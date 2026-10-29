@@ -1,32 +1,48 @@
-import { MessageCircle, ChevronDown, FileText, Settings, House, Video, ChartNoAxesCombined, History } from "lucide-react";
+import { MessageCircle, ChevronDown, FileText, Settings, House, Video, ChartNoAxesCombined, History, BriefcaseBusiness } from "lucide-react";
 
-const icons = { home: House, mock: Video, feedback: ChartNoAxesCombined, records: History, resume: FileText, settings: Settings };
+const icons = { home: House, mock: Video, feedback: ChartNoAxesCombined, records: History, resume: FileText, settings: Settings, jobs: BriefcaseBusiness };
 
 function NavigationItem({ item, active, navigate, mobile = false }) {
   const Icon = icons[item.key];
   return (
-    <button type="button" className={(mobile ? `tab${active ? " on" : ""}` : `snav-item${active ? " active" : ""}`) + ` feature-${item.key}`}
-      aria-label={item.label} aria-current={active ? "page" : undefined} title={item.label} onClick={() => navigate(item.go)}>
-      <span className="nav-icon"><Icon size={20} strokeWidth={1.8} aria-hidden="true" /></span>
-      <span className={mobile ? undefined : "lb"}>{mobile ? item.short : item.label}</span>
+    <button type="button" className={mobile ? `tab${active ? " on" : ""}` : `nav-item${active ? " on" : ""}`}
+      aria-label={mobile ? item.label : undefined} aria-current={active ? "page" : undefined} onClick={() => navigate(item.go)}>
+      <Icon size={mobile ? 22 : 18} strokeWidth={1.7} aria-hidden="true" />
+      <span>{mobile ? item.short : item.label}</span>
     </button>
   );
 }
 
+/* 좌측 사이드바: 연습(홈·모의면접) / 분석(피드백·기록) / 준비 자료(자소서·공고) 세 묶음 + 하단 설정·계정 */
+const GROUPS = [
+  { label: "연습", keys: ["home", "mock"] },
+  { label: "분석", keys: ["feedback", "records"] },
+  { label: "준비 자료", keys: ["resume", "jobs"] },
+];
+
 export function Sidebar({ items, active, navigate, onHome, name, initial }) {
+  const byKey = (k) => items.find((it) => it.key === k);
   return (
     <aside className="sidebar">
-      <button type="button" className="logo" aria-label="코치코치 홈으로" onClick={() => navigate(onHome)}>
-        <span className="mark"><MessageCircle size={21} aria-hidden="true" /></span><span className="brand-word">코치코치</span>
+      <button type="button" className="sb-brand" aria-label="코치코치 홈으로" onClick={() => navigate(onHome)}>
+        <span className="sb-mark"><MessageCircle size={15} strokeWidth={2} aria-hidden="true" /></span>코치코치
       </button>
-      <nav className="snav" aria-label="주요 메뉴">
-        {[items.slice(0, 2), items.slice(2, 4), items.slice(4, 5)].map((group, i) => (
-          <div className="snav-group" key={i}>{group.map(item => <NavigationItem key={item.key} item={item} active={active === item.key} navigate={navigate} />)}</div>
+      <nav className="sb-nav" aria-label="주요 메뉴">
+        {GROUPS.map((g) => (
+          <div className="sb-group" key={g.label}>
+            <div className="sb-group-label">{g.label}</div>
+            {g.keys.map(byKey).filter(Boolean).map((item) => (
+              <NavigationItem key={item.key} item={item} active={active === item.key} navigate={navigate} />
+            ))}
+          </div>
         ))}
       </nav>
-      <div className="side-bottom">
-        <NavigationItem item={items.find(item => item.key === "settings")} active={active === "settings"} navigate={navigate} />
-        <div className="sidebar-account"><span className="profile-initial">{initial}</span><span>{name}<small>나의 면접 준비 공간</small></span></div>
+      <div className="sb-foot">
+        <NavigationItem item={byKey("settings")} active={active === "settings"} navigate={navigate} />
+        <div className="sb-account">
+          <span className="avatar" aria-hidden="true">{initial}</span>
+          <span className="sb-account-name">{name}</span>
+        </div>
       </div>
     </aside>
   );
@@ -38,13 +54,13 @@ export default function AppShell({ screen, title, items, active, onHome, confirm
     <div className={"shell scr-" + screen}>
       <header className="appbar">
         {screen === "home" ? <button type="button" className="appbar-brand" aria-label="코치코치 홈" onClick={() => navigate(onHome)}>
-          <span className="mark"><MessageCircle size={18} aria-hidden="true" /></span>코치코치
+          <span className="sb-mark"><MessageCircle size={14} strokeWidth={2} aria-hidden="true" /></span>코치코치
         </button> : <h2 className="appbar-title">{title}</h2>}
         <details className="profile-menu" key={screen}>
-          <summary aria-label="프로필 메뉴"><span className="profile-initial">{initial}</span><ChevronDown size={14} aria-hidden="true" /></summary>
+          <summary aria-label="프로필 메뉴"><span className="avatar">{initial}</span><ChevronDown size={14} aria-hidden="true" /></summary>
           <div className="profile-menu-panel">
             <p>{name}님</p>
-            {items.filter(item => ["resume", "settings"].includes(item.key)).map(item => {
+            {items.filter(item => ["resume", "jobs", "settings"].includes(item.key)).map(item => {
               const Icon = icons[item.key];
               return <button type="button" key={item.key} onClick={(event) => {
                 if (confirmLeave()) { event.currentTarget.closest("details").open = false; item.go(); }

@@ -135,17 +135,13 @@ export function RecordLogo({ company, job, idx = 0 }) {
   const brand = name ? BRAND_LOOKUP.get(name.toLowerCase().replace(/\s+/g, "")) : null;
   if (brand) {
     return (
-      <span
-        className="rlogo brand"
-        style={{ background: brand.bg || "#FFFFFF", color: brand.color }}
-        title={name}
-      >
-        {brand.mark}
+      <span className="rlogo" title={name}>
+        {name.charAt(0)}
       </span>
     );
   }
   const base = name || job || "면";
-  return <span className={"rlogo c" + (idx % 4)}>{base.charAt(0)}</span>;
+  return <span className="rlogo" data-idx={idx % 4}>{base.charAt(0)}</span>;
 }
 
 /* 세션 명칭 통일 규칙: "{회사} {직무} 면접" / 회사 없으면 "{직무} 면접" (직무 없으면 "모의면접") */
@@ -225,8 +221,8 @@ export function IconPlay({ size = 14 }) {
    series: [{ key, label, color, area? }]  (첫 계열이 주계열: 값 라벨·면 채움)
    goal:   기준선 값 (예: 80 = "우수")
    ============================================================ */
-export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", ariaLabel = "회차별 점수 추이", height = 280, valueLabels = true }) {
-  const W = 760, H = height;
+export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", ariaLabel = "회차별 점수 추이", height = 280, valueLabels = true, width = 760 }) {
+  const W = width, H = height;
   const PL = 44, PR = 22, PT = 26, PB = 44;
   const iw = W - PL - PR, ih = H - PT - PB;
   const n = points.length;
@@ -253,10 +249,6 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
     }).filter(Boolean).join(" ");
   };
   const primary = series[0];
-  const primaryComplete = !!primary && points.every((p) => typeof p[primary.key] === "number");
-  const areaPath = n > 1 && primaryComplete
-    ? `${pathOf(primary.key)} L ${x(n - 1).toFixed(1)} ${(PT + ih).toFixed(1)} L ${x(0).toFixed(1)} ${(PT + ih).toFixed(1)} Z`
-    : "";
 
   // 방향키로 회차 이동 (키보드 사용자도 툴팁 값 확인)
   const onKey = (e) => {
@@ -290,7 +282,6 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
 
   const showLabels = valueLabels && n <= 12;
   const gridVals = [0, 20, 40, 60, 80, 100];
-  const gradId = "lc-area-" + (primary ? primary.key : "p");
 
   // 툴팁 박스
   let tip = null;
@@ -305,8 +296,8 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
     ty = Math.max(PT - 10, Math.min(ty, PT + ih - th));
     tip = (
       <g className="lc-tip" pointerEvents="none">
-        <line x1={x(hover)} y1={PT} x2={x(hover)} y2={PT + ih} stroke="var(--primary)" strokeOpacity="0.28" strokeWidth="1.2" strokeDasharray="3 3" />
-        <rect x={tx} y={ty} width={tw} height={th} rx="10" fill="#FFFFFF" stroke="var(--border)" />
+        <line x1={x(hover)} y1={PT} x2={x(hover)} y2={PT + ih} stroke="var(--c-ink-3)" strokeOpacity="0.5" strokeWidth="1" strokeDasharray="3 3" />
+        <rect x={tx} y={ty} width={tw} height={th} rx="4" fill="#FFFFFF" stroke="var(--c-line-strong)" />
         <text x={tx + 12} y={ty + 16} fontSize="11.5" fontWeight="700" fill="var(--muted)">
           {p.round}회차{p.created_at ? ` · ${fmtMD(p.created_at)}` : ""}
         </text>
@@ -332,19 +323,13 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
         onFocus={() => setHover((h) => (h == null && n > 0 ? n - 1 : h))} onBlur={() => setHover(null)}
         onKeyDown={onKey}
       >
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={primary ? primary.color : "var(--primary)"} stopOpacity="0.22" />
-            <stop offset="1" stopColor={primary ? primary.color : "var(--primary)"} stopOpacity="0" />
-          </linearGradient>
-        </defs>
 
         {/* 격자 + y축 */}
         {gridVals.map((v) => (
           <g key={v}>
             <line x1={PL} y1={y(v)} x2={W - PR} y2={y(v)}
-              stroke="var(--border)" strokeWidth={v === 0 ? 1.5 : 1}
-              strokeDasharray={v === 0 ? "none" : "3 4"} />
+              stroke="var(--c-line)" strokeWidth={1}
+              strokeDasharray="none" />
             <text x={PL - 10} y={y(v) + 4} textAnchor="end" fontSize="11" fill="var(--muted)">{v}</text>
           </g>
         ))}
@@ -352,19 +337,16 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
         {/* 목표선 */}
         {typeof goal === "number" && (
           <g>
-            <line x1={PL} y1={y(goal)} x2={W - PR} y2={y(goal)} stroke="var(--mint-deep)" strokeWidth="1.6" strokeDasharray="6 5" />
-            <rect x={PL + 4} y={y(goal) - 20} width="62" height="18" rx="9" fill="var(--mint)" />
-            <text x={PL + 35} y={y(goal) - 7.5} textAnchor="middle" fontSize="10.5" fontWeight="800" fill="var(--mint-ink)">{goalLabel}</text>
+            <line x1={PL} y1={y(goal)} x2={W - PR} y2={y(goal)} stroke="var(--c-ink-3)" strokeWidth="1" strokeDasharray="4 4" />
+            <text x={PL + 6} y={y(goal) - 6} textAnchor="start" fontSize="11" fontWeight="500" fill="var(--c-ink-3)">{goalLabel}</text>
           </g>
         )}
 
-        {/* 면 채움 (주계열) */}
-        {areaPath && <path d={areaPath} fill={`url(#${gradId})`} className={"lc-area" + (drawn ? " on" : "")} />}
 
         {/* 라인 */}
         {n > 1 && series.map((s, si) => (
           <path key={s.key} d={pathOf(s.key)} fill="none" stroke={s.color}
-            strokeWidth={si === 0 ? 3 : 2.2} strokeLinecap="round" strokeLinejoin="round"
+            strokeWidth={si === 0 ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"
             pathLength="1" strokeDasharray="1" strokeDashoffset={drawn ? 0 : 1}
             className="lc-line" style={{ transitionDelay: `${si * 120}ms` }}
             opacity={si === 0 ? 1 : 0.9} />
@@ -378,10 +360,9 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
               {series.map((s, si) => (
                 typeof p[s.key] === "number" && (
                   <g key={s.key}>
-                    {last && si === 0 && <circle cx={x(i)} cy={y(p[s.key])} r="11" fill={s.color} opacity="0.16" className="lc-halo" />}
-                    <circle cx={x(i)} cy={y(p[s.key])}
-                      r={last && si === 0 ? 5.5 : hover === i ? 5 : 4}
-                      fill={last && si === 0 ? s.color : "#FFFFFF"} stroke={s.color} strokeWidth="2.4">
+                                        <circle cx={x(i)} cy={y(p[s.key])}
+                      r={last && si === 0 ? 4 : hover === i ? 4 : 3}
+                      fill={last && si === 0 ? s.color : "#FFFFFF"} stroke={s.color} strokeWidth="1.6">
                       <title>{`${p.round}회차 ${s.label} ${p[s.key]}점`}</title>
                     </circle>
                   </g>

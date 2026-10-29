@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { searchCompanies } from "./companies";
-import { Building2, Plus } from "lucide-react";
 import FavoriteCompanyCard from "./components/FavoriteCompanyCard";
-import EmptyState from "./components/home/EmptyState";
+import { SectionHeader } from "./ds";
 
 /* 홈 "관심 회사" — 가고 싶은 회사 최대 3곳을 직무와 함께 저장해두고 한 번에 그 조건으로 면접 설정
    저장 위치: localStorage (계정 이메일별 키), [{ company, job, sub }] */
@@ -38,16 +37,16 @@ export default function DreamCompanies({ email, jobData, onStart, onChange }) {
   };
 
   return (
-    <section className="dream-card" id="favorite-companies" aria-labelledby="favorite-companies-title">
-      <div className="home-section-heading"><h2 id="favorite-companies-title"><span className="heading-icon aqua"><Building2 size={16} aria-hidden="true" /></span>관심 회사</h2><span className="section-caption">{list.length} / {MAX}곳</span></div>
-      {list.length === 0 ? <div className="favorite-empty"><EmptyState icon={Building2} title="관심 있는 회사를 등록해보세요"
-        description="관심 회사를 등록하면 관련 면접과 채용 정보를 빠르게 확인할 수 있어요."
-        action="관심 회사 추가" onAction={() => setEditing({ idx: -1 })} /></div> :
-      <div className="dream-grid">
+    <section className="home-sec" id="favorite-companies" aria-labelledby="favorite-companies-title">
+      <SectionHeader id="favorite-companies-title" title="관심 회사" meta={`${list.length} / ${MAX}`} action={list.length > 0 && list.length < MAX ? "추가" : null} onAction={() => setEditing({ idx: -1 })} />
+      {list.length === 0 ? <p className="home-empty">
+        <span>회사와 직무를 저장해두면 그 조건으로 바로 연습할 수 있어요.</span>
+        <button type="button" className="btn btn-text btn-sm" onClick={() => setEditing({ idx: -1 })}>관심 회사 추가</button>
+      </p> :
+      <ul className="rows">
         {list.map((d, i) => <FavoriteCompanyCard key={d.company + i} company={d} index={i}
           onStart={() => onStart({ company: d.company, job: d.job, sub: d.sub })} onEdit={() => setEditing({ idx: i })} />)}
-        {list.length < MAX && <button type="button" className="dream-add" onClick={() => setEditing({ idx: -1 })}><Plus size={20} aria-hidden="true" /><b>관심 회사 추가</b></button>}
-      </div>}
+      </ul>}
 
       {editing && (
         <DreamEditor
@@ -89,26 +88,26 @@ function DreamEditor({ initial, jobData, onCancel, onSave, onDelete }) {
 
   // 카드의 등장 애니메이션(transform) 안에 갇히지 않도록 body로 포털
   return createPortal(
-    <div className="modal-overlay sheet" onClick={onCancel}>
+    <div className="modal-overlay" onClick={onCancel}>
       <form
-        className="dcard dream-sheet"
+        className="modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dream-title"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => { e.preventDefault(); if (canSave) onSave({ company: company.trim(), job, sub }); }}
       >
-        <div className="dcard-head">
-          <h2 className="dcard-t" id="dream-title">{initial ? "관심 회사 수정" : "관심 회사 추가"}</h2>
-          <button type="button" className="gm-close" onClick={onCancel}>닫기</button>
+        <div className="modal-head">
+          <h2 className="t-section" id="dream-title">{initial ? "관심 회사 수정" : "관심 회사 추가"}</h2>
+          <button type="button" className="btn btn-text btn-sm" onClick={onCancel}>닫기</button>
         </div>
 
-        <label className="ds-label" htmlFor="dream-company">회사</label>
-        <div className="ds-co">
+        <label className="field-label" htmlFor="dream-company">회사</label>
+        <div className="combo">
           <input
             id="dream-company"
             ref={inputRef}
-            className="auth-input"
+            className="input"
             placeholder="회사명 (예: 삼성전자, 대전시청)"
             value={company}
             autoComplete="off"
@@ -116,31 +115,30 @@ function DreamEditor({ initial, jobData, onCancel, onSave, onDelete }) {
             onBlur={() => setTimeout(() => setSugOpen(false), 120)}
           />
           {suggestions.length > 0 && (
-            <div className="co-suggest" role="listbox" aria-label="회사 검색 결과">
+            <div className="combo-list" role="listbox" aria-label="회사 검색 결과">
               {suggestions.map((c) => (
                 <div
                   key={c.name}
                   role="option"
                   aria-selected={false}
-                  className="co-sug-row"
+                  className="combo-opt"
                   onMouseDown={(e) => { e.preventDefault(); setCompany(c.name); setSugOpen(false); }}
                 >
-                  <span className="co-sug-mark" style={{ color: c.color, background: c.bg }}>{c.mark}</span>
-                  <span className="co-sug-name">{c.name}</span>
-                  <span className="co-sug-ind">{c.industry}</span>
+                  <span className="combo-name">{c.name}</span>
+                  <span className="combo-meta">{c.industry}</span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <label className="ds-label">직무</label>
+        <span className="field-label">직무</span>
         {jobs.length === 0 ? (
-          <p className="ds-hint">직무 목록을 불러오는 중이에요…</p>
+          <p className="t-sub">직무 목록을 불러오는 중이에요…</p>
         ) : (
-          <div className="ds-chips">
+          <div className="chips">
             {jobs.map((j) => (
-              <button type="button" key={j} className={"ds-chip" + (job === j ? " on" : "")} aria-pressed={job === j} onClick={() => pickJob(j)}>
+              <button type="button" key={j} className={"chip" + (job === j ? " on" : "")} aria-pressed={job === j} onClick={() => pickJob(j)}>
                 {j}
               </button>
             ))}
@@ -149,10 +147,10 @@ function DreamEditor({ initial, jobData, onCancel, onSave, onDelete }) {
 
         {subs.length > 0 && (
           <>
-            <label className="ds-label">세부 직무</label>
-            <div className="ds-chips">
+            <span className="field-label">세부 직무</span>
+            <div className="chips">
               {subs.map((s) => (
-                <button type="button" key={s} className={"ds-chip" + (sub === s ? " on" : "")} aria-pressed={sub === s} onClick={() => setSub(s)}>
+                <button type="button" key={s} className={"chip" + (sub === s ? " on" : "")} aria-pressed={sub === s} onClick={() => setSub(s)}>
                   {s}
                 </button>
               ))}
@@ -160,9 +158,9 @@ function DreamEditor({ initial, jobData, onCancel, onSave, onDelete }) {
           </>
         )}
 
-        <div className="ds-actions">
-          {onDelete && <button type="button" className="ds-del" onClick={onDelete}>삭제</button>}
-          <button type="submit" className="btn-primary" disabled={!canSave}>저장</button>
+        <div className="modal-actions">
+          {onDelete && <button type="button" className="btn btn-text btn-danger" onClick={onDelete}>삭제</button>}
+          <button type="submit" className="btn btn-primary" disabled={!canSave}>저장</button>
         </div>
       </form>
     </div>,

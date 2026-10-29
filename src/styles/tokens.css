@@ -1,0 +1,79 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+/* ============================================================
+   코치코치 디자인 토큰 (2026-10-29 리디자인)
+   - 색: 중립 회색 + 파랑 1개(accent). 의미색(좋음·주의·위험)은 글자에만 쓴다
+   - 글자: 6단계 (page / section / metric / body / sub / caption)
+   - 모서리: 4 / 6 / 8px 세 단계만
+   ============================================================ */
+:root {
+  /* 바탕 */
+  --c-canvas: #F8F8F6;      /* 앱 전체 바탕 (10/29 홈 다듬기: 차가운 #F5F6F8 → 아주 살짝 따뜻한 중립) */
+  --c-surface: #FFFFFF;     /* 콘텐츠 면 */
+  --c-sunken: #F2F2EF;      /* hover·눌린 행·코드성 블록 */
+
+  /* 글자 (흰 바탕 기준 대비: ink 16.8 / ink-2 8.9 / ink-3 5.3) */
+  --c-ink: #1A1D21;
+  --c-ink-2: #454B54;
+  --c-ink-3: #5F6670;
+  --c-ink-4: #A3A9B1;       /* 장식·비활성 전용. 본문 글자에 쓰지 않는다 */
+
+  /* 선 */
+  --c-line: #E7E7E3;
+  --c-line-strong: #CDCDC7;
+
+  /* 강조: 파랑 하나 (흰 바탕 대비 5.2) */
+  --c-accent: #2563EB;
+  --c-accent-hover: #1D4ED8;
+  --c-accent-weak: #EEF3FE;
+  --c-accent-line: #B9CCF8;
+
+  /* 의미색 (글자·점에만) */
+  --c-good: #16794A;
+  --c-caution: #96590A;
+  --c-bad: #B42318;
+  --c-bad-weak: #FDF2F1;
+  --c-chart-3: #9AA1AB;
+
+  /* 글꼴 */
+  --font: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --fs-page: 24px;    --lh-page: 32px;
+  --fs-section: 16px; --lh-section: 24px;
+  --fs-metric: 28px;  --lh-metric: 34px;
+  --fs-body: 14px;    --lh-body: 22px;
+  --fs-sub: 13px;     --lh-sub: 20px;
+  --fs-caption: 12px; --lh-caption: 16px;
+
+  /* 간격 (4px 단위) */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px; --sp-14: 56px;
+
+  /* 모서리 */
+  --r-1: 4px;  /* 칩·태그 */
+  --r-2: 6px;  /* 버튼·입력 */
+  --r-3: 8px;  /* 카드·패널·모달 */
+
+  /* 레이아웃 */
+  --shell-max: 1440px;
+  --sidebar-w: 216px;
+  --content-max: 1120px;
+  --tabbar-h: 60px;
+
+  /* 그림자: 떠 있는 요소(드롭다운·모달·토스트)에만 */
+  --shadow-pop: 0 6px 20px rgba(26, 29, 33, .10), 0 1px 3px rgba(26, 29, 33, .06);
+
+  /* ---- 이전 코드 호환 별칭 (인라인 style·SVG가 참조) ---- */
+  --primary: var(--c-accent);
+  --primary-deep: var(--c-accent-hover);
+  --primary-soft: var(--c-accent-weak);
+  --text: var(--c-ink);
+  --muted: var(--c-ink-3);
+  --border: var(--c-line);
+  --bg: var(--c-canvas);
+  --surface: var(--c-surface);
+  --accent: var(--c-accent);
+  --danger: var(--c-bad);
+  --sky-ink: var(--c-ink-2);  --mint-ink: var(--c-ink-2); --peach-ink: var(--c-ink-2); --lilac-ink: var(--c-ink-2);
+  --mint: var(--c-sunken);    --lav: var(--c-line);       --sky-soft: var(--c-line);
+  --growth-ink: var(--c-accent);
+}

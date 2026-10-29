@@ -1,76 +1,19 @@
 import { useState, useEffect } from "react";
 import {
-  CountUp, ScoreBadge, RecordLogo, fmtDateDot, keyActivate, LineChart, weekStartDate, sessionTitle,
-  IconChevron, IconArrowR, IconTrendUp, IconTrendDown, IconTrendFlat, IconTrophy,
-  IconCalendarSm, IconTarget, IconPlay, authFetch, isAuthExpired,
+  CountUp, fmtDateDot, LineChart, weekStartDate, sessionTitle, scoreGrade,
+  IconChevron, authFetch, isAuthExpired,
 } from "./ui";
+import { Button, PageHeader, SectionHeader, EmptyState, Stat } from "./ds";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 const GOAL = 80; // "우수" 기준선
+const LEVEL_TEXT = { "하": "쉬움", "중": "보통", "상": "어려움" };
 
 const SERIES_ALL = [
-  { key: "total_score", label: "종합", color: "var(--growth-ink)" },
-  { key: "posture_score", label: "자세·표정", color: "var(--sky-ink)" },
-  { key: "content_score", label: "답변 내용", color: "var(--accent)" },
+  { key: "total_score", label: "종합", color: "var(--c-accent)" },
+  { key: "content_score", label: "답변 내용", color: "var(--c-ink)" },
+  { key: "posture_score", label: "자세·표정", color: "var(--c-chart-3)" },
 ];
-const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
-
-/* 빈 상태 일러스트: 파스텔 막대 3단 + 새싹 (소프트 3D 문법) */
-function GrowthEmptyIllust() {
-  return (
-    <svg viewBox="0 0 200 150" fill="none" aria-hidden="true" className="gr-empty-illust">
-      <defs>
-        <linearGradient id="grB1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#DFE3FF" /><stop offset="1" stopColor="#B7C0FA" /></linearGradient>
-        <linearGradient id="grB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#C9D0FF" /><stop offset="1" stopColor="#96A0F7" /></linearGradient>
-        <linearGradient id="grB3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#AEB8FF" /><stop offset="1" stopColor="#6B7CFF" /></linearGradient>
-        <linearGradient id="grLeaf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#9FE9C6" /><stop offset="1" stopColor="#35C08E" /></linearGradient>
-      </defs>
-      <ellipse cx="100" cy="138" rx="80" ry="7" fill="rgba(49, 130, 246,.13)" />
-      <g fill="#FFFFFF" opacity="0.9"><ellipse cx="34" cy="38" rx="14" ry="7" /><ellipse cx="46" cy="34" rx="9" ry="6" /></g>
-      <rect x="36" y="92" width="34" height="40" rx="8" fill="url(#grB1)" />
-      <rect x="83" y="66" width="34" height="66" rx="8" fill="url(#grB2)" />
-      <rect x="130" y="40" width="34" height="92" rx="8" fill="url(#grB3)" />
-      <rect x="40" y="96" width="8" height="30" rx="4" fill="#FFFFFF" opacity="0.35" />
-      <rect x="87" y="70" width="8" height="56" rx="4" fill="#FFFFFF" opacity="0.35" />
-      <rect x="134" y="44" width="8" height="82" rx="4" fill="#FFFFFF" opacity="0.35" />
-      <path d="M147 40 C147 30 146 24 147 16" stroke="#2CA97C" strokeWidth="3.2" strokeLinecap="round" />
-      <path d="M146 28 C136 28 131 19 133 12 C141 12 147 19 146 28 Z" fill="url(#grLeaf)" />
-      <path d="M148 22 C158 22 163 13 161 6 C153 6 147 13 148 22 Z" fill="url(#grLeaf)" />
-      <path d="M175 60v7 M171.5 63.5h7" stroke="#B9C0FF" strokeWidth="2" strokeLinecap="round" />
-      <path d="M22 70v6 M19 73h6" stroke="#C9CFFF" strokeWidth="2" strokeLinecap="round" />
-      <path d="M112 22v5 M109.5 24.5h5" stroke="#A5E8CB" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/* 스켈레톤: 히어로 4칸 + 차트 블록 + 리스트 3행 */
-function GrowthSkeleton() {
-  return (
-    <div className="skel-wrap" aria-label="기록을 불러오는 중">
-      <div className="gr-hero">
-        {[0, 1, 2, 3].map((i) => <span className="skel gr-skel-stat" key={i} />)}
-      </div>
-      <div className="gr-cols">
-        <div className="gr-main">
-          <div className="dcard"><span className="skel skel-line w40" style={{ height: 14, marginBottom: 16 }} /><span className="skel gr-skel-chart" /></div>
-          <div className="dcard">
-            {[0, 1, 2].map((i) => (
-              <div className="skel-row" key={i}>
-                <span className="skel skel-avatar" />
-                <span className="skel-lines"><span className="skel skel-line w60" /><span className="skel skel-line w40" /></span>
-                <span className="skel skel-pill" />
-              </div>
-            ))}
-          </div>
-        </div>
-        <aside className="gr-rail">
-          <div className="dcard rail-card"><span className="skel skel-line w50" style={{ height: 14, marginBottom: 14 }} /><span className="skel skel-block" /></div>
-          <div className="dcard rail-card"><span className="skel skel-line w50" style={{ height: 14, marginBottom: 14 }} /><span className="skel skel-block" /></div>
-        </aside>
-      </div>
-    </div>
-  );
-}
 
 /* 나의 기록(성장) 화면. /growth(회차별 점수) + /history(직무·회사) 표시 레이어 */
 export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedback }) {
@@ -148,14 +91,6 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
   const weekAvg = weekRows.length
     ? Math.round(weekRows.reduce((a, p) => a + (num(p.total_score) || 0), 0) / weekRows.length)
     : null;
-  const todayIdx = (new Date().getDay() + 6) % 7;
-  const weekDays = DAY_LABELS.map((lb, i) => {
-    const d0 = new Date(wk); d0.setDate(wk.getDate() + i);
-    const d1 = new Date(d0); d1.setDate(d0.getDate() + 1);
-    const n = weekRows.filter((p) => { const t = new Date(p.created_at); return t >= d0 && t < d1; }).length;
-    return { lb, n, today: i === todayIdx, future: i > todayIdx };
-  });
-
   // 최근 상승 연속 횟수 (코치 코멘트용)
   let streak = 0;
   for (let i = rows.length - 1; i > 0; i--) {
@@ -181,7 +116,6 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
     return { tone: "cream", t: "점수가 비슷하게 유지되고 있어요", d: "정체 구간이에요. 피드백 분석에서 자주 지적받은 포인트 하나만 골라 집중해보세요." };
   })();
 
-  const trendIcon = totalDelta == null ? null : totalDelta > 0 ? <IconTrendUp /> : totalDelta < 0 ? <IconTrendDown /> : <IconTrendFlat />;
   const series = SERIES_ALL.filter((s) => show[s.key]);
   const toggle = (key) => setShow((prev) => {
     const next = { ...prev, [key]: !prev[key] };
@@ -193,240 +127,114 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
   const startPreset = lastSess
     ? { job: lastSess.job, sub: lastSess.sub_job, company: lastSess.company, level: lastSess.level, career: lastSess.career }
     : null;
+  const hasData = data && count > 0 && rows.length > 0;
+  const signed = (v) => (v > 0 ? "+" : "") + v;
 
   return (
-    <div className="page wide growth-page">
-      <div className="growth-head">
-        <div>
-          <h1 className="page-title">나의 기록</h1>
-          <p className="page-sub" style={{ margin: "6px 0 0" }}>회차별 점수와 성장 흐름을 한눈에 확인하세요.</p>
-        </div>
-        <button onClick={onBack} className="btn-ghost">홈으로</button>
-      </div>
+    <div className="page records">
+      <PageHeader title="나의 기록"
+        desc={hasData ? `총 ${count}회 · 첫 기록 ${first.created_at ? fmtDateDot(first.created_at) : "-"} · 이번 주 ${weekRows.length}회` : null}
+        actions={hasData ? <Button variant="primary" onClick={() => onStart && onStart(startPreset)}>{startPreset ? "지난 조건으로 연습" : "모의면접 시작"}</Button> : null} />
 
       {err && (
-        <div className="growth-empty rise">
-          <div className="t">기록을 불러오지 못했어요</div>
-          <div className="d">{err}</div>
-          <div className="err-actions">
-            <button onClick={() => setReload((n) => n + 1)} className="btn-primary">다시 시도</button>
-            <button onClick={onBack} className="btn-ghost">홈으로</button>
-          </div>
-        </div>
+        <EmptyState title="기록을 불러오지 못했어요" desc={err} action="다시 시도" onAction={() => setReload((n) => n + 1)} />
       )}
-      {!data && !err && <GrowthSkeleton />}
+      {!data && !err && (
+        <div className="skel-stack lg" aria-label="기록을 불러오는 중"><span className="skel" /><span className="skel" /><span className="skel" /><span className="skel" /></div>
+      )}
 
       {data && count === 0 && (
-        <div className="gr-empty rise">
-          <GrowthEmptyIllust />
-          <div className="gr-empty-body">
-            <div className="t">아직 면접 기록이 없어요</div>
-            <div className="d">첫 모의면접을 마치면 회차별 점수, 최고 기록, 이번 주 활동이 이곳에 쌓여요.</div>
-            <ol className="re-steps">
-              <li><span className="re-num">1</span>직무·난이도를 고르고 자기소개서를 붙여넣어요</li>
-              <li><span className="re-num">2</span>웹캠 앞에서 실전처럼 답변해요</li>
-              <li><span className="re-num">3</span>AI 점수와 피드백이 이곳에 쌓여요</li>
-            </ol>
-            <button onClick={() => onStart && onStart(null)} className="re-cta">첫 모의면접 시작하기 <IconArrowR size={13} /></button>
-          </div>
-        </div>
+        <EmptyState title="아직 분석할 면접이 없습니다."
+          desc="첫 면접을 완료하면 답변 속도, 내용, 반복 표현, 점수 변화를 분석해드립니다."
+          action="첫 모의면접 시작" onAction={() => onStart && onStart(null)} />
       )}
 
       {/* 방어: 기록 수는 있는데 점수 포인트가 비어 있는 형식 불일치 응답 */}
       {data && count > 0 && rows.length === 0 && (
-        <div className="growth-empty rise">
-          <div className="t">기록은 있지만 점수 데이터를 불러오지 못했어요</div>
-          <div className="d">
-            면접 기록 {count}회가 저장되어 있지만 점수 정보를 표시할 수 없습니다.
-            잠시 후 다시 시도하거나, 새 모의면접을 진행해보세요.
-          </div>
-          <button onClick={onBack} className="btn-primary">홈으로 돌아가기</button>
-        </div>
+        <EmptyState title="기록은 있지만 점수 데이터를 불러오지 못했어요"
+          desc={`면접 기록 ${count}회가 저장되어 있지만 점수 정보를 표시할 수 없습니다. 잠시 후 다시 시도해주세요.`}
+          action="홈으로" onAction={onBack} />
       )}
 
-      {data && count > 0 && rows.length > 0 && (
+      {hasData && (
         <>
-          {/* 1. 히어로 스트립: 큰 숫자 3 + 코치 코멘트 */}
-          <section className="gr-hero rise" style={{ "--ri": 0 }}>
-            <div className="gr-stat">
-              <div className="k">총 연습 횟수</div>
-              <div className="v"><CountUp value={count} /><small>회</small></div>
-              <div className="s">이번 주 {weekRows.length}회 · 첫 기록 {first.created_at ? fmtDateDot(first.created_at) : "-"}</div>
+          <section className="block rec-top" aria-labelledby="rec-chart-title">
+            <div className="kpis">
+              <Stat label="최근 종합 점수" tone="accent"
+                value={num(last.total_score) != null ? <CountUp value={last.total_score} /> : "—"} unit={num(last.total_score) != null ? "점" : ""}
+                note={`${last.round}회차 · ${fmtDateDot(last.created_at)}`} />
+              <Stat label="첫 회차 대비" value={totalDelta == null ? "—" : signed(totalDelta)} unit={totalDelta == null ? "" : "점"}
+                tone={totalDelta == null ? "" : totalDelta > 0 ? "up" : totalDelta < 0 ? "down" : ""}
+                note={totalDelta == null ? "2회차부터 계산돼요" : [postureDelta != null ? `자세 ${signed(postureDelta)}` : "", contentDelta != null ? `내용 ${signed(contentDelta)}` : ""].filter(Boolean).join(" · ") || null} />
+              <Stat label="최고 기록" value={best ? best.total_score : "—"} unit={best ? "점" : ""} note={best ? `${best.round}회차 · ${fmtDateDot(best.created_at)}` : null} />
+              <Stat label="이번 주" value={weekRows.length} unit="회" note={weekAvg != null ? `평균 ${weekAvg}점 · 목표 3회` : "목표 3회"} />
             </div>
-            <div className="gr-stat">
-              <div className="k">최근 종합 점수</div>
-              <div className="v accent">{num(last.total_score) != null ? <CountUp value={last.total_score} /> : "-"}<small>점</small></div>
-              <div className="s"><ScoreBadge score={num(last.total_score)} /><span>{last.round}회차 · {fmtDateDot(last.created_at)}</span></div>
-            </div>
-            <div className="gr-stat">
-              <div className="k">첫 회차 대비 변화</div>
-              {totalDelta == null ? (
-                <>
-                  <div className="v muted">-</div>
-                  <div className="s">다음 면접을 마치면 변화가 계산돼요</div>
-                </>
-              ) : (
-                <>
-                  <div className={"v" + (totalDelta > 0 ? " up" : totalDelta < 0 ? " down" : " muted")}>
-                    <span className="ti">{trendIcon}</span>{totalDelta > 0 ? "+" : ""}<CountUp value={totalDelta} /><small>점</small>
-                  </div>
-                  <div className="s">
-                    {postureDelta != null && <span className={"dl" + (postureDelta > 0 ? " up" : postureDelta < 0 ? " down" : "")}>자세 {postureDelta > 0 ? "+" : ""}{postureDelta}</span>}
-                    {contentDelta != null && <span className={"dl" + (contentDelta > 0 ? " up" : contentDelta < 0 ? " down" : "")}>내용 {contentDelta > 0 ? "+" : ""}{contentDelta}</span>}
-                  </div>
-                </>
-              )}
-            </div>
-            <div className={"gr-coach " + coach.tone}>
-              <div className="gc-k">코치 코멘트</div>
-              <div className="gc-t">{coach.t}</div>
-              <div className="gc-d">{coach.d}</div>
-            </div>
+            <SectionHeader id="rec-chart-title" title="점수 변화">
+              <div className="legend-toggle" role="group" aria-label="표시 계열 선택">
+                {SERIES_ALL.map((s) => (
+                  <button key={s.key} type="button" className={"chip chip-sm" + (show[s.key] ? " on" : "")}
+                    onClick={() => toggle(s.key)} aria-pressed={!!show[s.key]}>
+                    <span className="lg-dot" style={{ background: s.color }} />{s.label}
+                  </button>
+                ))}
+              </div>
+            </SectionHeader>
+            <LineChart points={rows} series={series} goal={GOAL} ariaLabel="회차별 점수 추이" height={220} width={typeof window !== "undefined" && window.innerWidth < 768 ? 600 : 1100} />
+            <p className="t-caption">{rows.length === 1 ? "2회차부터 점수를 잇는 선이 그려져요. " : ""}{coach.t}. {coach.d}</p>
           </section>
 
-          <div className="gr-cols rise" style={{ "--ri": 1 }}>
-            <div className="gr-main">
-              {/* 2. 메인 차트 */}
-              <div className="dcard">
-                <div className="dcard-head gr-chart-head">
-                  <div className="dcard-t">회차별 점수 추이</div>
-                  <div className="gr-legend" role="group" aria-label="표시 계열 선택">
-                    {SERIES_ALL.map((s) => (
-                      <button
-                        key={s.key} type="button"
-                        className={"gr-lg" + (show[s.key] ? " on" : "")}
-                        style={{ "--c": s.color }}
-                        onClick={() => toggle(s.key)} aria-pressed={!!show[s.key]}
-                      >
-                        <span className="dot" />{s.label}
-                      </button>
-                    ))}
-                    <span className="gr-goal"><span className="gl" />우수 기준 {GOAL}점</span>
-                  </div>
-                </div>
-                <LineChart points={rows} series={series} goal={GOAL} ariaLabel="회차별 점수 추이" />
-                {rows.length === 1 && (
-                  <div className="chart-note">첫 기록이 저장됐어요. 2회차부터 점수를 잇는 추이 선이 그려집니다.</div>
-                )}
-              </div>
-
-              {/* 3. 전체 기록 리스트 */}
-              <div className="dcard">
-                <div className="dcard-head">
-                  <div className="dcard-t">전체 기록 ({count}회)</div>
-                  <span className="dist-total">최신순 · 클릭하면 상세 보기</span>
-                </div>
-                <div className="recent-list">
-                  {rows.slice().reverse().map((p, i) => {
+          <section className="block" aria-labelledby="rec-list-title">
+            <SectionHeader id="rec-list-title" title="전체 기록" meta={`${count}회 · 최신순`} />
+            <div className="table-wrap">
+              <table className="table table-rows">
+                <thead>
+                  <tr>
+                    <th scope="col" className="c-round">회차</th>
+                    <th scope="col">날짜</th>
+                    <th scope="col">직무</th>
+                    <th scope="col">회사</th>
+                    <th scope="col">조건</th>
+                    <th scope="col" className="c-num">자세</th>
+                    <th scope="col" className="c-num">내용</th>
+                    <th scope="col" className="c-num">종합</th>
+                    <th scope="col" className="c-act"><span className="sr-only">상세보기</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.slice().reverse().map((p) => {
                     const s = p.sess;
                     const canOpen = p.session_id != null && typeof onOpenDetail === "function";
                     const company = s && s.company && String(s.company).trim() ? String(s.company).trim() : "";
+                    const g = scoreGrade(num(p.total_score));
                     return (
-                      <div
-                        className={"recent-row gr-row" + (canOpen ? " clickable" : "")}
-                        key={p.session_id ?? p.round}
-                        onClick={() => { if (canOpen) onOpenDetail(p.session_id); }}
-                        {...(canOpen ? { role: "button", tabIndex: 0, onKeyDown: keyActivate(() => onOpenDetail(p.session_id)) } : {})}
-                      >
-                        <span className="gr-round">{p.round}</span>
-                        <RecordLogo company={company} job={s ? s.job : ""} idx={i} />
-                        <div className="rinfo">
-                          <div className="rjob">{sessionTitle(s)}{s && s.sub_job ? <span className="rsub"> · {s.sub_job}</span> : null}</div>
-                          <div className="rdate">
-                            {fmtDateDot(p.created_at)}
-                            {num(p.posture_score) != null && num(p.content_score) != null && (
-                              <span className="rmini"> · 자세 {p.posture_score} · 내용 {p.content_score}</span>
-                            )}
-                          </div>
-                        </div>
-                        <span className="gr-total">{num(p.total_score) != null ? p.total_score : "-"}<small>점</small></span>
-                        <ScoreBadge score={num(p.total_score)} />
-                        {canOpen && <span className="rgo"><IconChevron /></span>}
-                      </div>
+                      <tr key={p.session_id ?? p.round} className={canOpen ? "clickable" : ""}
+                        onClick={() => { if (canOpen) onOpenDetail(p.session_id); }}>
+                        <td className="c-round num">{p.round}</td>
+                        <td className="num nowrap">{fmtDateDot(p.created_at)}</td>
+                        <td><span className="cell-strong">{s && s.job ? s.job : "—"}</span>{s && s.sub_job ? <span className="cell-sub">{s.sub_job}</span> : null}</td>
+                        <td>{company || <span className="muted">—</span>}</td>
+                        <td className="nowrap">{s ? [s.career, s.level ? LEVEL_TEXT[s.level] || s.level : ""].filter(Boolean).join(" · ") || "—" : "—"}</td>
+                        <td className="c-num num">{num(p.posture_score) ?? "—"}</td>
+                        <td className="c-num num">{num(p.content_score) ?? "—"}</td>
+                        <td className="c-num"><b className="num">{num(p.total_score) ?? "—"}</b>{g && <span className={"grade grade-" + g.cls}>{g.label}</span>}</td>
+                        <td className="c-act">
+                          {canOpen && (
+                            <button type="button" className="btn btn-text btn-sm" onClick={(e) => { e.stopPropagation(); onOpenDetail(p.session_id); }}
+                              aria-label={`${p.round}회차 ${sessionTitle(s)} 상세보기`}>
+                              상세 <IconChevron size={12} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
                     );
                   })}
-                </div>
-              </div>
+                </tbody>
+              </table>
             </div>
-
-            {/* 4. 우측 레일 */}
-            <aside className="gr-rail">
-              {best && (
-                <div className="dcard rail-card gr-best">
-                  <div className="rail-t"><span className="gr-ic peach"><IconTrophy size={15} /></span>최고 기록</div>
-                  <div className="gb-score">
-                    <b><CountUp value={best.total_score} /></b><span>점</span>
-                    <ScoreBadge score={best.total_score} />
-                  </div>
-                  <div className="gb-meta">{best.round}회차 · {fmtDateDot(best.created_at)}</div>
-                  <div className="gb-sess">
-                    <RecordLogo company={best.sess ? best.sess.company : ""} job={best.sess ? best.sess.job : ""} idx={1} />
-                    <div className="gb-sess-txt">
-                      <b>{sessionTitle(best.sess)}</b>
-                      <span>{best.sess && best.sess.sub_job ? best.sess.sub_job : `자세 ${best.posture_score ?? "-"} · 내용 ${best.content_score ?? "-"}`}</span>
-                    </div>
-                  </div>
-                  {best.session_id != null && typeof onOpenDetail === "function" && (
-                    <button className="dlink" onClick={() => onOpenDetail(best.session_id)}>기록 상세 보기 <IconChevron size={12} /></button>
-                  )}
-                </div>
-              )}
-
-              <div className="dcard rail-card">
-                <div className="rail-t"><span className="gr-ic sky"><IconCalendarSm size={15} /></span>이번 주 활동</div>
-                <div className="gw-stats">
-                  <div className="gw-stat"><b>{weekRows.length}</b><span>회 연습</span></div>
-                  <div className="gw-stat"><b>{weekAvg != null ? weekAvg : "-"}</b><span>평균 점수</span></div>
-                </div>
-                <div className="gw-days" aria-label="요일별 연습 여부">
-                  {weekDays.map((d) => (
-                    <div className={"gw-day" + (d.n > 0 ? " on" : "") + (d.today ? " today" : "") + (d.future ? " future" : "")} key={d.lb} title={`${d.lb}요일 ${d.n}회`}>
-                      <span className="gd-dot">{d.n > 1 ? d.n : ""}</span>
-                      <span className="gd-lb">{d.lb}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="gw-note">
-                  {weekRows.length === 0
-                    ? "이번 주는 아직 연습 전이에요. 한 문항이라도 시작해볼까요?"
-                    : weekRows.length >= 3
-                      ? "이번 주 3회 이상 연습했어요. 좋은 리듬이에요!"
-                      : "주 3회 연습을 목표로 해보세요."}
-                </div>
-              </div>
-
-              {rows.length === 1 && (
-                <div className="dcard rail-card gr-next-goal">
-                  <div className="rail-t"><span className="gr-ic mint"><IconTarget size={15} /></span>다음 목표</div>
-                  <div className="gn-d">2회차를 마치면 첫 회차 대비 변화와 추이 선이 그려져요. 같은 직무로 한 번 더 도전해보세요.</div>
-                </div>
-              )}
-
-              <div className="dcard rail-card gr-next">
-                <div className="rail-t"><span className="gr-ic lav"><IconPlay size={13} /></span>다음 면접 추천</div>
-                {startPreset ? (
-                  <>
-                    <div className="gn-chips">
-                      {startPreset.company && String(startPreset.company).trim() && (
-                        <span className="gn-chip"><RecordLogo company={startPreset.company} job={startPreset.job} />{String(startPreset.company).trim()}</span>
-                      )}
-                      {startPreset.job && <span className="gn-chip">{startPreset.job}{startPreset.sub ? ` · ${startPreset.sub}` : ""}</span>}
-                    </div>
-                    <div className="gn-d">마지막으로 연습한 조건이에요. 같은 조건으로 연습하면 점수 비교가 정확해져요.</div>
-                    <button className="rail-start" onClick={() => onStart && onStart(startPreset)}>지난 조건으로 면접 설정 <IconArrowR size={15} /></button>
-                  </>
-                ) : (
-                  <>
-                    <div className="gn-d">직무를 골라 새 모의면접을 시작해보세요.</div>
-                    <button className="rail-start" onClick={() => onStart && onStart(null)}>모의면접 시작하기 <IconArrowR size={15} /></button>
-                  </>
-                )}
-                {typeof onFeedback === "function" && (
-                  <button className="btn-secondary gn-fb" onClick={onFeedback}>피드백 분석 보기</button>
-                )}
-              </div>
-            </aside>
-          </div>
+            {typeof onFeedback === "function" && (
+              <div className="page-foot"><Button variant="secondary" onClick={onFeedback}>피드백 분석 보기</Button></div>
+            )}
+          </section>
         </>
       )}
     </div>

@@ -1,12 +1,36 @@
-import { Lightbulb, ArrowRight } from "lucide-react";
 import { IconCheck } from "../../ui";
-import SectionHeading from "./SectionHeading";
+import { Meter } from "../../ds";
 
+/* 홈 오른쪽 개인 준비 패널: 오늘의 준비 n/6 → 진행 표시 → 오늘의 핵심 Tip → 체크리스트
+   체크 상태는 App이 localStorage(cc_checklist)에 저장한다 (날짜 기준 초기화 없음 — home-polish-report.md 참고) */
 export default function TodayPreparation({ hasHistory, tips, checklist, checks, onToggleCheck, onFeedback }) {
-  return <section className="today-preparation" aria-labelledby="today-preparation-title">
-    <SectionHeading id="today-preparation-title" title="오늘의 준비" icon={Lightbulb} tone="mint" />
-    <div className="today-tip"><Lightbulb size={20} aria-hidden="true" /><div><h3>{hasHistory ? "지난 면접에서 한 단계 더" : "답변은 결론부터 말해보세요"}</h3><p>{tips[0]}</p></div></div>
-    {hasHistory && <button type="button" className="text-action" onClick={onFeedback}>개선 포인트 확인<ArrowRight size={16} aria-hidden="true" /></button>}
-    <details className="today-checklist"><summary>시작 전 체크<span>{checks.length} / {checklist.length}</span></summary><ul className="check-list">{checklist.map((label, index) => <li key={label}><button type="button" className={"check-item" + (checks.includes(index) ? " on" : "")} aria-pressed={checks.includes(index)} onClick={() => onToggleCheck(index)}><span className="cbox"><IconCheck size={12} /></span><span className="clabel">{label}</span></button></li>)}</ul></details>
-  </section>;
+  const done = checks.length;
+  const all = checklist.length;
+  return (
+    <section className="today card" aria-labelledby="today-title">
+      <div className="today-head">
+        <h2 className="t-section" id="today-title">오늘의 준비</h2>
+        <span className="today-count num" aria-label={`${all}개 중 ${done}개 완료`}><b>{done}</b> / {all}</span>
+      </div>
+      <Meter value={done} max={all} label="오늘의 준비 진행" />
+      <div className="today-tip">
+        <span className="today-tip-label">{hasHistory ? "지난 면접에서 · 오늘의 핵심 Tip" : "오늘의 핵심 Tip"}</span>
+        <p>{tips[0]}</p>
+        {hasHistory && <button type="button" className="btn btn-text btn-sm" onClick={onFeedback}>개선 포인트 보기</button>}
+      </div>
+      <ul className="checklist today-list">
+        {checklist.map((label, index) => {
+          const on = checks.includes(index);
+          return (
+            <li key={label}>
+              <button type="button" className={"check" + (on ? " on" : "")} aria-pressed={on} onClick={() => onToggleCheck(index)}>
+                <span className="check-box" aria-hidden="true"><IconCheck size={12} /></span>
+                <span className="check-label">{label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }

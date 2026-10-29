@@ -1,21 +1,62 @@
-import { History, ArrowRight } from "lucide-react";
-import { fmtDateDot, sessionTitle, scoreGrade } from "../../ui";
-import EmptyState from "./EmptyState";
-import SectionHeading from "./SectionHeading";
+import { ChevronRight } from "lucide-react";
+import { fmtDateDot, scoreGrade } from "../../ui";
+import { SectionHeader } from "../../ds";
+import HomeNotice from "./HomeNotice";
 
-const hasNum = value => typeof value === "number" && Number.isFinite(value);
-const score = value => hasNum(value) ? value : "—";
-const AXES = ["논리성", "구체성", "직무적합도"]; // 기록 목록 응답에 없으면 줄 자체를 숨긴다
+const hasNum = (v) => typeof v === "number" && Number.isFinite(v);
+const LV = { "하": "쉬움", "중": "보통", "상": "어려움" };
 
-export default function RecentInterviewCard({ session, comment, loading, unknown, onRetry, onStart, onRecords, onDetail }) {
-  const axes = session?.content?.scores || session?.content_scores || {};
-  return <section className="recent-interview-section" aria-labelledby="recent-interview-title">
-    <SectionHeading id="recent-interview-title" title="최근 면접" icon={History} tone="lilac" action="전체보기" onAction={onRecords} />
-    {loading ? <div className="recent-interview-card home-loading" aria-label="최근 면접 불러오는 중"><span /><span /></div> : unknown ? <div className="recent-interview-card"><EmptyState icon={History} title="기록을 불러오지 못했어요" description="잠시 후 다시 확인해주세요." action="다시 불러오기" onAction={onRetry} /></div> : !session ? <div className="recent-interview-card"><EmptyState icon={History} title="첫 면접을 시작해보세요" description="면접을 완료하면 답변별 점수와 AI 피드백이 여기에 쌓여요." action="첫 모의면접 시작" onAction={onStart} /></div> :
-      <article className="recent-interview-card">
-        <div className="recent-summary"><div><h3>{sessionTitle(session)}</h3><p>{[session.sub_job, fmtDateDot(session.created_at)].filter(Boolean).join(" · ")}</p></div><div className="recent-total" data-score={scoreGrade(session.total_score)?.cls}><span>종합 점수</span><b>{score(session.total_score)}<small>점</small></b></div></div>
-        <dl className="recent-scores"><div><dt>자세·표정</dt><dd>{hasNum(session.posture_score) ? session.posture_score : <span className="recent-na">측정 안 됨</span>}</dd></div><div><dt>답변 내용</dt><dd>{score(session.content_score)}</dd></div>{AXES.some(key => hasNum(axes[key])) && <div className="recent-content-axes"><dt>논리성 · 구체성 · 직무적합도</dt><dd>{AXES.map(key => score(axes[key])).join(" / ")}</dd></div>}</dl>
-        <div className="recent-comment"><p>{comment || "지난 답변을 확인하고 다음 연습에 적용해보세요."}</p>{session.session_id != null && <button type="button" className="text-action" onClick={() => onDetail(session.session_id)}>피드백 다시 보기<ArrowRight size={16} aria-hidden="true" /></button>}</div>
-      </article>}
-  </section>;
+/* 홈: 최근 면접 목록 — 날짜 | 직무 | 회사 | 점수 | 상세보기
+   회사는 기록 데이터의 company 필드를 그대로 쓴다 (없으면 "—")
+   quiet: 페이지 상단 공통 오류가 떠 있을 때 — 섹션 안에서는 오류를 반복하지 않고 비워 둔다 */
+export default function RecentInterviewCard({ session, sessions = [], loading, unknown, quiet, onRetry, onStart, onRecords, onDetail }) {
+  const list = sessions.length ? sessions : session ? [session] : [];
+  return (
+    <section className="home-sec" aria-labelledby="recent-title">
+      <SectionHeader id="recent-title" title="최근 면접" action={list.length ? "전체 기록" : null} onAction={onRecords} />
+      {loading ? (
+        <div className="skel-stack" aria-label="최근 면접 불러오는 중"><span className="skel" /><span className="skel" /><span className="skel" /></div>
+      ) : unknown ? (
+        quiet ? <div className="home-quiet" aria-hidden="true" /> : <HomeNotice text="면접 기록을 불러오지 못했어요" onRetry={onRetry} />
+      ) : !list.length ? (
+        <p className="home-empty">
+          <span>아직 완료한 면접이 없어요. 첫 면접을 마치면 점수와 피드백이 여기에 쌓여요.</span>
+          <button type="button" className="btn btn-text btn-sm" onClick={onStart}>첫 모의면접 시작<ChevronRight size={14} aria-hidden="true" /></button>
+        </p>
+      ) : (
+        <div className="hl" role="table" aria-label="최근 면접">
+          <div className="hl-head" role="row">
+            <span role="columnheader">날짜</span>
+            <span role="columnheader">직무</span>
+            <span role="columnheader">회사</span>
+            <span role="columnheader" className="hl-r">점수</span>
+            <span role="columnheader"><span className="sr-only">상세</span></span>
+          </div>
+          {list.map((item, i) => {
+            const g = scoreGrade(item.total_score);
+            const open = item.session_id != null ? () => onDetail(item.session_id) : null;
+            const company = item.company != null ? String(item.company).trim() : "";
+            const cond = [item.career, item.level ? LV[item.level] || item.level : ""].filter(Boolean).join(" · ");
+            return (
+              <div key={item.session_id ?? i} className="hl-row" role="row">
+                <span className="hl-date num" role="cell">{fmtDateDot(item.created_at)}</span>
+                <span className="hl-job" role="cell">
+                  <span className="hl-title">{[item.job, item.sub_job].filter(Boolean).join(" · ") || "모의면접"}</span>
+                  {cond && <span className="hl-sub">{cond}</span>}
+                </span>
+                <span className={"hl-company" + (company ? "" : " none")} role="cell">{company || "회사 지정 안 함"}</span>
+                <span className="hl-score" role="cell">
+                  <b className="num">{hasNum(item.total_score) ? item.total_score : "—"}</b>
+                  {g && <span className={"grade grade-" + g.cls}>{g.label}</span>}
+                </span>
+                <span className="hl-act" role="cell">
+                  {open && <button type="button" className="btn btn-text btn-sm" onClick={open} aria-label={`${fmtDateDot(item.created_at)} ${item.job || ""} 면접 상세보기`}>상세보기<ChevronRight size={14} aria-hidden="true" /></button>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
 }
