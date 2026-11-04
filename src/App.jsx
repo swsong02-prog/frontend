@@ -14,6 +14,7 @@ import { searchCompanies } from "./companies";
 import DreamCompanies, { loadDreams } from "./DreamCompanies";
 import JobPostings from "./JobPostings";
 import JobsBrowse from "./JobsBrowse";
+import CareerGuide from "./CareerGuide";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 import { Button, PageHeader, SectionHeader, EmptyState, Segmented, Stat, Meter, Field, ComboList } from "./ds";
 import {
@@ -2176,9 +2177,10 @@ export default function App() {
   };
   const goSettings = () => { setNavHint(""); setScreen("settings"); };
   const goJobs = () => { setNavHint(""); setScreen("jobs"); };
+  const goCareer = () => { setNavHint(""); setScreen("career"); };
 
   const navActive =
-    screen === "jobs" ? "jobs" : screen === "settings" ? "settings"
+    screen === "career" ? "career" : screen === "jobs" ? "jobs" : screen === "settings" ? "settings"
       : screen === "feedback" ? "feedback"
         : screen === "resume" ? "resume"
           : screen === "growth" ? "records"
@@ -2193,6 +2195,7 @@ export default function App() {
     { key: "records", label: "나의 기록", short: "기록", icon: <IconClock />, go: goRecords },
     { key: "resume", label: "자기소개서", short: "자소서", icon: <IconDoc />, go: goResume },
     { key: "jobs", label: "채용공고", short: "공고", go: goJobs },
+    { key: "career", label: "진로 탐색", short: "진로", go: goCareer },
     { key: "settings", label: "설정", short: "설정", icon: <IconGear />, go: goSettings },
   ];
 
@@ -2226,6 +2229,10 @@ export default function App() {
     return <AppShell screen={screen} title={appbarTitle} items={NAV_ITEMS} active={navActive}
       onHome={goHomeNav} confirmLeave={confirmLeaveInterview} name={emailName} initial={initial}
       footer={<ToastHost toasts={toasts} onClose={dismissToast} />}>{children}</AppShell>;
+  }
+
+  if (screen === "career") {
+    return renderShell(<CareerGuide onPractice={startWithPreset} />);
   }
 
   /* ===== 설정 화면 ===== */

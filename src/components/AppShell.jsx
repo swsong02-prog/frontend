@@ -1,6 +1,6 @@
-import { MessageCircle, ChevronDown, FileText, Settings, House, Video, ChartNoAxesCombined, History, BriefcaseBusiness } from "lucide-react";
+import { MessageCircle, ChevronDown, FileText, Settings, House, Video, ChartNoAxesCombined, History, BriefcaseBusiness, Compass } from "lucide-react";
 
-const icons = { home: House, mock: Video, feedback: ChartNoAxesCombined, records: History, resume: FileText, settings: Settings, jobs: BriefcaseBusiness };
+const icons = { home: House, mock: Video, feedback: ChartNoAxesCombined, records: History, resume: FileText, settings: Settings, jobs: BriefcaseBusiness, career: Compass };
 
 function NavigationItem({ item, active, navigate, mobile = false }) {
   const Icon = icons[item.key];
@@ -13,11 +13,11 @@ function NavigationItem({ item, active, navigate, mobile = false }) {
   );
 }
 
-/* 좌측 사이드바: 연습(홈·모의면접) / 분석(피드백·기록) / 준비 자료(자소서·공고) 세 묶음 + 하단 설정·계정 */
+/* 좌측 사이드바: 연습(홈·모의면접) / 분석(피드백·기록) / 준비 자료(진로·자소서·공고) 세 묶음 + 하단 설정·계정 */
 const GROUPS = [
   { label: "연습", keys: ["home", "mock"] },
   { label: "분석", keys: ["feedback", "records"] },
-  { label: "준비 자료", keys: ["resume", "jobs"] },
+  { label: "준비 자료", keys: ["career", "resume", "jobs"] },
 ];
 
 export function Sidebar({ items, active, navigate, onHome, name, initial }) {
@@ -60,7 +60,7 @@ export default function AppShell({ screen, title, items, active, onHome, confirm
           <summary aria-label="프로필 메뉴"><span className="avatar">{initial}</span><ChevronDown size={14} aria-hidden="true" /></summary>
           <div className="profile-menu-panel">
             <p>{name}님</p>
-            {items.filter(item => ["resume", "jobs", "settings"].includes(item.key)).map(item => {
+            {items.filter(item => ["career", "resume", "jobs", "settings"].includes(item.key)).map(item => {
               const Icon = icons[item.key];
               return <button type="button" key={item.key} onClick={(event) => {
                 if (confirmLeave()) { event.currentTarget.closest("details").open = false; item.go(); }
