@@ -36,12 +36,12 @@ export default function RecentInterviewCard({ session, sessions = [], loading, u
             const g = scoreGrade(item.total_score);
             const open = item.session_id != null ? () => onDetail(item.session_id) : null;
             const company = item.company != null ? String(item.company).trim() : "";
-            const cond = [item.career, item.level ? LV[item.level] || item.level : ""].filter(Boolean).join(" · ");
+            const cond = [item.career, item.level ? LV[item.level] || item.level : ""].filter(Boolean).join(", ");
             return (
               <div key={item.session_id ?? i} className="hl-row" role="row">
                 <span className="hl-date num" role="cell">{fmtDateDot(item.created_at)}</span>
                 <span className="hl-job" role="cell">
-                  <span className="hl-title">{[item.job, item.sub_job].filter(Boolean).join(" · ") || "모의면접"}</span>
+                  <span className="hl-title">{[item.job, item.sub_job].filter(Boolean).join(", ") || "모의면접"}{item.mode === "practice" && <span className="tag tag-a mode-tag">말문 트기</span>}</span>
                   {cond && <span className="hl-sub">{cond}</span>}
                 </span>
                 <span className={"hl-company" + (company ? "" : " none")} role="cell">{company || "회사 지정 안 함"}</span>

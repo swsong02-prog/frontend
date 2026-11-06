@@ -36,7 +36,7 @@ export default function PreparationProgress({ savedResume, selectedJob, companie
         </div>
       </dl>
       <details className="prep-details">
-        <summary>{next ? <>다음 할 일 · {next.label}</> : "모든 준비 항목을 마쳤어요"}</summary>
+        <summary>{next ? <>다음 할 일, {next.label}</> : "모든 준비 항목을 마쳤어요"}</summary>
         <ul>
           {milestones.map((m) => (
             <li key={m.label} className={m.done ? "done" : ""}>

@@ -40,27 +40,6 @@ export function prefersReducedMotion() {
     && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/* 숫자 카운트업: 결과 게이지·대시보드 도넛 중앙 숫자 (0 → 목표치, ease-out) */
-export function CountUp({ value, duration = 800, suffix = "" }) {
-  const [disp, setDisp] = useState(() => (prefersReducedMotion() ? value : 0));
-  useEffect(() => {
-    if (typeof value !== "number") return;
-    if (prefersReducedMotion()) { setDisp(value); return; }
-    let raf;
-    const t0 = performance.now();
-    const tick = (t) => {
-      const p = Math.min((t - t0) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisp(Math.round(eased * value));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
-  if (typeof value !== "number") return "-";
-  return <>{disp}{suffix}</>;
-}
-
 /* 원형 게이지 진행 호: 마운트 후 0 → 목표치로 차오름 (stroke-dashoffset transition) */
 export function ArcProgress({ value, max = 100, r, strokeWidth, size, rotated = false, track = "var(--lav)", color = "var(--primary)" }) {
   const [on, setOn] = useState(prefersReducedMotion);

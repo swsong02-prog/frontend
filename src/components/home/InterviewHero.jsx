@@ -13,7 +13,7 @@ export default function InterviewHero({ jobPicker, career, level, company, ready
         <span>난이도 {level || "보통"}</span>
         <span>{company || "회사 지정 안 함"}</span>
       </p>
-      <p className="hero-meta">질문 6개 · 약 12~18분</p>
+      <p className="hero-meta">질문 6개, 약 12~18분</p>
       <div className="hero-actions">
         <Button variant="primary" size="lg" onClick={onStart}><Play size={16} strokeWidth={2} aria-hidden="true" />{ready ? "모의면접 시작" : "조건 고르고 시작하기"}</Button>
         <Button variant="text" onClick={onEdit}>세부 조건 변경</Button>

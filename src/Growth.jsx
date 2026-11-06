@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  CountUp, fmtDateDot, LineChart, weekStartDate, sessionTitle, scoreGrade,
+  fmtDateDot, LineChart, weekStartDate, sessionTitle, scoreGrade,
   IconChevron, authFetch, isAuthExpired,
 } from "./ui";
 import { Button, PageHeader, SectionHeader, EmptyState, Stat } from "./ds";
@@ -132,7 +132,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
 
   return (
     <div className="page records">
-      <PageHeader title="나의 기록"
+      <PageHeader title="면접 기록"
         desc={hasData ? `총 ${count}회 · 첫 기록 ${first.created_at ? fmtDateDot(first.created_at) : "-"} · 이번 주 ${weekRows.length}회` : null}
         actions={hasData ? <Button variant="primary" onClick={() => onStart && onStart(startPreset)}>{startPreset ? "지난 조건으로 연습" : "모의면접 시작"}</Button> : null} />
 
@@ -161,7 +161,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
           <section className="block rec-top" aria-labelledby="rec-chart-title">
             <div className="kpis">
               <Stat label="최근 종합 점수" tone="accent"
-                value={num(last.total_score) != null ? <CountUp value={last.total_score} /> : "—"} unit={num(last.total_score) != null ? "점" : ""}
+                value={num(last.total_score) != null ? last.total_score : "—"} unit={num(last.total_score) != null ? "점" : ""}
                 note={`${last.round}회차 · ${fmtDateDot(last.created_at)}`} />
               <Stat label="첫 회차 대비" value={totalDelta == null ? "—" : signed(totalDelta)} unit={totalDelta == null ? "" : "점"}
                 tone={totalDelta == null ? "" : totalDelta > 0 ? "up" : totalDelta < 0 ? "down" : ""}
@@ -211,7 +211,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
                         onClick={() => { if (canOpen) onOpenDetail(p.session_id); }}>
                         <td className="c-round num">{p.round}</td>
                         <td className="num nowrap">{fmtDateDot(p.created_at)}</td>
-                        <td><span className="cell-strong">{s && s.job ? s.job : "—"}</span>{s && s.sub_job ? <span className="cell-sub">{s.sub_job}</span> : null}</td>
+                        <td><span className="cell-strong">{s && s.job ? s.job : "—"}</span>{s && s.mode === "practice" && <span className="tag tag-a mode-tag">말문 트기</span>}{s && s.sub_job ? <span className="cell-sub">{s.sub_job}</span> : null}</td>
                         <td>{company || <span className="muted">—</span>}</td>
                         <td className="nowrap">{s ? [s.career, s.level ? LEVEL_TEXT[s.level] || s.level : ""].filter(Boolean).join(" · ") || "—" : "—"}</td>
                         <td className="c-num num">{num(p.posture_score) ?? "—"}</td>
