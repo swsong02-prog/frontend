@@ -1,0 +1,69 @@
+/* ============================================================
+   긴장 풀기 루틴 (components/CalmRoutine.jsx) + 면접 중 셀프뷰 가리기
+   2026-11-06. 디자인 규칙: 밝은 바탕, 파랑은 포인트, 그라데이션·큰 그림자 없음
+   ============================================================ */
+
+/* 루틴은 카메라 칸을 덮는다 (영상 요소는 아래에 그대로 붙어 있어 스트림이 끊기지 않는다) */
+.calm-routine { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; background: var(--c-surface); padding: 20px 24px; overflow-y: auto; }
+.cr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--c-line); }
+.cr-steps { display: flex; flex-wrap: wrap; font-size: var(--fs-caption); color: var(--c-ink-4); }
+.cr-steps li + li::before { content: "›"; margin: 0 6px; color: var(--c-line-strong); }
+.cr-steps li.done { color: var(--c-ink-3); }
+.cr-steps li.on { color: var(--c-accent); font-weight: 700; }
+.cr-close { font-size: var(--fs-sub); color: var(--c-ink-3); text-decoration: underline; }
+.cr-body { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 18px 0; max-width: 640px; width: 100%; margin: 0 auto; }
+.cr-h { font-size: 18px; line-height: 26px; font-weight: 700; color: var(--c-ink); }
+.cr-p { font-size: var(--fs-body); line-height: 1.75; color: var(--c-ink-2); }
+.cr-q { margin-top: 6px; font-size: var(--fs-body); font-weight: 600; }
+.cr-ex { font-size: var(--fs-sub); color: var(--c-ink-2); padding: 10px 12px; border-radius: var(--r-2); background: var(--c-sunken); }
+.cr-note { margin-top: 6px; font-size: var(--fs-sub); color: var(--c-ink-3); }
+.cr-care { font-size: var(--fs-sub); line-height: 1.6; color: var(--c-caution); padding: 10px 12px; border-radius: var(--r-2); background: var(--c-caution-weak); }
+.cr-tip { font-size: var(--fs-sub); color: var(--c-accent-hover); }
+
+.cr-scale-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.cr-scale-n { min-width: 36px; height: 36px; padding: 0 6px; border: 1px solid var(--c-line-strong); border-radius: var(--r-2); background: var(--c-surface); font-size: var(--fs-body); font-weight: 600; color: var(--c-ink-2); font-variant-numeric: tabular-nums; }
+.cr-scale-n:hover { background: var(--c-sunken); }
+.cr-scale-n.on { background: var(--c-accent); border-color: var(--c-accent); color: #fff; }
+.cr-scale-ends { display: flex; justify-content: space-between; margin-top: 4px; font-size: var(--fs-caption); color: var(--c-ink-3); }
+
+.cr-field { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sub); color: var(--c-ink-2); }
+.cr-field input, .cr-talk { width: 100%; padding: 10px 12px; border: 1px solid var(--c-line-strong); border-radius: var(--r-2); font: inherit; font-size: var(--fs-body); background: var(--c-surface); color: var(--c-ink); resize: vertical; }
+.cr-field input:focus, .cr-talk:focus { outline: 2px solid var(--c-accent-line); border-color: var(--c-accent); }
+
+.cr-breath-start { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 6px; }
+.cr-opts { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sub); color: var(--c-ink-2); }
+.cr-opts label { display: inline-flex; align-items: center; gap: 6px; }
+.cr-breath { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0; }
+.cr-circle { width: 180px; height: 180px; border-radius: 50%; border: 2px solid var(--c-accent); background: var(--c-accent-weak); transform: scale(.55); transition-property: transform; transition-timing-function: ease-in-out; }
+.cr-circle.in { transform: scale(1); }
+.cr-circle.out { transform: scale(.55); }
+.cr-breath-label { position: absolute; top: 8px; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.cr-breath-label b { font-size: var(--fs-body); color: var(--c-accent-hover); }
+.cr-breath-label span { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--c-ink); }
+.cr-breath-left { font-size: var(--fs-sub); color: var(--c-ink-3); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .cr-circle { transition: none; } }
+
+.cr-cues { display: flex; flex-wrap: wrap; gap: 8px; }
+.cr-cue { height: 36px; padding: 0 14px; border: 1px solid var(--c-line-strong); border-radius: 18px; background: var(--c-surface); font-size: var(--fs-sub); color: var(--c-ink-2); }
+.cr-cue.on { border-color: var(--c-accent); background: var(--c-accent-weak); color: var(--c-accent-hover); font-weight: 600; }
+
+.cr-nav { display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--c-line); }
+.cr-spacer { flex: 1; }
+
+/* 준비 화면 오른쪽 칸 */
+.calm-card .hint-line { margin-bottom: 10px; }
+.calm-done { font-size: var(--fs-sub); color: var(--c-good); font-weight: 600; margin-bottom: 6px; }
+
+/* 면접 중: 내 모습 가리기 */
+.cam-area.self-hidden video { visibility: hidden; }
+.self-cover { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; background: var(--c-sunken); color: var(--c-ink-3); font-size: var(--fs-sub); line-height: 1.6; }
+.self-toggle { margin-top: 10px; height: 32px; padding: 0 12px; border: 1px solid var(--c-line-strong); border-radius: var(--r-2); background: var(--c-surface); font-size: var(--fs-sub); color: var(--c-ink-2); }
+.self-toggle:hover { background: var(--c-sunken); }
+.cue-list { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-body); font-weight: 600; color: var(--c-ink); }
+.cue-sub { margin-top: 6px; font-size: var(--fs-caption); color: var(--c-ink-3); }
+
+@media (max-width: 768px) {
+  .calm-routine { position: fixed; z-index: 60; padding: 16px; }
+  .cr-scale-row { gap: 3px; flex-wrap: nowrap; }
+  .cr-scale-n { flex: 1 1 0; min-width: 0; padding: 0; height: 34px; font-size: var(--fs-sub); }
+}

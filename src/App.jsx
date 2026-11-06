@@ -16,6 +16,7 @@ import JobsBrowse from "./JobsBrowse";
 import CareerGuide from "./CareerGuide";
 import GoalPlanner from "./screens/GoalPlanner";
 import WarmupPanel from "./components/WarmupPanel";
+import CalmRoutine from "./components/CalmRoutine";
 import { GoalStrip, TodayPlans, StreakQuest, AchievementFeed } from "./components/home/LoopHome";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 import { Button, PageHeader, SectionHeader, EmptyState, Segmented, Stat, Meter, Field, ComboList } from "./ds";
@@ -651,6 +652,10 @@ export default function App() {
   const [runMode, setRunMode] = useState("normal"); // 지금 진행 중인 면접의 방식 (시작할 때 고정)
   const [answers, setAnswers] = useState([]); // 말문 트기 답안 틀: questions와 같은 순서, {text, src} | null
   const [runHasResume, setRunHasResume] = useState(false);
+  // 긴장 풀기 루틴 (면접 준비 화면). calmDone: 이번 면접에서 마친 루틴 결과 {pre, post, challenge, cues, ...}
+  const [calmOpen, setCalmOpen] = useState(false);
+  const [calmDone, setCalmDone] = useState(null);
+  const [hideSelf, setHideSelf] = useState(false); // 면접 중 내 모습 가리기 (녹화에는 영향 없음)
   const [loopKey, setLoopKey] = useState(0); // 홈 루프 블록(목표·할 일·퀘스트·소식) 다시 불러오기
   const [resumeTab, setResumeTab] = useState("text");
   const [resumeText, setResumeText] = useState(() => loadResumeDraft(localStorage.getItem("cc_email") || ""));
@@ -1342,6 +1347,9 @@ export default function App() {
       setAnswers(pairs.map((x) => x.a));
       setRunMode(practice ? "practice" : "normal");
       setRunHasResume(!!resumeText.trim());
+      setCalmOpen(false);
+      setCalmDone(null);
+      setHideSelf(false);
       setJobRole(data.job_role || `${job} ${sub}`.trim());
       setResults([]);
       setBusy(false);
@@ -1749,9 +1757,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, phase, qIndex]);
 
+  // 긴장 풀기 루틴을 마치면: 결과를 이 브라우저에만 기록하고, 면접 중 내 모습을 기본으로 가린다
+  // (효과 비교용 기록. 서버 저장은 아직 하지 않는다)
+  function finishCalm(res) {
+    setCalmDone(res);
+    setCalmOpen(false);
+    setHideSelf(true);
+    try {
+      const log = JSON.parse(localStorage.getItem("cc_calm_log") || "[]");
+      log.push({ at: new Date().toISOString(), job: jobRole, pre: res.pre, post: res.post, challenge: res.challenge, cues: res.cues });
+      localStorage.setItem("cc_calm_log", JSON.stringify(log.slice(-50)));
+    } catch (e) {}
+  }
+
   // 준비 화면 → 3-2-1 카운트다운 → 녹화 개시
   function beginInterview() {
-    if (camError || !streamRef.current || phase === "countdown") return;
+    if (camError || !streamRef.current || phase === "countdown" || calmOpen) return;
     setPhase("countdown");
     setCountdown(3);
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -3138,8 +3159,23 @@ export default function App() {
                   <div className="cam-msg">아직 녹화 전이에요 · 자세와 조명을 점검해보세요</div>
                 </>
               )}
+              {calmOpen && <CalmRoutine userName={userName} onDone={finishCalm} onClose={() => setCalmOpen(false)} />}
             </div>
             <div className="iside">
+              <div className="card calm-card">
+                <div className="card-t"><IconTip />긴장 풀기 루틴 (약 6분)</div>
+                {calmDone ? (
+                  <>
+                    <div className="calm-done">루틴을 마쳤어요{calmDone.pre != null && calmDone.post != null ? ` · 긴장 ${calmDone.pre}점 → ${calmDone.post}점` : ""}</div>
+                    <div className="hint-line">면접 중에는 내 모습을 가리고, 고른 큐를 오른쪽에 보여 드려요.</div>
+                  </>
+                ) : (
+                  <div className="hint-line">떨려도 준비한 걸 말할 수 있게 생각 바꾸기, 호흡, 자기대화를 순서대로 해요. 건너뛰어도 면접은 그대로 볼 수 있어요.</div>
+                )}
+                <button className="btn btn-secondary btn-block" onClick={() => setCalmOpen(true)} disabled={calmOpen || phase === "countdown"}>
+                  {calmOpen ? "루틴 진행 중" : calmDone ? "루틴 다시 하기" : "루틴 시작"}
+                </button>
+              </div>
               <div className="card">
                 <div className="card-t"><IconMic />마이크 확인</div>
                 <div className="hint-line">말해보세요. 막대가 움직이면 마이크가 정상이에요.</div>
@@ -3173,7 +3209,7 @@ export default function App() {
               <button
                 className="btn btn-primary btn-lg btn-block ready-start"
                 onClick={beginInterview}
-                disabled={!!camError || camState !== "ready" || phase === "countdown"}
+                disabled={!!camError || camState !== "ready" || phase === "countdown" || calmOpen}
               >
                 {phase === "countdown" ? `${countdown}초 후 시작...` : camState === "connecting" ? "카메라 연결 중..." : "면접 시작"}
               </button>
@@ -3262,12 +3298,13 @@ export default function App() {
             </div>
           </div>
 
-          <div className="cam-area">
+          <div className={"cam-area" + (hideSelf ? " self-hidden" : "")}>
             {camError ? (
               <CamErrorPanel message={camError} onRetry={() => connectDevices()} after="다시 연결되면 '다시 답변'을 눌러 이 질문부터 이어가세요." />
             ) : (
               <>
                 <video ref={videoRef} autoPlay muted playsInline></video>
+                {hideSelf && <div className="self-cover">내 모습은 가려 두었어요. 녹화와 분석은 그대로 진행됩니다.<br />면접관을 본다고 생각하고 카메라 렌즈를 바라보세요.</div>}
                 <div className={"cam-rec" + (liveRecording ? "" : " listening")}><span className="d"></span>{liveStatus.badge}</div>
                 <div className="cam-msg">{liveStatus.msg}</div>
                 {busy && <AnalysisOverlay note={analysisNote} seconds={analysisSeconds} canFinish={results.length > 0} onFinish={() => finishEarly(true)} workerOnline={workerStatus ? workerStatus.online : null} />}
@@ -3310,15 +3347,28 @@ export default function App() {
               {micSilent && liveRecording && (
                 <div className="mic-warn" role="alert">마이크 소리가 들어오지 않아요. 음소거나 입력 장치를 확인해주세요.</div>
               )}
+              {!camError && (
+                <button className="self-toggle" onClick={() => setHideSelf((v) => !v)} aria-pressed={hideSelf}>
+                  {hideSelf ? "내 모습 보기" : "내 모습 가리기"}
+                </button>
+              )}
             </div>
-            <div className="card tips-card">
-              <div className="card-t"><IconTip />면접 팁</div>
-              <div className="hint-line">
-                · 카메라(렌즈)를 면접관이라 생각하고 바라보세요<br />
-                · 어깨를 펴고 바른 자세를 유지하세요<br />
-                · 결론부터 말하고 구체적 경험을 덧붙이면 좋아요
+            {calmDone && calmDone.cues && calmDone.cues.length > 0 ? (
+              <div className="card tips-card">
+                <div className="card-t"><IconTip />오늘의 큐</div>
+                <div className="cue-list">{calmDone.cues.map((c) => <span key={c}>· {c}</span>)}</div>
+                <div className="cue-sub">심장이 빨리 뛰는 건 몸이 준비하고 있다는 신호일 수 있어요.</div>
               </div>
-            </div>
+            ) : (
+              <div className="card tips-card">
+                <div className="card-t"><IconTip />면접 팁</div>
+                <div className="hint-line">
+                  · 카메라(렌즈)를 면접관이라 생각하고 바라보세요<br />
+                  · 어깨를 펴고 바른 자세를 유지하세요<br />
+                  · 결론부터 말하고 구체적 경험을 덧붙이면 좋아요
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </>
