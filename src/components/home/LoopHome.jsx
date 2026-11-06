@@ -4,6 +4,7 @@ import {
   loopErrorText, kstToday, dDayLabel, dDay, fmtShort,
 } from "../../loopApi";
 import { isAuthExpired } from "../../ui";
+import { MessageCircle, CalendarCheck, Briefcase, FileText, Flame, ListChecks, Target, Megaphone } from "lucide-react";
 
 /* ============================================================
    홈 루프 블록 (목표 → 할 일 → 연속 기록 → 같은 직무 소식)
@@ -54,7 +55,7 @@ export function GoalStrip({ token, reloadKey, onOpen }) {
   return (
     <section className="goal-strip" aria-labelledby="gs-title">
       <div className="gs-head">
-        <h2 id="gs-title">내 목표</h2>
+        <h2 id="gs-title"><Target size={16} strokeWidth={2.2} className="ic ic-rose" aria-hidden="true" />내 목표</h2>
         {st.data && <span className="xs c3 num">진행 {active.length}개, 달성 {achieved}개</span>}
         <button type="button" className="btn btn-text btn-sm gs-more" onClick={onOpen}>목표·플래너</button>
       </div>
@@ -112,7 +113,7 @@ export function TodayPlans({ token, reloadKey, onChanged, onOpen }) {
   return (
     <section aria-labelledby="tp-title">
       <div className="side-h">
-        <h2 id="tp-title">오늘 할 일</h2>
+        <h2 id="tp-title"><ListChecks size={17} strokeWidth={2.2} className="ic ic-blue" aria-hidden="true" />오늘 할 일</h2>
         {st.data && <span className="xs c3 num">{done} / {plans.length}</span>}
       </div>
       {st.loading && !st.data ? <LoopSkeleton rows={3} />
@@ -141,9 +142,9 @@ export function StreakQuest({ token, reloadKey }) {
   const [st, retry] = useLoad(() => getProgress(token), [token, reloadKey]);
   const p = st.data;
   return (
-    <section aria-labelledby="sq-title">
+    <section className="sq-box" aria-labelledby="sq-title">
       <div className="side-h">
-        <h2 id="sq-title">이번 주 퀘스트</h2>
+        <h2 id="sq-title"><Flame size={17} strokeWidth={2.2} className="ic ic-amber" aria-hidden="true" />이번 주 퀘스트</h2>
         <span className="xs c3">월요일 시작</span>
       </div>
       {st.loading && !p ? <LoopSkeleton rows={3} />
@@ -192,7 +193,7 @@ export function AchievementFeed({ token, job, reloadKey, onOpen }) {
   return (
     <section className="sec feed" aria-labelledby="af-title">
       <div className="sec-h">
-        <h2 id="af-title">다른 회원 목표와 소식 <small>{effJob ? effJob : "전체 직무"}</small></h2>
+        <h2 id="af-title"><Megaphone size={18} strokeWidth={2.2} className="ic ic-green" aria-hidden="true" />다른 회원 목표와 소식 <small>{effJob ? effJob : "전체 직무"}</small></h2>
         {job && (
           <div className="seg seg-sm" role="group" aria-label="소식 범위">
             <button type="button" className={scope === "job" ? "on" : ""} aria-pressed={scope === "job"} onClick={() => setScope("job")}>내 직무</button>
@@ -241,5 +242,25 @@ export function AchievementFeed({ token, job, reloadKey, onOpen }) {
             )
           )}
     </section>
+  );
+}
+
+/* ---------- 바로가기 타일 4개 (잡코리아 맞춤 정보 타일 참고) ---------- */
+export function QuickMenu({ onWarmup, onPlanner, onJobs, onResume }) {
+  const items = [
+    { label: ["말문 트기", "연습"], Icon: MessageCircle, tone: "blue", on: onWarmup },
+    { label: ["목표", "플래너"], Icon: CalendarCheck, tone: "green", on: onPlanner },
+    { label: ["채용공고", "보기"], Icon: Briefcase, tone: "amber", on: onJobs },
+    { label: ["자소서", "다듬기"], Icon: FileText, tone: "rose", on: onResume },
+  ];
+  return (
+    <nav className="qm" aria-label="바로가기">
+      {items.map(({ label, Icon, tone, on }) => (
+        <button key={label[0]} type="button" className="qm-tile" onClick={on}>
+          <span className="qm-t">{label[0]}<br />{label[1]}</span>
+          <span className={"qm-ic ic-bg-" + tone} aria-hidden="true"><Icon size={16} strokeWidth={2.2} /></span>
+        </button>
+      ))}
+    </nav>
   );
 }

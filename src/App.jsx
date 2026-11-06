@@ -17,7 +17,7 @@ import CareerGuide from "./CareerGuide";
 import GoalPlanner from "./screens/GoalPlanner";
 import WarmupPanel from "./components/WarmupPanel";
 import CalmRoutine from "./components/CalmRoutine";
-import { GoalStrip, TodayPlans, StreakQuest, AchievementFeed } from "./components/home/LoopHome";
+import { GoalStrip, TodayPlans, StreakQuest, AchievementFeed, QuickMenu } from "./components/home/LoopHome";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 import { Button, PageHeader, SectionHeader, EmptyState, Segmented, Stat, Meter, Field, ComboList } from "./ds";
 import {
@@ -3785,6 +3785,7 @@ export default function App() {
 
         <aside className="home-side" aria-label="개인 준비">
           <div className="home-loop">
+            <QuickMenu onWarmup={() => { setMode("practice"); goMock(); }} onPlanner={goPlanner} onJobs={goJobs} onResume={goResume} />
             <StreakQuest token={token} reloadKey={loopKey} />
             <TodayPlans token={token} reloadKey={loopKey} onChanged={() => setLoopKey((n) => n + 1)} onOpen={goPlanner} />
           </div>
