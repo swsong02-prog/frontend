@@ -9,7 +9,8 @@ const GROUPS = [
   { key: "hires", facet: "hire", label: "고용형태", defaults: ["정규직", "무기계약직", "비정규직", "청년인턴"] },
   { key: "ses", facet: "se", label: "신입 / 경력", defaults: ["신입", "경력", "신입+경력"] },
 ];
-const blank = () => ({ jobs: [], subs: [], regions: [], hires: [], ses: [], q: "", closing: "", sort: "match", page: 1 });
+const blank = () => ({ jobs: [], subs: [], regions: [], hires: [], ses: [], q: "", closing: "", sort: "match", page: 1, local: false });
+const LOCAL_SOURCE = "https://www.daejeon.go.kr/drh/DrhContentsHtmlView.do?menuSeq=6531";
 function restore(initialJob) {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE));
@@ -20,6 +21,7 @@ function restore(initialJob) {
       state.closing = ["3", "7", "14"].includes(String(saved.closing)) ? String(saved.closing) : "";
       state.sort = SORTS[saved.sort] ? saved.sort : "match";
       state.page = Number.isInteger(saved.page) && saved.page > 0 ? saved.page : 1;
+      state.local = saved.local === true;
       return state;
     }
   } catch { /* 저장소가 막혀도 탐색은 가능 */ }
@@ -33,7 +35,7 @@ const dayText = day => day == null ? "상시" : day < 0 ? "마감" : day === 0 ?
 const regionText = region => String(region || "").split(",").length >= 4 ? "전국" : region;
 function PostingInfo({ posting }) {
   return <div className="jb-info">
-    <span className="jb-tags">{(posting.jobs || []).map(job => <span key={job}>{job}</span>)}</span>
+    <span className="jb-tags">{posting.local_talent && <span className="jb-local-tag" title="대전·세종·충북·충남 소재 대학 졸업(예정)자를 일정 비율 이상 뽑아야 하는 기관">지역인재 대상</span>}{(posting.jobs || []).map(job => <span key={job}>{job}</span>)}</span>
     <span className="jb-meta">{[regionText(posting.region), posting.hire, posting.se, posting.nope != null && `${posting.nope}명 채용`].filter(Boolean).join(" · ")}</span>
     <span className="jb-period">접수 {dateText(posting.start)} ~ {dateText(posting.end)}{posting.acbg ? ` · ${posting.acbg}` : ""}</span>
   </div>;
@@ -93,6 +95,7 @@ export default function JobsBrowse({ api, jobData, jobNames, initialJob, career,
       for (const key of ["jobs", "subs", "regions", "hires", "ses"]) if (filters[key].length) query.set(key, filters[key].join(","));
       if (filters.q.trim()) query.set("q", filters.q.trim());
       if (filters.closing) query.set("closing", filters.closing);
+      if (filters.local) query.set("local", "1");
       try {
         const response = await fetch(`${api}/api/postings/browse?${query}`, { signal: controller.signal });
         if (!response.ok) throw new Error("http");
@@ -127,6 +130,7 @@ export default function JobsBrowse({ api, jobData, jobNames, initialJob, career,
   const subNames = [...new Set(filters.jobs.flatMap(job => jobData?.[job]?.subs || []))];
   const chips = ["jobs", "subs", "regions", "hires", "ses"].flatMap(key => filters[key].map(value => ({ key, value, label: value })));
   if (filters.closing) chips.push({ key: "closing", label: `${filters.closing}일 이내 마감` });
+  if (filters.local) chips.push({ key: "local", label: "지역인재 대상 기관" });
   if (filters.q) chips.push({ key: "q", label: `검색: ${filters.q}` });
   const currentPage = data?.page || filters.page;
   const pages = data?.pages || 1;
@@ -148,6 +152,11 @@ export default function JobsBrowse({ api, jobData, jobNames, initialJob, career,
 
   return <div className="jobs-browse">
     <PageHeader title="채용공고" desc="공공기관 공고를 직무로 좁혀 보고, 그 공고 조건으로 바로 면접을 연습하세요." actions={<span className="t-sub">진행 중 <b className="num">{data?.total_open?.toLocaleString() ?? "—"}</b>건</span>} />
+    <section className={`jb-local${filters.local ? " on" : ""}`} aria-label="지역인재 채용 대상 기관">
+      <label className="jb-local-toggle"><input type="checkbox" checked={filters.local} onChange={() => update({ local: !filters.local })} />
+        <span><b>대전·충청 지역인재 대상 기관만 보기</b><small className="num">{data?.facets?.local ?? "—"}건</small></span></label>
+      <p>대전대 졸업(예정)자는 대전·세종·충북·충남 공공기관 53곳에서 지역인재로 인정돼요. 이 기관들은 신규 채용의 일정 비율(기관에 따라 18~30%) 이상을 지역인재로 뽑아야 해요. <a href={LOCAL_SOURCE} target="_blank" rel="noopener noreferrer">출처: 대전광역시<ArrowUpRight size={12} aria-hidden="true" /></a></p>
+    </section>
     <section className="jb-job-section" aria-label="직군과 세부직무 선택">
       <div className="jb-section-label"><span className="field-label">직무</span><span className="t-caption">여러 개 선택할 수 있어요</span></div>
       <div className="chips jb-job-chips"><button type="button" className={"chip" + (!filters.jobs.length ? " on" : "")} aria-pressed={!filters.jobs.length} onClick={() => update({ jobs: [], subs: [] })}>전체</button>{jobNames.map(job => <button type="button" key={job} className={"chip" + (filters.jobs.includes(job) ? " on" : "")} aria-pressed={filters.jobs.includes(job)} onClick={() => toggle("jobs", job)}>{job}<small className="num">{facets.job?.[job] ?? "—"}</small></button>)}</div>
