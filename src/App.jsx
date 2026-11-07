@@ -653,7 +653,7 @@ export default function App() {
   const [answers, setAnswers] = useState([]); // 말문 트기 답안 틀: questions와 같은 순서, {text, src} | null
   const [runHasResume, setRunHasResume] = useState(false);
   // 긴장 풀기 루틴 (면접 준비 화면). calmDone: 이번 면접에서 마친 루틴 결과 {pre, post, challenge, cues, ...}
-  const [calmOpen, setCalmOpen] = useState(false);
+  const [calmOpen, setCalmOpen] = useState(false); // false | "short" | "full"
   const [calmDone, setCalmDone] = useState(null);
   const [hideSelf, setHideSelf] = useState(false); // 면접 중 내 모습 가리기 (녹화에는 영향 없음)
   const [calmLogId, setCalmLogId] = useState(null); // 서버에 저장된 루틴 기록 번호 (면접 저장 때 연결)
@@ -1778,7 +1778,7 @@ export default function App() {
     setHideSelf(true);
     try {
       const log = JSON.parse(localStorage.getItem("cc_calm_log") || "[]");
-      log.push({ at: new Date().toISOString(), job: jobRole, pre: res.pre, post: res.post, challenge: res.challenge, cues: res.cues });
+      log.push({ at: new Date().toISOString(), kind: res.kind || "full", job: jobRole, pre: res.pre, post: res.post, challenge: res.challenge, cues: res.cues });
       localStorage.setItem("cc_calm_log", JSON.stringify(log.slice(-50)));
     } catch (e) {}
     // 효과 측정: 숫자만 서버에 저장 (실패해도 면접은 그대로 진행)
@@ -1786,7 +1786,7 @@ export default function App() {
     authFetch(`${API}/me/calm-logs`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-      body: JSON.stringify({ pre: res.pre, post: res.post, challenge: res.challenge, breath_sec: res.breathSec ?? null, cues: res.cues || [] }),
+      body: JSON.stringify({ kind: res.kind || "full", pre: res.pre, post: res.post, challenge: res.challenge, breath_sec: res.breathSec ?? null, cues: res.cues || [] }),
     }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.id) setCalmLogId(d.id); }).catch(() => {});
   }
 
@@ -3188,22 +3188,27 @@ export default function App() {
                   <div className="cam-msg">아직 녹화 전이에요 · 자세와 조명을 점검해보세요</div>
                 </>
               )}
-              {calmOpen && <CalmRoutine userName={userName} onDone={finishCalm} onClose={() => setCalmOpen(false)} />}
+              {calmOpen && <CalmRoutine key={calmOpen} short={calmOpen === "short"} userName={userName} onDone={finishCalm} onClose={() => setCalmOpen(false)} />}
             </div>
             <div className="iside">
               <div className="card calm-card">
-                <div className="card-t"><IconTip />긴장 풀기 루틴 (약 6분)</div>
+                <div className="card-t"><IconTip />긴장 풀기 루틴</div>
                 {calmDone ? (
                   <>
                     <div className="calm-done">루틴을 마쳤어요{calmDone.pre != null && calmDone.post != null ? `, 긴장 ${calmDone.pre}점 → ${calmDone.post}점` : ""}</div>
-                    <div className="hint-line">면접 중에는 내 모습을 가리고, 고른 큐를 오른쪽에 보여 드려요.</div>
+                    <div className="hint-line">{calmDone.breathSec != null && calmDone.breathSec < 10 ? "호흡은 건너뛰었어요. " : ""}{calmDone.pre != null && calmDone.post != null && calmDone.post >= calmDone.pre ? "긴장이 그대로여도 괜찮아요, 준비한 걸 말하는 데는 지장 없어요. " : ""}{calmDone.cues && calmDone.cues.length > 0 ? "면접 중에는 내 모습을 가리고, 고른 큐를 오른쪽에 보여 드려요." : "면접 중에는 내 모습을 가려 둘게요. '내 모습 보기'로 언제든 바꿀 수 있어요."}</div>
                   </>
                 ) : (
                   <div className="hint-line">떨려도 준비한 걸 말할 수 있게 생각 바꾸기, 호흡, 자기대화를 순서대로 해요. 건너뛰어도 면접은 그대로 볼 수 있어요.</div>
                 )}
-                <button className="btn btn-secondary btn-block" onClick={() => setCalmOpen(true)} disabled={calmOpen || phase === "countdown"}>
-                  {calmOpen ? "루틴 진행 중" : calmDone ? "루틴 다시 하기" : "루틴 시작"}
-                </button>
+                {calmOpen ? (
+                  <button className="btn btn-secondary btn-block" disabled>루틴 진행 중</button>
+                ) : (
+                  <div className="calm-btns">
+                    <button className="btn btn-secondary" onClick={() => setCalmOpen("short")} disabled={phase === "countdown"}>1분 호흡만</button>
+                    <button className="btn btn-secondary" onClick={() => setCalmOpen("full")} disabled={phase === "countdown"}>전체 6분</button>
+                  </div>
+                )}
               </div>
               <div className="card">
                 <div className="card-t"><IconMic />마이크 확인</div>
@@ -3240,7 +3245,7 @@ export default function App() {
                 onClick={beginInterview}
                 disabled={!!camError || camState !== "ready" || phase === "countdown" || calmOpen}
               >
-                {phase === "countdown" ? `${countdown}초 후 시작...` : camState === "connecting" ? "카메라 연결 중..." : "면접 시작"}
+                {phase === "countdown" ? `${countdown}초 후 시작...` : camState === "connecting" ? "카메라 연결 중..." : calmOpen ? "루틴을 마치거나 닫으면 시작할 수 있어요" : "면접 시작"}
               </button>
               <div className="card">
                 <div className="card-t"><IconChatDots size={15} />AI 면접관</div>

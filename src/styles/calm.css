@@ -52,6 +52,7 @@
 
 /* 준비 화면 오른쪽 칸 */
 .calm-card .hint-line { margin-bottom: 10px; }
+.calm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .calm-done { font-size: var(--fs-sub); color: var(--c-good); font-weight: 600; margin-bottom: 6px; }
 
 /* 면접 중: 내 모습 가리기 */

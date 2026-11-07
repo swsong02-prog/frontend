@@ -8,7 +8,11 @@
    ============================================================ */
 import { useEffect, useRef, useState } from "react";
 
-const STEPS = ["긴장 체크", "생각 바꾸기", "호흡", "자기대화", "오늘의 큐", "마무리"];
+/* 전체(약 6분)와 짧은 버전(약 1분). 짧은 버전은 긴장 체크 → 호흡 50초 → 다시 체크만 한다 */
+const FLOWS = {
+  full: [["check", "긴장 체크"], ["reframe", "생각 바꾸기"], ["breath", "호흡"], ["talk", "자기대화"], ["cue", "오늘의 큐"], ["post", "마무리"]],
+  short: [["check", "긴장 체크"], ["breath", "호흡"], ["post", "마무리"]],
+};
 
 export const CUE_OPTIONS = [
   "결론 먼저, 그다음 예시",
@@ -82,8 +86,11 @@ function Breathing({ seconds, inhale, exhale, onEnd }) {
   );
 }
 
-export default function CalmRoutine({ userName = "", onDone, onClose }) {
+export default function CalmRoutine({ userName = "", short = false, onDone, onClose }) {
+  const flow = FLOWS[short ? "short" : "full"];
+  const STEPS = flow.map((f) => f[1]);
   const [step, setStep] = useState(0);
+  const key = flow[step][0];
   const [pre, setPre] = useState(null);
   const [energy, setEnergy] = useState("");
   const [breathLong, setBreathLong] = useState(false);
@@ -109,7 +116,7 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
   // 부르는 이름: 세 글자 한글 이름이면 성을 빼고, 받침 유무로 '아/야'를 붙인다 (경원 → 경원아, 민수 → 민수야)
   const given = /^[가-힣]{3}$/.test(name) ? name.slice(1) : name;
   const lastCode = given ? given.charCodeAt(given.length - 1) - 0xac00 : -1;
-  const callName = !given ? "민수야"
+  const callName = !given ? ""  // 이름이 없으면 엉뚱한 이름 대신 "너는"으로만 부른다
     : lastCode >= 0 && lastCode <= 11171 ? `${given}${lastCode % 28 ? "아" : "야"}` : given;
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const prev = () => setStep((s) => Math.max(s - 1, 0));
@@ -123,14 +130,14 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
   };
 
   const finish = () => {
-    onDone({ pre, post, challenge, cues, breathSec, energy: energy.trim(), talk: talk.trim() });
+    onDone({ kind: short ? "short" : "full", pre, post, challenge, cues: short ? [] : cues, breathSec, energy: energy.trim(), talk: talk.trim() });
   };
 
   let body;
-  if (step === 0) {
+  if (key === "check") {
     body = (
       <>
-        <h3 className="cr-h">면접 전에 6분만 몸과 생각을 정리해요</h3>
+        <h3 className="cr-h">{short ? "1분만 숨 고르고 시작해요" : "면접 전에 6분만 몸과 생각을 정리해요"}</h3>
         <p className="cr-p">떨림을 없애는 것이 목표가 아닙니다. 떨려도 준비한 내용을 말할 수 있게 돕는 시간이에요. 연구에서 도움이 된 방법들을 면접 상황에 맞게 응용했고, 사람마다 효과는 다를 수 있어요.</p>
         <p className="cr-q">지금 긴장 정도는 몇 점인가요?</p>
         <Scale value={pre} onChange={setPre} left="전혀 긴장 안 됨" right="매우 긴장됨" label="지금 긴장 정도" />
@@ -139,7 +146,7 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
         )}
       </>
     );
-  } else if (step === 1) {
+  } else if (key === "reframe") {
     body = (
       <>
         <h3 className="cr-h">긴장은 몸이 준비하고 있다는 신호일 수 있어요</h3>
@@ -151,8 +158,8 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
         </label>
       </>
     );
-  } else if (step === 2) {
-    const secs = breathLong ? 240 : 150;
+  } else if (key === "breath") {
+    const secs = short ? 50 : breathLong ? 240 : 150;
     body = (
       <>
         <h3 className="cr-h">목소리와 몸을 안정시키는 호흡</h3>
@@ -161,10 +168,10 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
           <Breathing seconds={secs} inhale={4} exhale={breathSlow ? 6 : 5} onEnd={() => { stopBreath(); next(); }} />
         ) : (
           <div className="cr-breath-start">
-            <button type="button" className="btn btn-primary" onClick={startBreath}>호흡 시작 ({breathLong ? "4분" : "2분 30초"})</button>
+            <button type="button" className="btn btn-primary" onClick={startBreath}>호흡 시작 ({short ? "50초" : breathLong ? "4분" : "2분 30초"})</button>
             <div className="cr-opts">
               <label><input type="checkbox" checked={!breathSlow} onChange={(e) => setBreathSlow(!e.target.checked)} /> 내쉬기가 길면 5초로 줄이기</label>
-              {pre !== null && pre >= 8 && (
+              {!short && pre !== null && pre >= 8 && (
                 <label><input type="checkbox" checked={breathLong} onChange={(e) => setBreathLong(e.target.checked)} /> 4분으로 늘리기</label>
               )}
             </div>
@@ -172,18 +179,18 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
         )}
       </>
     );
-  } else if (step === 3) {
+  } else if (key === "talk") {
     body = (
       <>
         <h3 className="cr-h">코치가 말하듯 나에게 두 문장</h3>
         <p className="cr-p">자신을 이름이나 '너'로 부르며 써 주세요. 한 문장은 실제로 해낸 사실, 한 문장은 오늘 할 일입니다.</p>
-        <p className="cr-ex">예) {callName}, 너는 그 프로젝트를 끝까지 해냈어. 떨려도 결론부터 말하면 돼.</p>
-        <textarea className="cr-talk" rows={3} value={talk} onChange={(e) => setTalk(e.target.value)} maxLength={200} placeholder={`${callName}, 너는 ...`} />
+        <p className="cr-ex">예) {callName ? `${callName}, ` : ""}너는 그 프로젝트를 끝까지 해냈어. 떨려도 결론부터 말하면 돼.</p>
+        <textarea className="cr-talk" rows={3} value={talk} onChange={(e) => setTalk(e.target.value)} maxLength={200} placeholder={callName ? `${callName}, 너는 ...` : "너는 ..."} />
         {usesFirstPerson && <p className="cr-tip">'나', '저' 대신 이름이나 '너'로 바꿔 써 보세요. 한 걸음 떨어져서 보면 더 차분하게 생각할 수 있어요.</p>}
         {vague && <p className="cr-tip">"할 수 있어" 대신 실제로 해낸 일 하나로 바꿔 볼까요?</p>}
       </>
     );
-  } else if (step === 4) {
+  } else if (key === "cue") {
     body = (
       <>
         <h3 className="cr-h">면접 중에 기억할 큐 2개</h3>
@@ -201,15 +208,17 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
         <h3 className="cr-h">마지막으로 두 가지만 체크해 주세요</h3>
         <p className="cr-q">지금 긴장 정도는 몇 점인가요?</p>
         <Scale value={post} onChange={setPost} left="전혀 긴장 안 됨" right="매우 긴장됨" label="루틴 후 긴장 정도" />
-        <p className="cr-q">이번 면접은 나에게 어느 쪽에 가까운가요?</p>
-        <Scale value={challenge} onChange={setChallenge} min={1} max={7} left="부담스러운 위협" right="해볼 만한 도전" label="위협과 도전" />
+        {!short && <>
+          <p className="cr-q">이번 면접은 나에게 어느 쪽에 가까운가요?</p>
+          <Scale value={challenge} onChange={setChallenge} min={1} max={7} left="부담스러운 위협" right="해볼 만한 도전" label="위협과 도전" />
+        </>}
         <p className="cr-note">면접 중에는 내 모습이 가려진 채로 녹화됩니다. 오른쪽 '내 모습 보기'로 언제든 바꿀 수 있어요.</p>
         <p className="cr-note">긴장 점수는 이름 없이 숫자로만 저장되어, 루틴이 실제로 도움이 되는지 확인하는 통계에 쓰입니다. 적은 문장은 저장하지 않아요.</p>
       </>
     );
   }
 
-  const canNext = step === 0 ? pre !== null : step === 2 ? !breathRun : true;
+  const canNext = key === "check" ? pre !== null : key === "breath" ? !breathRun : true;
 
   return (
     <section className="calm-routine" aria-label="긴장 풀기 루틴">
@@ -223,9 +232,9 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
       <div className="cr-nav">
         {step > 0 && <button type="button" className="btn btn-secondary" onClick={() => { stopBreath(); prev(); }}>이전</button>}
         <span className="cr-spacer" />
-        {step === 2 && breathRun && <button type="button" className="btn btn-secondary" onClick={() => { stopBreath(); next(); }}>건너뛰기</button>}
-        {step === 2 && !breathRun && <button type="button" className="btn btn-secondary" onClick={next}>호흡 건너뛰기</button>}
-        {step < STEPS.length - 1 && step !== 2 && (
+        {key === "breath" && breathRun && <button type="button" className="btn btn-secondary" onClick={() => { stopBreath(); next(); }}>건너뛰기</button>}
+        {key === "breath" && !breathRun && <button type="button" className="btn btn-secondary" onClick={next}>호흡 건너뛰기</button>}
+        {step < STEPS.length - 1 && key !== "breath" && (
           <button type="button" className="btn btn-primary" onClick={next} disabled={!canNext}>다음</button>
         )}
         {step === STEPS.length - 1 && (
