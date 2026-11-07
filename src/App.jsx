@@ -3621,6 +3621,9 @@ export default function App() {
                   <p className="field-hint">{mode === "practice"
                     ? "자기소개서로 만든 답안 틀을 보며 말하고, 질문마다 도움을 줄여 갑니다. 내용 점수 없이 자세, 시선, 말 속도, 습관어만 봅니다."
                     : "도움 없이 답하고 자세와 답변 내용을 함께 평가합니다."}</p>
+                  {mode === "practice" && !resumeText.trim() && (
+                    <p className="field-err">말문 트기 답안은 자기소개서로 만들어요. 다음 단계에서 자기소개서를 넣지 않으면 답안 없이 질문만 나옵니다.</p>
+                  )}
                 </div>
                 <div className="opt-group">
                   <span className="field-label">난이도</span>

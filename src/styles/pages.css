@@ -707,3 +707,13 @@
 .jb-local p a { display: inline-flex; align-items: center; gap: 2px; color: var(--c-ink-3); text-decoration: underline; margin-left: 4px; }
 .jb-tags .jb-local-tag { background: var(--c-accent-weak); color: var(--c-accent-hover); font-weight: 600; }
 @media (max-width: 768px) { .jb-local p { margin-left: 0; } }
+
+/* 11/07 페르소나 테스트 반영 */
+.input.is-err { border-color: var(--c-bad); }
+.field-err { margin-top: 6px; font-size: var(--fs-sub); color: var(--c-bad); }
+@media (max-width: 768px) {
+  /* 면접 중: 아바타를 줄이고 '답변 완료' 버튼을 화면 아래에 고정 (말문 트기 답안이 길어도 바로 보이게) */
+  .avp-left .avatar-box svg { width: 64px; height: 64px; }
+  .imain:not(.ready-main) { padding-bottom: 84px; }
+  .iside .ictrl { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--c-line); }
+}

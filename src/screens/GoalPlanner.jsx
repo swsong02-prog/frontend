@@ -32,6 +32,7 @@ export default function GoalPlanner({ token, jobNames = [], defaultJob = "", sho
   const [gTick, setGTick] = useState(0);
   const [form, setForm] = useState({ job: defaultJob, title: "", due_date: "", is_public: false });
   const [saving, setSaving] = useState(false);
+  const [titleErr, setTitleErr] = useState(false); // 목표 칸이 비었을 때 칸 아래 빨간 안내
   const [busyGoal, setBusyGoal] = useState(null);
   const [share, setShare] = useState(null); // { goal, message, sending, error }
   const [showDone, setShowDone] = useState(false);
@@ -52,11 +53,12 @@ export default function GoalPlanner({ token, jobNames = [], defaultJob = "", sho
   async function addGoal(e) {
     e.preventDefault();
     const title = form.title.trim();
-    if (!form.job.trim()) { showToast("info", "직무를 고르세요."); return; }
-    if (!title) { showToast("info", "목표 내용을 입력하세요."); return; }
+    // 직무를 비워 두면 막지 않고 '직무 미정'으로 저장한다 (11/07 페르소나 테스트: 29명이 여기서 조용히 막힘)
+    if (!title) { setTitleErr(true); document.getElementById("gp-title")?.focus(); return; }
+    setTitleErr(false);
     setSaving(true);
     try {
-      const body = { job: form.job.trim(), title, is_public: form.is_public };
+      const body = { job: form.job.trim() || "직무 미정", title, is_public: form.is_public };
       if (form.due_date) body.due_date = form.due_date;
       const g = await createGoal(token, body);
       if (g.id != null) setGoals((prev) => [g, ...(prev || [])]); else setGTick((n) => n + 1);
@@ -204,15 +206,17 @@ export default function GoalPlanner({ token, jobNames = [], defaultJob = "", sho
 
         <form className="gp-form" onSubmit={addGoal}>
           <div className="gp-f-job">
-            <label className="lbl" htmlFor="gp-job">직무</label>
+            <label className="lbl" htmlFor="gp-job">직무 <span className="c3">선택</span></label>
             <input id="gp-job" className="input" list="gp-job-list" value={form.job} maxLength={40}
-              placeholder="예: 클라우드 엔지니어" onChange={(e) => setForm({ ...form, job: e.target.value })} />
+              placeholder="비워 두면 '직무 미정'" onChange={(e) => setForm({ ...form, job: e.target.value })} />
             <datalist id="gp-job-list">{jobNames.map((n) => <option key={n} value={n} />)}</datalist>
           </div>
           <div className="gp-f-title">
             <label className="lbl" htmlFor="gp-title">목표</label>
-            <input id="gp-title" className="input" value={form.title} maxLength={80}
-              placeholder="예: 한국수자원공사 1차 면접 대비 모의면접 10회" onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <input id="gp-title" className={"input" + (titleErr ? " is-err" : "")} value={form.title} maxLength={80} aria-invalid={titleErr}
+              aria-describedby={titleErr ? "gp-title-err" : undefined}
+              placeholder="예: 한국수자원공사 1차 면접 대비 모의면접 10회" onChange={(e) => { setForm({ ...form, title: e.target.value }); if (titleErr) setTitleErr(false); }} />
+            {titleErr && <p id="gp-title-err" className="field-err">목표 내용을 적어 주세요.</p>}
           </div>
           <div className="gp-f-date">
             <label className="lbl" htmlFor="gp-date">기한 <span className="c3">선택</span></label>
