@@ -89,6 +89,17 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
   const [breathLong, setBreathLong] = useState(false);
   const [breathSlow, setBreathSlow] = useState(true); // true: 4초·6초, false: 4초·5초
   const [breathRun, setBreathRun] = useState(false);
+  const breathFrom = useRef(null);               // 호흡을 시작한 시각
+  const [breathSec, setBreathSec] = useState(0); // 실제로 호흡한 초 (효과 측정용)
+  const startBreath = () => { breathFrom.current = performance.now(); setBreathRun(true); };
+  const stopBreath = () => {
+    if (breathFrom.current != null) {
+      const sec = Math.round((performance.now() - breathFrom.current) / 1000);
+      setBreathSec((x) => x + sec);
+      breathFrom.current = null;
+    }
+    setBreathRun(false);
+  };
   const [talk, setTalk] = useState("");
   const [cues, setCues] = useState(CUE_OPTIONS.slice(0, 2));
   const [post, setPost] = useState(null);
@@ -112,7 +123,7 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
   };
 
   const finish = () => {
-    onDone({ pre, post, challenge, cues, energy: energy.trim(), talk: talk.trim() });
+    onDone({ pre, post, challenge, cues, breathSec, energy: energy.trim(), talk: talk.trim() });
   };
 
   let body;
@@ -147,10 +158,10 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
         <h3 className="cr-h">목소리와 몸을 안정시키는 호흡</h3>
         <p className="cr-p">원이 커질 때 코로 들이쉬고, 작아질 때 입으로 길게 내쉬세요. 숨을 참을 필요는 없습니다. 눈은 떠도 괜찮고, 어지럽거나 불편하면 바로 멈추고 평소처럼 숨 쉬세요.</p>
         {breathRun ? (
-          <Breathing seconds={secs} inhale={4} exhale={breathSlow ? 6 : 5} onEnd={() => { setBreathRun(false); next(); }} />
+          <Breathing seconds={secs} inhale={4} exhale={breathSlow ? 6 : 5} onEnd={() => { stopBreath(); next(); }} />
         ) : (
           <div className="cr-breath-start">
-            <button type="button" className="btn btn-primary" onClick={() => setBreathRun(true)}>호흡 시작 ({breathLong ? "4분" : "2분 30초"})</button>
+            <button type="button" className="btn btn-primary" onClick={startBreath}>호흡 시작 ({breathLong ? "4분" : "2분 30초"})</button>
             <div className="cr-opts">
               <label><input type="checkbox" checked={!breathSlow} onChange={(e) => setBreathSlow(!e.target.checked)} /> 내쉬기가 길면 5초로 줄이기</label>
               {pre !== null && pre >= 8 && (
@@ -193,6 +204,7 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
         <p className="cr-q">이번 면접은 나에게 어느 쪽에 가까운가요?</p>
         <Scale value={challenge} onChange={setChallenge} min={1} max={7} left="부담스러운 위협" right="해볼 만한 도전" label="위협과 도전" />
         <p className="cr-note">면접 중에는 내 모습이 가려진 채로 녹화됩니다. 오른쪽 '내 모습 보기'로 언제든 바꿀 수 있어요.</p>
+        <p className="cr-note">긴장 점수는 이름 없이 숫자로만 저장되어, 루틴이 실제로 도움이 되는지 확인하는 통계에 쓰입니다. 적은 문장은 저장하지 않아요.</p>
       </>
     );
   }
@@ -209,9 +221,9 @@ export default function CalmRoutine({ userName = "", onDone, onClose }) {
       </div>
       <div className="cr-body">{body}</div>
       <div className="cr-nav">
-        {step > 0 && <button type="button" className="btn btn-secondary" onClick={() => { setBreathRun(false); prev(); }}>이전</button>}
+        {step > 0 && <button type="button" className="btn btn-secondary" onClick={() => { stopBreath(); prev(); }}>이전</button>}
         <span className="cr-spacer" />
-        {step === 2 && breathRun && <button type="button" className="btn btn-secondary" onClick={() => { setBreathRun(false); next(); }}>건너뛰기</button>}
+        {step === 2 && breathRun && <button type="button" className="btn btn-secondary" onClick={() => { stopBreath(); next(); }}>건너뛰기</button>}
         {step === 2 && !breathRun && <button type="button" className="btn btn-secondary" onClick={next}>호흡 건너뛰기</button>}
         {step < STEPS.length - 1 && step !== 2 && (
           <button type="button" className="btn btn-primary" onClick={next} disabled={!canNext}>다음</button>

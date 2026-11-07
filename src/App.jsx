@@ -656,6 +656,9 @@ export default function App() {
   const [calmOpen, setCalmOpen] = useState(false);
   const [calmDone, setCalmDone] = useState(null);
   const [hideSelf, setHideSelf] = useState(false); // 면접 중 내 모습 가리기 (녹화에는 영향 없음)
+  const [calmLogId, setCalmLogId] = useState(null); // 서버에 저장된 루틴 기록 번호 (면접 저장 때 연결)
+  // 효과 측정: 녹화기별 첫 마디 시간. {start, first, loudSince, tainted}
+  const voiceRef = useRef(new WeakMap());
   const [loopKey, setLoopKey] = useState(0); // 홈 루프 블록(목표·할 일·퀘스트·소식) 다시 불러오기
   const [resumeTab, setResumeTab] = useState("text");
   const [resumeText, setResumeText] = useState(() => loadResumeDraft(localStorage.getItem("cc_email") || ""));
@@ -1349,6 +1352,7 @@ export default function App() {
       setRunHasResume(!!resumeText.trim());
       setCalmOpen(false);
       setCalmDone(null);
+      setCalmLogId(null);
       setHideSelf(false);
       setJobRole(data.job_role || `${job} ${sub}`.trim());
       setResults([]);
@@ -1491,6 +1495,15 @@ export default function App() {
         if (levelRef.current) levelRef.current.style.transform = `scaleX(${lvl.toFixed(3)})`;
         const now = performance.now();
         if (lvl > 0.04) silentSince = now;
+        // 효과 측정: 녹화 중 음량 0.08 이상이 0.25초 이어지면 첫 마디로 본다
+        const rec = recorderRef.current;
+        const v = rec && rec.state === "recording" ? voiceRef.current.get(rec) : null;
+        if (v && v.first == null && !v.tainted) {
+          if (lvl > 0.08) {
+            if (v.loudSince == null) v.loudSince = now;
+            else if (now - v.loudSince >= 250) v.first = Math.max(0, Math.round(v.loudSince - v.start));
+          } else v.loudSince = null;
+        }
         const silent = now - silentSince > 6000;
         if (silent !== silentShown) { silentShown = silent; setMicSilent(silent); }
         raf = requestAnimationFrame(tick);
@@ -1768,6 +1781,13 @@ export default function App() {
       log.push({ at: new Date().toISOString(), job: jobRole, pre: res.pre, post: res.post, challenge: res.challenge, cues: res.cues });
       localStorage.setItem("cc_calm_log", JSON.stringify(log.slice(-50)));
     } catch (e) {}
+    // 효과 측정: 숫자만 서버에 저장 (실패해도 면접은 그대로 진행)
+    setCalmLogId(null);
+    authFetch(`${API}/me/calm-logs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ pre: res.pre, post: res.post, challenge: res.challenge, breath_sec: res.breathSec ?? null, cues: res.cues || [] }),
+    }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.id) setCalmLogId(d.id); }).catch(() => {});
   }
 
   // 준비 화면 → 3-2-1 카운트다운 → 녹화 개시
@@ -1825,6 +1845,7 @@ export default function App() {
         setRecError("녹화 중 문제가 생겼어요. '다시 답변'을 눌러 이 질문을 다시 녹화해주세요.");
       };
       rec.start();
+      voiceRef.current.set(rec, { start: performance.now(), first: null, loudSince: null, tainted: false });
     } catch (e) {
       recorderRef.current = null;
       stopTimer();
@@ -1843,6 +1864,8 @@ export default function App() {
     rec.onstop = () => {
       const chunks = recChunksRef.current.get(rec) || [];
       const blob = new Blob(chunks, { type: rec.mimeType || "video/webm" });
+      const v = voiceRef.current.get(rec);
+      blob.firstVoiceMs = v && !v.tainted && v.first != null ? v.first : null;
       cb && cb(blob);
     };
     rec.stop();
@@ -1853,6 +1876,9 @@ export default function App() {
     const rec = recorderRef.current;
     const wasRecording = !!rec && rec.state === "recording";
     if (wasRecording) { try { rec.pause(); } catch (e) {} stopTimer(); }
+    // 첫 마디 전에 질문을 다시 들으면 대기 시간이 섞이므로 이 답변은 측정에서 뺀다
+    const vr = rec ? voiceRef.current.get(rec) : null;
+    if (vr && vr.first == null) vr.tainted = true;
     setReplaying(true);
     let done = false;
     const resume = () => {
@@ -1963,7 +1989,9 @@ export default function App() {
           model_answer: (r.content && r.content.model_answer) || "",
           duration_sec: typeof r.duration_sec === "number" ? Math.round(r.duration_sec) : 0,
           filler_count: typeof r.filler_count === "number" ? Math.round(r.filler_count) : 0,
+          first_voice_ms: typeof r.first_voice_ms === "number" ? r.first_voice_ms : null,
         })),
+        ...(calmLogId ? { calm_log_id: calmLogId } : {}),
       };
       const res = await authFetch(`${API}/interview/finish`, {
         method: "POST",
@@ -2003,6 +2031,7 @@ export default function App() {
     if (blob) {
       try { result.videoUrl = URL.createObjectURL(blob); } catch (e) {}
     }
+    if (blob && result.first_voice_ms === undefined) result.first_voice_ms = blob.firstVoiceMs ?? null;
     const newResults = [...prevResults, result];
     setResults(newResults);
     setFailedAnswer(null);
@@ -3166,7 +3195,7 @@ export default function App() {
                 <div className="card-t"><IconTip />긴장 풀기 루틴 (약 6분)</div>
                 {calmDone ? (
                   <>
-                    <div className="calm-done">루틴을 마쳤어요{calmDone.pre != null && calmDone.post != null ? ` · 긴장 ${calmDone.pre}점 → ${calmDone.post}점` : ""}</div>
+                    <div className="calm-done">루틴을 마쳤어요{calmDone.pre != null && calmDone.post != null ? `, 긴장 ${calmDone.pre}점 → ${calmDone.post}점` : ""}</div>
                     <div className="hint-line">면접 중에는 내 모습을 가리고, 고른 큐를 오른쪽에 보여 드려요.</div>
                   </>
                 ) : (
