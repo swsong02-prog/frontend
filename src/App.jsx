@@ -17,7 +17,7 @@ import CareerGuide from "./CareerGuide";
 import GoalPlanner from "./screens/GoalPlanner";
 import WarmupPanel from "./components/WarmupPanel";
 import CalmRoutine from "./components/CalmRoutine";
-import { GoalStrip, TodayPlans, StreakQuest, AchievementFeed, QuickMenu } from "./components/home/LoopHome";
+import { TodayPlans, AchievementFeed, WeekLine, TopGoal } from "./components/home/LoopHome";
 import { DEPARTMENTS, COLLEGES, searchDepartments } from "./departments";
 import { Button, PageHeader, SectionHeader, EmptyState, Segmented, Stat, Meter, Field, ComboList } from "./ds";
 import {
@@ -61,14 +61,14 @@ function displayNameFromEmail(email) {
 
 /* 면접 설정 화면 표시용 상수 (상태 key는 기존 그대로: 하/중/상, 신입/경력) */
 const SETUP_LEVELS = [
-  { key: "하", name: "쉬움", tone: "mint", bars: 1, desc: "꼬리질문 거의 없음 · 첫 연습 추천" },
-  { key: "중", name: "보통", tone: "lav", bars: 2, desc: "꼬리질문 1~2회 · 실전 대비 표준", ribbon: "가장 많이 선택" },
-  { key: "상", name: "어려움", tone: "peach", bars: 3, desc: "집요한 꼬리질문 · 최종면접 수준" },
+  { key: "하", name: "쉬움", tone: "mint", bars: 1, desc: "꼬리 질문이 거의 없어요. 첫 연습에 좋아요." },
+  { key: "중", name: "보통", tone: "lav", bars: 2, desc: "꼬리 질문이 한두 번 나와요. 실전 대비로 가장 많이 골라요.", ribbon: "가장 많이 선택" },
+  { key: "상", name: "어려움", tone: "peach", bars: 3, desc: "꼬리 질문이 끈질기게 이어져요. 최종 면접 수준이에요." },
 ];
 
 const SETUP_CAREERS = [
-  { key: "신입", tone: "mint", desc: "기본기·직무 이해·성장 가능성 질문 위주", badge: "성장 가능성 중심" },
-  { key: "경력", tone: "sky", desc: "실무 프로젝트·성과·리더십 질문 위주", badge: "성과 중심" },
+  { key: "신입", tone: "mint", desc: "기본기와 직무 이해, 성장 가능성을 주로 물어요.", badge: "성장 가능성 중심" },
+  { key: "경력", tone: "sky", desc: "실무 프로젝트와 성과, 리더십을 주로 물어요.", badge: "성과 중심" },
 ];
 
 const LEVEL_LABEL = { "하": "쉬움", "중": "보통", "상": "어려움" };
@@ -201,7 +201,7 @@ const FB_ISSUE_BUCKETS = [
   { key: "표정·미소", words: ["표정", "미소"], tip: "질문을 듣는 동안 입꼬리를 살짝 올린 표정을 유지해보세요." },
   { key: "자세", words: ["자세", "어깨", "몸이"], tip: "어깨를 펴고 등받이에서 한 뼘 떨어져 앉으면 화면에서 안정적으로 보여요." },
   { key: "말 속도·전달력", words: ["속도", "빠르게", "천천히", "발음", "전달력"], tip: "문장 끝에서 반 박자 쉬어가면 말 속도와 전달력이 함께 좋아져요." },
-  { key: "필러워드(음·어)", words: ["필러", "군더더기", "추임새"], tip: "'음·어'가 나올 자리에 1초 침묵을 넣어보세요. 침묵이 더 자신 있어 보여요." },
+  { key: "습관어(음·어)", words: ["필러", "군더더기", "추임새"], tip: "'음·어'가 나올 자리에 1초 침묵을 넣어보세요. 침묵이 더 자신 있어 보여요." },
   { key: "두괄식·논리 구조", words: ["두괄", "결론부터", "논리", "구조", "연결"], tip: "첫 문장에 결론, 이어서 근거 두 가지 순서로 답해보세요." },
   { key: "구체성·수치 제시", words: ["구체", "수치", "숫자", "정량", "근거", "예시"], tip: "경험마다 숫자 하나(기간·성과·규모)를 붙여 말해보세요." },
   { key: "직무 연결", words: ["직무", "적합", "회사"], tip: "마지막 문장은 지원 직무·회사에서 하고 싶은 일로 마무리해보세요." },
@@ -578,7 +578,7 @@ function AnalysisOverlay({ note, seconds, canFinish, onFinish, workerOnline }) {
             </li>
           ))}
         </ol>
-        <div className="ao-time">{seconds}초 경과 · 보통 20~60초 걸려요</div>
+        <div className="ao-time">{seconds}초 지났어요. 보통 20~60초 걸려요</div>
         {workerOnline === false && !slow && (
           <div className="ao-hint">AI 분석 서버가 대기 상태라 평소보다 늦을 수 있어요.</div>
         )}
@@ -588,7 +588,7 @@ function AnalysisOverlay({ note, seconds, canFinish, onFinish, workerOnline }) {
             {canFinish && <button className="btn-redo ao-finish" onClick={onFinish}>여기까지 저장하고 끝내기</button>}
           </div>
         )}
-        <div className="ao-sub">화면을 닫지 마세요 · 지금 말하는 내용은 녹음되지 않아요</div>
+        <div className="ao-sub">화면을 닫지 마세요. 지금 말하는 내용은 녹음되지 않아요</div>
       </div>
     </div>
   );
@@ -1103,7 +1103,7 @@ export default function App() {
         if (!cancelled) setFbData({ list, details: details.filter(Boolean) });
       } catch (e) {
         if (isAuthExpired(e)) return; // 자동 로그아웃 처리됨
-        if (!cancelled) setFbErr("일시적으로 면접 기록을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.");
+        if (!cancelled) setFbErr("일시적으로 면접 기록을 불러올 수 없어요. 잠시 후 다시 시도해 주세요.");
       } finally {
         if (!cancelled) setFbLoading(false);
       }
@@ -1187,7 +1187,7 @@ export default function App() {
       return await requestQuestions(payload);
     } catch (e) {
       if (!(e instanceof QuestionJobError) || !payload.resume_text) throw e;
-      showToast("info", "맞춤 질문 생성이 지연되어 기본 질문으로 진행합니다");
+      showToast("info", "맞춤 질문 생성이 지연되어 기본 질문으로 진행해요");
       const { resume_text, ...rest } = payload;
       return await requestQuestions(rest);
     }
@@ -1200,7 +1200,7 @@ export default function App() {
       return;
     }
     if (!jobData) {
-      showToast("info", "직무 정보를 불러오는 중이에요. 잠시 후 다시 시도해주세요.");
+      showToast("info", "직무 정보를 불러오는 중이에요. 잠시 후 다시 시도해 주세요.");
       return;
     }
     if (!job || !sub) {
@@ -1215,10 +1215,10 @@ export default function App() {
       if (ok && data && Array.isArray(data.questions) && data.questions.length > 0) {
         setRsQuestions(data.questions.slice(0, 6));
       } else {
-        showToast("error", "예상 질문을 만들지 못했습니다. 잠시 후 다시 시도해주세요.");
+        showToast("error", "예상 질문을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
       }
     } catch (e) {
-      if (!isAuthExpired(e)) showToast("error", "일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      if (!isAuthExpired(e)) showToast("error", "일시적으로 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.");
     } finally {
       setRsQLoading(false);
     }
@@ -1272,18 +1272,18 @@ export default function App() {
         }
         setResumeText(data.text || "");
         setResumeFileErr(false);
-        setResumeFileMsg(`${data.filename} · ${data.chars}자 불러옴`);
+        setResumeFileMsg(`${data.filename}, ${data.chars}자 불러옴`);
         showToast("success", `${data.filename} 내용을 불러왔어요. (${data.chars}자)`);
       } else {
         setResumeFileErr(true);
-        setResumeFileMsg(data.detail || "파일을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-        showToast("error", data.detail || "파일을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        setResumeFileMsg(data.detail || "파일을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+        showToast("error", data.detail || "파일을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
       }
     } catch (err) {
       if (isAuthExpired(err)) return; // 자동 로그아웃 처리됨
       setResumeFileErr(true);
-      setResumeFileMsg("일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
-      showToast("error", "일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      setResumeFileMsg("일시적으로 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.");
+      showToast("error", "일시적으로 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.");
     } finally {
       setResumeUploading(false);
     }
@@ -1308,11 +1308,11 @@ export default function App() {
       if (res.ok) {
         setDetailData(data);
       } else {
-        setDetailErr(data.detail || "면접 기록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        setDetailErr(data.detail || "면접 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
       }
     } catch (e) {
       if (isAuthExpired(e) || stale()) return; // 자동 로그아웃 처리됨 / 이미 다른 기록을 연 경우
-      setDetailErr("일시적으로 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      setDetailErr("일시적으로 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.");
     }
   }
 
@@ -1917,7 +1917,7 @@ export default function App() {
         }
         if (data && data.status === "done" && data.result) return data.result;
         if (data && data.status === "failed") {
-          return { error: data.error || "답변 분석에 실패했습니다. 잠시 후 다시 시도해주세요." };
+          return { error: data.error || "답변 분석에 실패했어요. 잠시 후 다시 시도해 주세요." };
         }
         // pending / processing / (그 외) → 상태별 문구로 갱신 후 계속 대기
         if (data && data.status) {
@@ -1948,7 +1948,7 @@ export default function App() {
     if (!res.ok) {
       // 503(분석 서버 꺼짐)·413(영상 큼)·429(대기 많음) 등 서버가 알려준 이유를 그대로 보여준다
       const detail = data && typeof data.detail === "string" ? data.detail : "";
-      return { question: questions[index], error: detail || "답변을 업로드하지 못했어요. 잠시 후 다시 시도해주세요." };
+      return { question: questions[index], error: detail || "답변을 업로드하지 못했어요. 잠시 후 다시 시도해 주세요." };
     }
     // 배포 서버: 즉시 결과 대신 job_id가 오면 완료까지 폴링
     if (data && data.job_id != null && data.posture_score == null) {
@@ -1964,8 +1964,8 @@ export default function App() {
     if (valid.length === 0) {
       setSaveErr(true);
       setSaveState("skipped");
-      setSaveMsg("분석에 성공한 답변이 없어 이번 면접은 기록에 저장되지 않았습니다.");
-      showToast("error", "분석에 성공한 답변이 없어 이번 면접은 기록에 저장되지 않았습니다.");
+      setSaveMsg("분석에 성공한 답변이 없어 이번 면접은 기록에 저장되지 않았어요.");
+      showToast("error", "분석에 성공한 답변이 없어 이번 면접은 기록에 저장되지 않았어요.");
       return;
     }
     // 측정하지 못한 점수는 0점이 아니라 null로 보낸다 (결과 화면과 같은 기준으로 평균)
@@ -2005,10 +2005,10 @@ export default function App() {
         setSaveState("saved");
         setSaveErr(false);
         const t = runMode !== "practice" && data && typeof data.total_score === "number" ? ` (종합 ${data.total_score}점)` : "";
-        setSaveMsg(`면접 기록이 저장되었습니다.${t}`);
-        showToast("success", `면접 기록이 저장되었습니다.${t}`);
+        setSaveMsg(`면접 기록을 저장했어요.${t}`);
+        showToast("success", `면접 기록을 저장했어요.${t}`);
       } else {
-        const detail = data && typeof data.detail === "string" ? data.detail : "잠시 후 다시 시도해주세요.";
+        const detail = data && typeof data.detail === "string" ? data.detail : "잠시 후 다시 시도해 주세요.";
         setSaveState("error");
         setSaveErr(true);
         setSaveMsg("기록 저장에 실패했어요. " + detail);
@@ -2392,7 +2392,7 @@ export default function App() {
                 <Button variant="secondary" disabled={resumeUploading} onClick={() => resumeFileRef.current && resumeFileRef.current.click()}>
                   {resumeUploading ? <BtnSpinner /> : <IconClip />}{resumeUploading ? "불러오는 중..." : "파일 선택"}
                 </Button>
-                <p className="t-caption">.txt · .docx · .pdf, 5MB 이하. 불러온 내용은 '직접 붙여넣기'에서 고칠 수 있어요.</p>
+                <p className="t-caption">txt, docx, pdf 파일을 5MB까지 올릴 수 있어요. 불러온 내용은 '직접 붙여넣기'에서 고칠 수 있어요.</p>
                 {resumeFileMsg && <p className={"inline-note" + (resumeFileErr ? " err" : " ok")}>{resumeFileMsg}</p>}
               </div>
             ) : (
@@ -2456,7 +2456,7 @@ export default function App() {
               <span className="flow-no num" aria-hidden="true">{rsSaved ? <IconCheck size={12} /> : 1}</span>
               <div className="flow-body">
                 <p className="flow-title">자기소개서 저장</p>
-                <p className="t-sub">{rsSaved ? `저장됨${savedDate ? " · " + savedDate : ""}` : "위 편집기에서 내용을 입력하고 저장하세요."}</p>
+                <p className="t-sub">{rsSaved ? `저장됨${savedDate ? ", " + savedDate : ""}` : "위 편집기에서 내용을 입력하고 저장하세요."}</p>
               </div>
             </li>
 
@@ -2487,7 +2487,7 @@ export default function App() {
                   <p className="inline-note err" role="alert">직무 목록을 불러오지 못했어요. <button type="button" className="btn btn-text btn-sm" onClick={loadJobs}>다시 불러오기</button></p>
                 )}
                 {qGenActive && (
-                  <p className="status-line" data-testid="qgen-note"><span className="dot pulse" aria-hidden="true" />자소서를 읽고 맞춤 질문을 만들고 있어요 · {qGenSeconds}초</p>
+                  <p className="status-line" data-testid="qgen-note"><span className="dot pulse" aria-hidden="true" />자소서를 읽고 맞춤 질문을 만들고 있어요, {qGenSeconds}초</p>
                 )}
                 {workerStatus && !qGenActive && (
                   <p className={"status-line " + (workerStatus.online ? "ok" : "warn")} data-testid="worker-chip">
@@ -2502,7 +2502,7 @@ export default function App() {
             <li className={rsQuestions.length ? "done" : ""}>
               <span className="flow-no num" aria-hidden="true">{rsQuestions.length ? <IconCheck size={12} /> : 3}</span>
               <div className="flow-body">
-                <p className="flow-title">예상 질문 확인{rsQuestions.length ? ` · ${rsQuestions.length}개` : ""}</p>
+                <p className="flow-title">예상 질문 확인{rsQuestions.length ? `, ${rsQuestions.length}개` : ""}</p>
                 {rsQuestions.length ? (
                   <ol className="q-list">
                     {rsQuestions.map((q, i) => (
@@ -2510,7 +2510,7 @@ export default function App() {
                     ))}
                   </ol>
                 ) : (
-                  <p className="t-sub">{job ? `${job}${sub ? " · " + sub : ""} 직무 기준으로` : "선택한 직무 기준으로"} 질문 6개가 여기에 표시돼요.</p>
+                  <p className="t-sub">{job ? `${job}${sub ? ", " + sub : ""} 직무 기준으로` : "선택한 직무 기준으로"} 질문 6개가 여기에 표시돼요.</p>
                 )}
               </div>
             </li>
@@ -2599,7 +2599,7 @@ export default function App() {
         fbLineCount++;
         const kind = classifyFeedbackLine(ln);
         const withLabel = ln.label && !FB_STRENGTH_LABEL.test(ln.label) && !FB_IMPROVE_LABEL.test(ln.label)
-          ? `${ln.label} · ${ln.text}`
+          ? `${ln.label}, ${ln.text}`
           : ln.text;
         if (kind === "strength") pushUniq(strengthSet, withLabel);
         else if (kind === "improve") { pushUniq(improveSet, withLabel); pushAll(improveAll, withLabel); }
@@ -2641,7 +2641,7 @@ export default function App() {
     const issueMax = issueCounts.length ? issueCounts[0].count : 0;
     const focusDone = issueCounts.filter((b) => fbFocus.includes(b.key)).length;
 
-    // 필러워드·답변시간 추이 (상세 응답의 실제 필드만)
+    // 습관어·답변시간 추이 (상세 응답의 실제 필드만)
     const detailById = new Map(
       fbDetails.filter((d) => d && d.session && d.session.session_id != null)
         .map((d) => [d.session.session_id, d])
@@ -2680,7 +2680,7 @@ export default function App() {
       <div className="page feedback">
         {recordTabs("feedback")}
         <PageHeader title="피드백 분석"
-          desc={rounds.length > 0 ? `면접 ${rounds.length}회 · 문항 ${allResults.length}개${fbRange ? " · " + fbRange : ""}${analyzedSessions < rounds.length ? ` · 상세 분석은 최근 ${analyzedSessions}회 기준` : ""}` : null}
+          desc={rounds.length > 0 ? `면접 ${rounds.length}회, 문항 ${allResults.length}개${fbRange ? ", " + fbRange : ""}${analyzedSessions < rounds.length ? `, 상세 분석은 최근 ${analyzedSessions}회 기준` : ""}` : null}
           actions={<Button variant="text" onClick={goRecords}>기록 목록</Button>} />
 
         {fbErr ? (
@@ -2688,8 +2688,8 @@ export default function App() {
         ) : fbLoading || !fbData ? (
           <div className="skel-stack lg" aria-label="분석 데이터를 불러오는 중"><span className="skel" /><span className="skel" /><span className="skel" /><span className="skel" /></div>
         ) : rounds.length === 0 ? (
-          <EmptyState title="아직 분석할 면접이 없습니다."
-            desc="첫 면접을 완료하면 답변 속도, 내용, 반복 표현, 점수 변화를 분석해드립니다."
+          <EmptyState title="아직 분석할 면접이 없어요."
+            desc="첫 면접을 완료하면 답변 속도, 내용, 반복 표현, 점수 변화를 분석해드려요."
             action="첫 모의면접 시작" onAction={goMock} />
         ) : (
           <>
@@ -2705,7 +2705,7 @@ export default function App() {
             <div className="split">
               <div className="split-main">
                 <section className="block" aria-labelledby="fb-axis-title">
-                  <SectionHeader id="fb-axis-title" title="답변 구조" meta="논리성 · 구체성 · 직무적합도" />
+                  <SectionHeader id="fb-axis-title" title="답변 구조" meta="논리성, 구체성, 직무적합도" />
                   {axisCards.length > 0 ? (
                     <ul className="bars">
                       {axisCards.map((a) => (
@@ -2802,16 +2802,16 @@ export default function App() {
 
                 {trendRows.length > 0 && (
                   <section className="block" aria-labelledby="fb-trend-title">
-                    <SectionHeader id="fb-trend-title" title="답변 시간 · 필러워드"
-                      meta={`최근 ${trendRows.length}회${fillFirst != null && fillFirst !== 0 ? ` · 필러워드 ${fillFirst > 0 ? `${fillFirst}회 감소` : `${Math.abs(fillFirst)}회 증가`}` : ""}`} />
+                    <SectionHeader id="fb-trend-title" title="답변 시간, 습관어"
+                      meta={`최근 ${trendRows.length}회${fillFirst != null && fillFirst !== 0 ? `, 습관어 ${fillFirst > 0 ? `${fillFirst}회 감소` : `${Math.abs(fillFirst)}회 증가`}` : ""}`} />
                     <table className="table">
-                      <thead><tr><th scope="col">회차</th><th scope="col">평균 답변 시간</th><th scope="col">필러워드 합계</th></tr></thead>
+                      <thead><tr><th scope="col">회차</th><th scope="col">평균 답변 시간</th><th scope="col">습관어 합계</th></tr></thead>
                       <tbody>
                         {trendRows.map((t) => (
                           <tr key={t.round}>
                             <td className="num">{t.round}회차</td>
                             <td>{t.avgDur != null ? <span className="cell-bar"><Meter value={t.avgDur} max={trendDurMax} label={`평균 ${t.avgDur}초`} tone="muted" /><span className="num">{t.avgDur}초</span></span> : <span className="muted">기록 없음</span>}</td>
-                            <td>{t.filler != null ? <span className="cell-bar"><Meter value={t.filler} max={trendFillMax} label={`필러워드 ${t.filler}회`} tone="muted" /><span className="num">{t.filler}회</span></span> : <span className="muted">기록 없음</span>}</td>
+                            <td>{t.filler != null ? <span className="cell-bar"><Meter value={t.filler} max={trendFillMax} label={`습관어 ${t.filler}회`} tone="muted" /><span className="num">{t.filler}회</span></span> : <span className="muted">기록 없음</span>}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2887,7 +2887,7 @@ export default function App() {
       <div className="page detail">
         <PageHeader
           title={sess ? sessionTitle(sess) : "면접 기록 상세"}
-          desc={sess ? [dPractice ? "말문 트기" : "", sess.sub_job, sess.career, sess.level ? `난이도 ${LEVEL_LABEL[sess.level] || sess.level}` : "", sess.created_at ? fmtDate(sess.created_at) : ""].filter(Boolean).join(" · ") : null}
+          desc={sess ? [dPractice ? "말문 트기" : "", sess.sub_job, sess.career, sess.level ? `난이도 ${LEVEL_LABEL[sess.level] || sess.level}` : "", sess.created_at ? fmtDate(sess.created_at) : ""].filter(Boolean).join(", ") : null}
           actions={<Button variant="text" onClick={backToList}>{backLabel}</Button>} />
 
         {detailErr ? (
@@ -2913,7 +2913,7 @@ export default function App() {
                     <div className="qa-head">
                       <span className="q-no num">Q{i + 1}</span>
                       <p className="qa-q">{r.question}</p>
-                      <span className="qa-scores num">자세 {r.posture_score ?? "—"} · 내용 {r.content_score ?? "—"}</span>
+                      <span className="qa-scores num">자세 {r.posture_score ?? "—"}, 내용 {r.content_score ?? "—"}</span>
                     </div>
                     <div className="qa-block">
                       <span className="t-label">내 답변</span>
@@ -3004,33 +3004,44 @@ export default function App() {
       ? Math.round(totalParts.reduce((a, v) => a + v, 0) / totalParts.length)
       : null;
     const tGrade = scoreGrade(total);
+    const fvVals = valid.map((r) => r.first_voice_ms).filter(isNum);
+    const firstAvg = fvVals.length ? (fvVals.reduce((a, x) => a + x, 0) / fvVals.length / 1000).toFixed(1) : null;
 
     return renderShell(
       <div className="page result">
         <PageHeader title={practice ? "말문 트기 결과" : "모의면접 결과"}
-          desc={[company.trim(), jobRole, LEVEL_LABEL[level] || level, career, new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric" })].filter(Boolean).join(" · ")} />
+          desc={[company.trim(), jobRole, LEVEL_LABEL[level] || level, career, new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric" })].filter(Boolean).join(", ")} />
 
         <div className="split">
           <div className="split-main">
-            {practice ? (
-            <div className="kpis">
-              <Stat label="자세·시선" value={pAvg ?? "—"} unit={pAvg != null ? "점" : ""} tone="accent" note="말문 트기는 내용 점수 없음" />
-              <Stat label="평균 답변 길이" value={durAvg ?? "—"} unit={durAvg != null ? "초" : ""} />
-              <Stat label="말 속도" value={wpmAvg ?? "—"} unit={wpmAvg != null ? "어절/분" : ""} />
-              <Stat label="습관어" value={fillerSum ?? "—"} unit={fillerSum != null ? "회" : ""} note={failedCount > 0 ? `분석 실패 ${failedCount}문항 제외` : null} />
-            </div>
-            ) : (
-            <div className="kpis">
-              <Stat label="종합 점수" value={total != null ? total : "—"} unit={total != null ? "점" : ""} tone="accent"
-                note={tGrade ? <span className={"grade grade-" + tGrade.cls}>{tGrade.label}</span> : null} />
-              <Stat label="자세·표정" value={pAvg ?? "—"} unit={pAvg != null ? "점" : ""} />
-              <Stat label="답변 내용" value={cAvg ?? "—"} unit={cAvg != null ? "점" : ""} />
-              {failedCount > 0 && <Stat label="분석 실패" value={failedCount} unit="문항" note="집계에서 제외" />}
-            </div>
-            )}
+            <section className="panel res-sum" aria-label="총평">
+              <p className="res-say">
+                {practice ? (
+                  <>{pAvg != null ? <>자세와 시선은 <b className="num">{pAvg}점</b>이었어요. </> : null}말문 트기는 내용 점수를 매기지 않고, 말하는 모습만 봐요.</>
+                ) : total != null ? (
+                  <>종합 <b className="num">{total}점</b>{tGrade ? `(${tGrade.label})` : ""}이에요.
+                    {cAvg != null && pAvg != null && <> 답변 내용은 <b className="num">{cAvg}점</b>, 자세와 표정은 <b className="num">{pAvg}점</b>이었어요.</>}</>
+                ) : (
+                  <>이번 면접은 점수를 계산하지 못했어요.</>
+                )}
+                {topFixes.length > 0 && <> 다음 연습에서는 “{topFixes[0]}”부터 고쳐 보세요.</>}
+              </p>
+              <table className="res-table">
+                <thead><tr><th scope="col">항목</th><th scope="col" className="r">이번 면접</th></tr></thead>
+                <tbody>
+                  {!practice && <tr><td>답변 내용</td><td className="r num">{cAvg != null ? `${cAvg}점` : "측정 못 함"}</td></tr>}
+                  <tr><td>{practice ? "자세와 시선" : "자세와 표정"}</td><td className="r num">{pAvg != null ? `${pAvg}점` : "측정 못 함"}</td></tr>
+                  <tr><td>평균 답변 길이</td><td className="r num">{durAvg != null ? `${durAvg}초` : "측정 못 함"}</td></tr>
+                  <tr><td>말 속도</td><td className="r num">{wpmAvg != null ? `분당 ${wpmAvg}어절` : "측정 못 함"}</td></tr>
+                  <tr><td>“음, 어” 같은 습관어</td><td className="r num">{fillerSum != null ? `모두 ${fillerSum}회` : "측정 못 함"}</td></tr>
+                  {firstAvg != null && <tr><td>첫 마디까지 걸린 시간</td><td className="r num">평균 {firstAvg}초</td></tr>}
+                  {failedCount > 0 && <tr><td>분석하지 못한 문항</td><td className="r num">{failedCount}개 (집계에서 뺐어요)</td></tr>}
+                </tbody>
+              </table>
+            </section>
 
-            <section className="block" aria-labelledby="res-qa-title">
-              <SectionHeader id="res-qa-title" title={practice ? "문항별 전달 지표" : "문항별 피드백"} meta={`${shownResults.length}개`} />
+            <section className="block panel" aria-labelledby="res-qa-title">
+              <SectionHeader id="res-qa-title" title={practice ? "문항별 기록" : "문항별 피드백"} meta={`${shownResults.length}개`} />
               <ol className="qa-list">
                 {shownResults.map((r, i) => (
                   <li className="qa" key={i}>
@@ -3041,19 +3052,19 @@ export default function App() {
                         <span className="qa-scores num">
                           자세 {r.posture_score ?? "—"}
                           {r.score_formula && <span className="ps-formula" title={String(r.score_formula)} aria-label={"자세 점수 계산: " + String(r.score_formula)}>?</span>}
-                          {!practice && <>{" · "}내용 {typeof r.content_score === "number" ? r.content_score : "—"}</>}
+                          {!practice && <>, 내용 {typeof r.content_score === "number" ? r.content_score : "—"}</>}
                           {r.content && r.content.grade && <span className="tag">{String(r.content.grade)}</span>}
                         </span>
                       )}
                     </div>
 
                     {!hasAnalysis(r) ? (
-                      <p className="inline-note err">분석 실패 · {r.failReason || "이 답변은 분석하지 못했습니다."} 이 문항은 점수 집계와 기록 저장에서 제외됩니다.</p>
+                      <p className="inline-note err">{r.failReason || "이 답변은 분석하지 못했어요."} 이 문항은 점수와 기록에서 빠져요.</p>
                     ) : (
                       <>
                         {(r.duration_sec != null || r.filler_count != null || r.speech_rate_wpm != null) && (
                           <p className="qa-meta t-caption">
-                            {[r.duration_sec != null ? `답변 길이 ${Math.round(r.duration_sec)}초` : "", r.filler_count != null ? `필러워드 ${r.filler_count}회 (참고 지표)` : "", r.speech_rate_wpm != null ? `분당 ${Math.round(r.speech_rate_wpm)}어절` : ""].filter(Boolean).join(" · ")}
+                            {[r.duration_sec != null ? `${Math.round(r.duration_sec)}초 동안 답했어요` : "", r.filler_count != null ? `습관어 ${r.filler_count}회` : "", r.speech_rate_wpm != null ? `분당 ${Math.round(r.speech_rate_wpm)}어절` : "", isNum(r.first_voice_ms) ? `첫 마디까지 ${(r.first_voice_ms / 1000).toFixed(1)}초` : ""].filter(Boolean).join(", ")}
                           </p>
                         )}
 
@@ -3080,13 +3091,13 @@ export default function App() {
                           <div className="two-col">
                             {r.content.strengths && r.content.strengths.length > 0 && (
                               <div>
-                                <h3 className="t-label">강점</h3>
+                                <h3 className="t-label">좋았던 점</h3>
                                 <ul className="bullets">{r.content.strengths.map((x, k) => <li key={k}>{String(x)}</li>)}</ul>
                               </div>
                             )}
                             {r.content.improvements && r.content.improvements.length > 0 && (
                               <div>
-                                <h3 className="t-label">개선점</h3>
+                                <h3 className="t-label">고칠 점</h3>
                                 <ul className="bullets">{r.content.improvements.map((x, k) => <li key={k}>{String(x)}</li>)}</ul>
                               </div>
                             )}
@@ -3124,7 +3135,7 @@ export default function App() {
           </div>
 
           <aside className="split-side">
-            <section className="side-block" aria-label="저장과 다음 행동">
+            <section className="side-block panel" aria-label="저장과 다음 행동">
               {saveMsg && (
                 <p className={"inline-note" + (saveErr ? " err" : "")} role={saveErr ? "alert" : "status"}>
                   {saveState === "saving" && <BtnSpinner />}{saveMsg}
@@ -3140,7 +3151,7 @@ export default function App() {
                 </>
               )}
               <Button variant="primary" block onClick={() => startWithPreset({ job, sub, level, career, company })} disabled={saveState === "saving"}>같은 조건으로 다시 연습</Button>
-              <Button variant="secondary" block onClick={goRecords} disabled={saveState === "saving"}>나의 기록 보기</Button>
+              <Button variant="secondary" block onClick={goRecords} disabled={saveState === "saving"}>면접 기록 전체 보기</Button>
               <Button variant="text" block onClick={() => { if (confirmLeaveInterview()) goHome(); }}>홈으로</Button>
             </section>
           </aside>
@@ -3156,11 +3167,11 @@ export default function App() {
     // 지금 실제로 녹화 중인지 + 단계별 안내 문구 (낭독·녹화·다시 듣기·분석·실패를 구분)
     const liveRecording = phase === "live" && !recPending && !replaying && !busy && !failedAnswer && !recError && !camError;
     const liveStatus = recPending
-      ? { badge: "질문 듣는 중", msg: "낭독이 끝나면 녹화가 시작돼요 · 답변을 준비하세요", state: "질문을 듣고 있어요..." }
+      ? { badge: "질문 듣는 중", msg: "질문을 다 읽으면 녹화가 시작돼요. 답변을 준비하세요", state: "질문을 듣고 있어요..." }
       : replaying
-        ? { badge: "녹화 일시정지", msg: "질문을 다시 읽는 중이에요 · 끝나면 녹화가 이어져요", state: "질문을 다시 듣는 동안 녹화를 멈췄어요" }
+        ? { badge: "녹화 일시정지", msg: "질문을 다시 읽는 중이에요. 끝나면 녹화가 이어져요", state: "질문을 다시 듣는 동안 녹화를 멈췄어요" }
         : busy
-          ? { badge: "녹화 완료 · 분석 중", msg: "녹화를 마쳤어요 · 지금 말하는 내용은 녹음되지 않아요", state: "녹화를 마쳤어요 — 답변을 분석하고 있어요" }
+          ? { badge: "녹화 완료, 분석 중", msg: "녹화를 마쳤어요. 지금 말하는 내용은 녹음되지 않아요", state: "녹화를 마쳤어요 — 답변을 분석하고 있어요" }
           : failedAnswer
             ? { badge: "녹화 멈춤", msg: "오른쪽에서 다시 분석하거나 다시 답변할 수 있어요", state: "녹화가 멈춰 있어요" }
             : recError
@@ -3183,9 +3194,9 @@ export default function App() {
                     <div className="count-overlay connecting" role="status"><span>카메라·마이크를 연결하고 있어요...<br />브라우저 권한 요청이 뜨면 '허용'을 눌러주세요</span></div>
                   )}
                   {phase === "countdown" && (
-                    <div className="count-overlay" role="status" aria-live="assertive"><b>{countdown}</b><span>곧 녹화가 시작됩니다</span></div>
+                    <div className="count-overlay" role="status" aria-live="assertive"><b>{countdown}</b><span>곧 녹화가 시작돼요</span></div>
                   )}
-                  <div className="cam-msg">아직 녹화 전이에요 · 자세와 조명을 점검해보세요</div>
+                  <div className="cam-msg">아직 녹화 전이에요. 자세와 조명을 확인해 보세요.</div>
                 </>
               )}
               {calmOpen && <CalmRoutine key={calmOpen} short={calmOpen === "short"} userName={userName} onDone={finishCalm} onClose={() => setCalmOpen(false)} />}
@@ -3248,7 +3259,7 @@ export default function App() {
                 {phase === "countdown" ? `${countdown}초 후 시작...` : camState === "connecting" ? "카메라 연결 중..." : calmOpen ? "루틴을 마치거나 닫으면 시작할 수 있어요" : "면접 시작"}
               </button>
               <div className="card">
-                <div className="card-t"><IconChatDots size={15} />AI 면접관</div>
+                <div className="card-t"><IconChatDots size={15} />면접관</div>
                 <div className="av-ready-row">
                   <InterviewerAvatar state="idle" size={86} />
                   <div className="av-ready-msg">면접이 시작되면 제가 질문을 읽어드려요</div>
@@ -3267,8 +3278,8 @@ export default function App() {
                   <div className="ready-warn">AI 분석 서버가 대기 상태예요. 답변 결과가 평소보다 늦게 나올 수 있어요.</div>
                 )}
                 <div className="hint-line ready-guide">
-                  · 질문마다 답변을 녹화하고 '답변 완료'를 누르면 다음 질문으로 넘어가요<br />
-                  · 답변 영상은 분석 직후 삭제되며, 답변 텍스트와 점수만 기록에 저장됩니다
+                 질문마다 답변을 녹화하고 '답변 완료'를 누르면 다음 질문으로 넘어가요.<br />
+                 답변 영상은 분석이 끝나면 바로 지우고, 받아쓴 글과 점수만 기록에 남겨요.
                 </div>
               </div>
             </div>
@@ -3299,11 +3310,11 @@ export default function App() {
         <div className="imain">
           <div className="q-fixed avatar-panel">
             <div className="avp-left">
-              <InterviewerAvatar state={avatarState} size={128} />
-              <span className="av-label">AI 면접관</span>
+              <InterviewerAvatar state={avatarState} size={72} />
+              <span className="av-label">면접관</span>
             </div>
             <div className="avp-main">
-              <span className="qb">Q{qIndex + 1}. {jobRole} · 난이도 {LEVEL_LABEL[level] || level} · {career}</span>
+              <span className="qb">질문 {qIndex + 1}. {jobRole}, 난이도 {LEVEL_LABEL[level] || level}, {career}</span>
               <div className="q-bubble">
                 <div className="qt">{questions[qIndex]}</div>
               </div>
@@ -3338,7 +3349,7 @@ export default function App() {
             ) : (
               <>
                 <video ref={videoRef} autoPlay muted playsInline></video>
-                {hideSelf && <div className="self-cover">내 모습은 가려 두었어요. 녹화와 분석은 그대로 진행됩니다.<br />면접관을 본다고 생각하고 카메라 렌즈를 바라보세요.</div>}
+                {hideSelf && <div className="self-cover">내 모습은 가려 두었어요. 녹화와 분석은 그대로 진행돼요.<br />면접관을 본다고 생각하고 카메라 렌즈를 바라보세요.</div>}
                 <div className={"cam-rec" + (liveRecording ? "" : " listening")}><span className="d"></span>{liveStatus.badge}</div>
                 <div className="cam-msg">{liveStatus.msg}</div>
                 {busy && <AnalysisOverlay note={analysisNote} seconds={analysisSeconds} canFinish={results.length > 0} onFinish={() => finishEarly(true)} workerOnline={workerStatus ? workerStatus.online : null} />}
@@ -3371,7 +3382,7 @@ export default function App() {
             {busy && (
               <div className="analysis-note" role="status">
                 <span className="d"></span>
-                {(analysisNote || "답변을 분석하고 있어요")} · {analysisSeconds}초 경과
+                {(analysisNote || "답변을 분석하고 있어요")}, {analysisSeconds}초 지났어요
               </div>
             )}
             <div className="card">
@@ -3397,9 +3408,9 @@ export default function App() {
               <div className="card tips-card">
                 <div className="card-t"><IconTip />면접 팁</div>
                 <div className="hint-line">
-                  · 카메라(렌즈)를 면접관이라 생각하고 바라보세요<br />
-                  · 어깨를 펴고 바른 자세를 유지하세요<br />
-                  · 결론부터 말하고 구체적 경험을 덧붙이면 좋아요
+                 카메라 렌즈를 면접관이라고 생각하고 바라보세요.<br />
+                 어깨를 펴고 바른 자세로 앉으세요.<br />
+                 결론부터 말하고, 그다음에 경험을 덧붙이면 좋아요.
                 </div>
               </div>
             )}
@@ -3428,7 +3439,7 @@ export default function App() {
     const canStart = !!(job && sub);
     const resumeOn = !!resumeText.trim();
     const STEPS = [
-      { key: "job", label: "직무 선택", value: job ? `${job}${sub ? " · " + sub : ""}` : "" },
+      { key: "job", label: "직무 선택", value: job ? `${job}${sub ? ", " + sub : ""}` : "" },
       { key: "company", label: "회사 선택", value: company.trim() || "지정 안 함", optional: true },
       { key: "level", label: "경력·난이도", value: `${career}, ${LEVEL_LABEL[level] || level}, ${mode === "practice" ? "말문 트기" : "실전"}` },
       { key: "resume", label: "자기소개서 적용", value: resumeOn ? `${resumeText.length.toLocaleString()}자 적용` : "적용 안 함", optional: true },
@@ -3441,31 +3452,12 @@ export default function App() {
 
     return renderShell(
       <div className="page setup">
-        <PageHeader title="모의면접 설정" actions={<Button variant="text" onClick={goJobs}>채용공고에서 고르기</Button>} />
-
-        <nav className="stepper" aria-label="면접 설정 단계">
-          <ol>
-            {STEPS.map((st, i) => (
-              <li key={st.key}>
-                <button type="button" className={"stepper-item" + (i === setupStep ? " on" : "") + (stepDone(i) && i !== setupStep ? " done" : "")}
-                  aria-current={i === setupStep ? "step" : undefined} onClick={() => go(i)}>
-                  <span className="stepper-no num">{stepNo(i)}</span>
-                  <span className="stepper-label">{st.label}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
-        </nav>
+        <PageHeader title="모의면접 설정" desc="위에서부터 고르면 돼요. 직무만 골라도 시작할 수 있어요." actions={<Button variant="text" onClick={goJobs}>채용공고에서 고르기</Button>} />
 
         <div className="setup-layout">
-          <section className="setup-main" aria-labelledby="setup-step-title">
-            <header className="step-head">
-              <span className="step-no num">{stepNo(setupStep)}</span>
-              <h2 className="t-section" id="setup-step-title">{cur.label}</h2>
-              {cur.optional && <span className="tag">선택</span>}
-            </header>
-
-            {setupStep === 0 && (
+          <section className="setup-main panel" aria-label="면접 조건">
+            <section className="form-row" aria-labelledby="fr-job">
+              <h2 className="fr-h" id="fr-job">직무</h2>
               <div className="step-body">
                 <Segmented label="직무 찾는 방법" value={jobTab} onChange={setJobTab}
                   options={[{ value: "dept", label: "학과로 찾기" }, { value: "job", label: "직무로 찾기" }]} />
@@ -3518,7 +3510,7 @@ export default function App() {
                                 aria-pressed={active} onClick={() => pickCareer(c)}>
                                 <span className="opt-radio" aria-hidden="true" />
                                 <span className="opt-name">{c.label}</span>
-                                <span className="opt-meta">{c.job} · {c.sub}</span>
+                                <span className="opt-meta">{c.job}, {c.sub}</span>
                               </button>
                             );
                           })}
@@ -3556,11 +3548,12 @@ export default function App() {
                   </>
                 )}
               </div>
-            )}
+            </section>
 
-            {setupStep === 1 && (
+            <section className="form-row" aria-labelledby="fr-company">
+              <h2 className="fr-h" id="fr-company">회사<small>선택</small></h2>
               <div className="step-body">
-                <Field label="지원 회사" htmlFor="company-input" hint="입력하면 기록에 회사 이름이 함께 남아요. 비워두면 직무 공통 질문으로 진행해요.">
+                <Field label="지원 회사" htmlFor="company-input" hint="적어 두면 기록에 회사 이름이 같이 남아요. 비워 두면 직무 공통 질문이 나와요.">
                   <div className="combo" ref={companyBoxRef}>
                     <Lucide.Search size={16} className="combo-ic" aria-hidden="true" />
                     <input
@@ -3604,9 +3597,10 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            )}
+            </section>
 
-            {setupStep === 2 && (
+            <section className="form-row" aria-labelledby="fr-cond">
+              <h2 className="fr-h" id="fr-cond">조건</h2>
               <div className="step-body">
                 <div className="opt-group">
                   <span className="field-label">경력</span>
@@ -3619,11 +3613,8 @@ export default function App() {
                   <Segmented label="연습 방식" value={mode} onChange={setMode}
                     options={[{ value: "normal", label: "실전" }, { value: "practice", label: "말문 트기" }]} />
                   <p className="field-hint">{mode === "practice"
-                    ? "자기소개서로 만든 답안 틀을 보며 말하고, 질문마다 도움을 줄여 갑니다. 내용 점수 없이 자세, 시선, 말 속도, 습관어만 봅니다."
-                    : "도움 없이 답하고 자세와 답변 내용을 함께 평가합니다."}</p>
-                  {mode === "practice" && !resumeText.trim() && (
-                    <p className="field-err">말문 트기 답안은 자기소개서로 만들어요. 다음 단계에서 자기소개서를 넣지 않으면 답안 없이 질문만 나옵니다.</p>
-                  )}
+                    ? "자기소개서로 만든 답안을 보면서 말해요. 질문이 넘어갈수록 도움이 줄고, 내용 점수 없이 자세와 말 속도, 습관어만 봐요."
+                    : "도움 없이 답하고, 자세와 답변 내용을 함께 평가해요."}</p>
                 </div>
                 <div className="opt-group">
                   <span className="field-label">난이도</span>
@@ -3632,14 +3623,15 @@ export default function App() {
                   {lvMeta && <p className="field-hint">{lvMeta.desc}</p>}
                 </div>
               </div>
-            )}
+            </section>
 
-            {setupStep === 3 && (
+            <section className="form-row" aria-labelledby="fr-resume">
+              <h2 className="fr-h" id="fr-resume">자기소개서<small>{mode === "practice" ? "말문 트기에 필요" : "선택"}</small></h2>
               <div className="step-body">
                 {workerStatus && (
                   <p className={"status-line " + (workerStatus.online ? "ok" : "warn")} data-testid="worker-chip">
                     <span className="dot" aria-hidden="true" />
-                    {workerStatus.online ? "AI 맞춤 질문을 만들 수 있어요" : "지금은 기본 질문으로 진행돼요 (분석 서버 대기 중)"}
+                    {workerStatus.online ? "지금 맞춤 질문을 만들 수 있어요" : "분석 서버가 쉬는 중이라 지금은 기본 질문으로 진행돼요"}
                   </p>
                 )}
                 <Segmented label="자기소개서 입력 방법" value={resumeTab} onChange={setResumeTab}
@@ -3650,7 +3642,7 @@ export default function App() {
                     <Button variant="secondary" disabled={resumeUploading} onClick={() => resumeFileRef.current && resumeFileRef.current.click()}>
                       {resumeUploading ? <BtnSpinner /> : <IconClip />}{resumeUploading ? "불러오는 중..." : "파일 선택"}
                     </Button>
-                    <p className="t-caption">.txt · .docx · .pdf, 5MB 이하. 내용을 읽어 붙여넣기 칸에 채워요.</p>
+                    <p className="t-caption">txt, docx, pdf 파일을 5MB까지 올릴 수 있어요. 읽은 내용은 붙여넣기 칸에 채워져요.</p>
                     {resumeFileMsg && <p className={"inline-note" + (resumeFileErr ? " err" : " ok")}>{resumeFileMsg}</p>}
                   </div>
                 ) : (
@@ -3662,74 +3654,36 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                <p className="field-hint">붙이지 않아도 면접은 진행돼요. 붙이면 내용 기반 질문이 추가돼요.</p>
+                {mode === "practice" && !resumeOn
+                  ? <p className="field-err">말문 트기 답안은 자기소개서로 만들어요. 비워 두면 답안 없이 질문만 나와요.</p>
+                  : <p className="field-hint">비워 둬도 면접은 볼 수 있어요. 넣으면 내 경험을 묻는 질문이 섞여요.</p>}
               </div>
-            )}
-
-            {setupStep === 4 && (
-              <div className="step-body">
-                <dl className="review">
-                  {STEPS.slice(0, 4).map((st, i) => (
-                    <div key={st.key}>
-                      <dt>{st.label}</dt>
-                      <dd className={i === 0 && !canStart ? "unset" : ""}>{i === 0 && !canStart ? "선택 전" : st.value}</dd>
-                      <button type="button" className="btn btn-text btn-sm" onClick={() => go(i)}>변경</button>
-                    </div>
-                  ))}
-                </dl>
-                <div className="opt-group">
-                  <span className="field-label">연습 방식</span>
-                  <Segmented label="연습 방식 (확인)" value={mode} onChange={setMode}
-                    options={[{ value: "normal", label: "실전" }, { value: "practice", label: "말문 트기" }]} />
-                  {mode === "practice" && !resumeOn && <p className="field-hint">자기소개서가 없으면 답안 틀 없이 진행됩니다.</p>}
-                </div>
-                <p className="t-sub">질문 {EXPECT_Q}개 내외 · 예상 {estDuration(EXPECT_Q)} · 다음 화면에서 카메라와 마이크를 확인해요.</p>
-                <div className="step-cta">
-                  <Button variant="primary" size="lg" onClick={startInterview} disabled={!canStart}>면접 시작</Button>
-                  {!canStart && <span className="inline-note err">01 직무 선택에서 세부 직무까지 골라주세요.</span>}
-                </div>
-              </div>
-            )}
-
-            {setupStep < 4 && (
-              <footer className="step-nav">
-                {setupStep > 0 ? <Button variant="text" onClick={() => go(setupStep - 1)}>이전</Button> : <span />}
-                <Button variant="primary" onClick={() => go(setupStep + 1)}>
-                  {cur.optional && !stepDone(setupStep) ? "건너뛰기" : "다음"}: {STEPS[setupStep + 1].label}
-                </Button>
-              </footer>
-            )}
+            </section>
           </section>
 
           <aside className="setup-summary" aria-labelledby="setup-sum-title">
-            <h2 className="t-section" id="setup-sum-title">선택한 조건</h2>
-            <dl className="sum-list">
-              {deptPick && (
-                <div><dt>학과</dt><dd>{deptPick.dept.name}</dd></div>
-              )}
-              <div><dt>직무</dt><dd className={job ? "" : "unset"} data-testid="hero-job">{job || "선택 전"}</dd></div>
-              <div><dt>세부 직무</dt><dd className={sub ? "" : "unset"} data-testid="hero-sub">{sub || "선택 전"}</dd></div>
-              <div><dt>회사</dt><dd className={company.trim() ? "" : "unset"}>{company.trim() || "지정 안 함"}</dd></div>
-              <div><dt>경력</dt><dd>{career}</dd></div>
-              <div><dt>난이도</dt><dd>{LEVEL_LABEL[level] || level}</dd></div>
-              <div><dt>연습 방식</dt><dd>{mode === "practice" ? "말문 트기" : "실전"}</dd></div>
-              <div><dt>자기소개서</dt><dd className={resumeOn ? "" : "unset"}>{resumeOn ? `${resumeText.length.toLocaleString()}자` : "적용 안 함"}</dd></div>
-            </dl>
-            <p className="t-caption">질문 {EXPECT_Q}개 내외 · 예상 {estDuration(EXPECT_Q)} · 카메라·마이크 필요</p>
-            {setupStep < 4 && (
-              <Button variant="secondary" block onClick={startInterview} disabled={!canStart} data-testid="rail-start"
-                title={!canStart ? "직무를 먼저 골라주세요" : undefined}>
-                이 조건으로 바로 시작
-              </Button>
+            <h2 className="t-section" id="setup-sum-title">이렇게 시작해요</h2>
+            {canStart ? (
+              <p className="sum-say">
+                {company.trim() && <><b>{company.trim()}</b>{" "}</>}<b data-testid="hero-job">{job}</b>, <b data-testid="hero-sub">{sub}</b> 직무의 <b>{career}</b> 면접을{" "}
+                <b>{LEVEL_LABEL[level] || level}</b> 난이도, <b>{mode === "practice" ? "말문 트기" : "실전"}</b> 방식으로 연습해요.
+              </p>
+            ) : (
+              <p className="sum-say unset">직무와 세부 직무를 고르면 바로 시작할 수 있어요.</p>
             )}
-            {!canStart && <p className="t-caption">직무와 세부 직무를 고르면 시작할 수 있어요.</p>}
+            <p className="t-caption">질문 {EXPECT_Q}개 안팎이고 {estDuration(EXPECT_Q)} 걸려요. 카메라와 마이크가 필요해요.{resumeOn ? ` 자기소개서 ${resumeText.length.toLocaleString()}자를 반영해요.` : ""}</p>
+            {mode === "practice" && !resumeOn && <p className="field-err">자기소개서가 비어 있어서 답안 없이 질문만 나와요.</p>}
+            <Button variant="primary" size="lg" block onClick={startInterview} disabled={!canStart} data-testid="rail-start"
+              title={!canStart ? "직무를 먼저 골라주세요" : undefined}>
+              면접 준비로 넘어가기
+            </Button>
           </aside>
         </div>
 
         {/* 좁은 화면(≤1100px): 하단 고정 요약 바 */}
         <div className="setup-bar">
-          <div className="setup-bar-sum">{[company.trim(), job || "직무 선택 전", sub, career, LEVEL_LABEL[level] || level].filter(Boolean).join(" · ")}</div>
-          <Button variant="primary" size="sm" onClick={startInterview} disabled={!canStart}>면접 시작</Button>
+          <div className="setup-bar-sum">{[company.trim(), job || "직무 선택 전", sub, career, LEVEL_LABEL[level] || level].filter(Boolean).join(", ")}</div>
+          <Button variant="primary" size="sm" onClick={startInterview} disabled={!canStart}>면접 준비</Button>
         </div>
       </div>
     );
@@ -3797,54 +3751,70 @@ export default function App() {
   };
 
   return renderShell(
-    <div className="page home">
-      <HomeHeader name={emailName} date={greetDate} />
+    <div className="page home v6">
+      <h1 className="sr-only">홈</h1>
       {homeQuiet && <HomeNotice global onRetry={retryHome} />}
-      <GoalStrip token={token} reloadKey={loopKey} onOpen={goPlanner} />
 
-      <div className="home-grid">
-        <div className="home-lead">
-          <InterviewHero
-            jobPicker={<JobSelector data={jobData} value={dispJob} subValue={dispSub} onSelect={selectJob} onSub={pickHomeSub}
-              error={jobsErr} quiet={homeQuiet} errorSlot={<HomeNotice text="직무 목록을 불러오지 못했어요" onRetry={loadJobs} />} />}
-            career={!job && lastSess ? lastSess.career : career} level={LEVEL_LABEL[!job && lastSess ? lastSess.level : level]}
-            company={!job && lastSess ? lastSess.company : company}
-            ready={homeReady}
-            onStart={startFromHome} onEdit={goMock}
-            onGuide={() => setShowGuide(true)} guideRef={guideBtnRef}>
-            <PreparationProgress savedResume={rsSaved} selectedJob={dispJob} companies={dreamList}
-              count={totalCount || 0} weeklyCount={weeklyCount} weekGoal={WEEK_GOAL}
-              lastScore={lastScore} lastDate={lastSess ? fmtDateDot(lastSess.created_at) : ""}
-              loading={homeLoading} unknown={statUnknown}
-              onSelectJob={goMock} onResume={goResume} onInterview={goMock} />
-          </InterviewHero>
-        </div>
+      <div className="h6-first">
+        <section className="panel h6-start" aria-labelledby="h6-start-h">
+          <h2 id="h6-start-h" className="h6-title">어떤 면접을 연습할까요?</h2>
+          <p className="h6-lead">{lastSess
+            ? "지난번 조건 그대로예요. 직무만 바꿔서 바로 시작해도 돼요."
+            : "직무만 고르면 돼요. 질문 6개에 답하면 말 속도와 시선, 답변 내용을 결과표로 보여 드려요."}</p>
 
-        <aside className="home-side" aria-label="개인 준비">
-          <div className="home-loop">
-            <QuickMenu onWarmup={() => { setMode("practice"); goMock(); }} onPlanner={goPlanner} onJobs={goJobs} onResume={goResume} />
-            <StreakQuest token={token} reloadKey={loopKey} />
-            <TodayPlans token={token} reloadKey={loopKey} onChanged={() => setLoopKey((n) => n + 1)} onOpen={goPlanner} />
+          <JobSelector data={jobData} value={dispJob} subValue={dispSub} onSelect={selectJob} onSub={pickHomeSub}
+            error={jobsErr} quiet={homeQuiet} errorSlot={<HomeNotice text="직무 목록을 불러오지 못했어요" onRetry={loadJobs} />} />
+
+          <fieldset className="h6-mode">
+            <legend>연습 방식</legend>
+            <div className="h6-opts">
+              <label><input type="radio" name="h6mode" checked={mode !== "practice"} onChange={() => setMode("normal")} /><b>실전</b><span>도움 없이 답하고 내용까지 채점</span></label>
+              <label><input type="radio" name="h6mode" checked={mode === "practice"} onChange={() => setMode("practice")} /><b>말문 트기</b><span>내 자소서로 만든 답안을 보며 연습</span></label>
+            </div>
+          </fieldset>
+
+          <div className="h6-go">
+            <Button variant="primary" size="lg" onClick={startFromHome}>{homeReady ? "모의면접 시작" : "직무 고르고 시작하기"}</Button>
+            <span className="h6-meta">
+              {(!job && lastSess ? lastSess.career : career) || "신입"}, 난이도 {LEVEL_LABEL[!job && lastSess ? lastSess.level : level] || "보통"}, 질문 {EXPECT_Q}개예요. {estDuration(EXPECT_Q)} 걸려요.
+              {" "}<button type="button" className="lnk" onClick={goMock}>조건 더 바꾸기</button>
+              {" "}<button type="button" className="lnk" onClick={() => setShowGuide(true)} ref={guideBtnRef}>진행 방법</button>
+            </span>
           </div>
-          <div className="home-dreams">
-            <DreamCompanies key={userEmail} email={userEmail} jobData={jobData} onStart={startWithPreset}
-              onChange={() => setDreamVer((n) => n + 1)} />
-          </div>
+
+          {lastSess && (
+            <p className="h6-last">
+              지난 연습은 <b>{fmtDateDot(lastSess.created_at)}</b>{lastScore != null ? <>이고, 종합 <b className="num">{lastScore}점</b>이었어요.</> : "이었어요."}
+              {lastSess.session_id != null && <>{" "}<button type="button" className="lnk" onClick={() => openHistoryDetail(lastSess.session_id)}>결과 다시 보기</button></>}
+            </p>
+          )}
+        </section>
+
+        <aside className="panel h6-prep" aria-labelledby="h6-prep-h">
+          <h2 id="h6-prep-h" className="h6-sub">내 준비</h2>
+          <WeekLine token={token} reloadKey={loopKey} />
+          <TodayPlans token={token} reloadKey={loopKey} onChanged={() => setLoopKey((n) => n + 1)} onOpen={goPlanner} />
+          <TopGoal token={token} reloadKey={loopKey} onOpen={goPlanner} />
         </aside>
+      </div>
 
-        <div className="home-recent">
+      <div className="panel h6-local">
+        <LocalPostings api={API} job={job || postJob.job} onPractice={startWithPreset} onBrowse={goJobs}
+          onStatus={setPostErr} reloadKey={postReload} quiet={homeQuiet} />
+      </div>
+
+      <div className="h6-three">
+        <div className="panel">
           <RecentInterviewCard session={lastSess} sessions={recentList} loading={homeLoading}
             unknown={statUnknown} quiet={homeQuiet} onRetry={() => setDashReload((n) => n + 1)} onStart={goMock}
             onRecords={goRecords} onDetail={openHistoryDetail} />
         </div>
-
-        <div className="home-feed">
+        <div className="panel">
           <AchievementFeed token={token} job={dispJob} reloadKey={loopKey} onOpen={goPlanner} />
         </div>
-
-        <div className="home-posts">
-          <LocalPostings api={API} job={job || postJob.job} onPractice={startWithPreset} onBrowse={goJobs}
-            onStatus={setPostErr} reloadKey={postReload} quiet={homeQuiet} />
+        <div className="panel">
+          <DreamCompanies key={userEmail} email={userEmail} jobData={jobData} onStart={startWithPreset}
+            onChange={() => setDreamVer((n) => n + 1)} />
         </div>
       </div>
 

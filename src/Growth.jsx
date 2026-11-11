@@ -40,7 +40,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
       .then((d) => { if (!cancelled) setData(d); })
       .catch((e) => {
         if (cancelled || isAuthExpired(e)) return; // 401은 App에서 자동 로그아웃 처리
-        setErr("일시적으로 성장 기록을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.");
+        setErr("일시적으로 성장 기록을 불러올 수 없어요. 잠시 후 다시 시도해주세요.");
       });
     // 직무·회사 표시용 (실패해도 점수 화면은 그대로 동작)
     authFetch(`${API}/history`, { headers })
@@ -133,7 +133,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
   return (
     <div className="page records">
       <PageHeader title="면접 기록"
-        desc={hasData ? `총 ${count}회 · 첫 기록 ${first.created_at ? fmtDateDot(first.created_at) : "-"} · 이번 주 ${weekRows.length}회` : null}
+        desc={hasData ? `총 ${count}회, 첫 기록 ${first.created_at ? fmtDateDot(first.created_at) : "-"}, 이번 주 ${weekRows.length}회` : null}
         actions={hasData ? <Button variant="primary" onClick={() => onStart && onStart(startPreset)}>{startPreset ? "지난 조건으로 연습" : "모의면접 시작"}</Button> : null} />
 
       {err && (
@@ -144,15 +144,15 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
       )}
 
       {data && count === 0 && (
-        <EmptyState title="아직 분석할 면접이 없습니다."
-          desc="첫 면접을 완료하면 답변 속도, 내용, 반복 표현, 점수 변화를 분석해드립니다."
+        <EmptyState title="아직 분석할 면접이 없어요."
+          desc="첫 면접을 완료하면 답변 속도, 내용, 반복 표현, 점수 변화를 분석해드려요."
           action="첫 모의면접 시작" onAction={() => onStart && onStart(null)} />
       )}
 
       {/* 방어: 기록 수는 있는데 점수 포인트가 비어 있는 형식 불일치 응답 */}
       {data && count > 0 && rows.length === 0 && (
         <EmptyState title="기록은 있지만 점수 데이터를 불러오지 못했어요"
-          desc={`면접 기록 ${count}회가 저장되어 있지만 점수 정보를 표시할 수 없습니다. 잠시 후 다시 시도해주세요.`}
+          desc={`면접 기록 ${count}회가 저장되어 있지만 점수 정보를 표시할 수 없어요. 잠시 후 다시 시도해주세요.`}
           action="홈으로" onAction={onBack} />
       )}
 
@@ -162,12 +162,12 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
             <div className="kpis">
               <Stat label="최근 종합 점수" tone="accent"
                 value={num(last.total_score) != null ? last.total_score : "—"} unit={num(last.total_score) != null ? "점" : ""}
-                note={`${last.round}회차 · ${fmtDateDot(last.created_at)}`} />
+                note={`${last.round}회차, ${fmtDateDot(last.created_at)}`} />
               <Stat label="첫 회차 대비" value={totalDelta == null ? "—" : signed(totalDelta)} unit={totalDelta == null ? "" : "점"}
                 tone={totalDelta == null ? "" : totalDelta > 0 ? "up" : totalDelta < 0 ? "down" : ""}
-                note={totalDelta == null ? "2회차부터 계산돼요" : [postureDelta != null ? `자세 ${signed(postureDelta)}` : "", contentDelta != null ? `내용 ${signed(contentDelta)}` : ""].filter(Boolean).join(" · ") || null} />
-              <Stat label="최고 기록" value={best ? best.total_score : "—"} unit={best ? "점" : ""} note={best ? `${best.round}회차 · ${fmtDateDot(best.created_at)}` : null} />
-              <Stat label="이번 주" value={weekRows.length} unit="회" note={weekAvg != null ? `평균 ${weekAvg}점 · 목표 3회` : "목표 3회"} />
+                note={totalDelta == null ? "2회차부터 계산돼요" : [postureDelta != null ? `자세 ${signed(postureDelta)}` : "", contentDelta != null ? `내용 ${signed(contentDelta)}` : ""].filter(Boolean).join(", ") || null} />
+              <Stat label="최고 기록" value={best ? best.total_score : "—"} unit={best ? "점" : ""} note={best ? `${best.round}회차, ${fmtDateDot(best.created_at)}` : null} />
+              <Stat label="이번 주" value={weekRows.length} unit="회" note={weekAvg != null ? `평균 ${weekAvg}점, 목표 3회` : "목표 3회"} />
             </div>
             <SectionHeader id="rec-chart-title" title="점수 변화">
               <div className="legend-toggle" role="group" aria-label="표시 계열 선택">
@@ -184,7 +184,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
           </section>
 
           <section className="block" aria-labelledby="rec-list-title">
-            <SectionHeader id="rec-list-title" title="전체 기록" meta={`${count}회 · 최신순`} />
+            <SectionHeader id="rec-list-title" title="전체 기록" meta={`${count}회, 최신순`} />
             <div className="table-wrap">
               <table className="table table-rows">
                 <thead>
@@ -213,7 +213,7 @@ export default function Growth({ token, onBack, onOpenDetail, onStart, onFeedbac
                         <td className="num nowrap">{fmtDateDot(p.created_at)}</td>
                         <td><span className="cell-strong">{s && s.job ? s.job : "—"}</span>{s && s.mode === "practice" && <span className="tag tag-a mode-tag">말문 트기</span>}{s && s.sub_job ? <span className="cell-sub">{s.sub_job}</span> : null}</td>
                         <td>{company || <span className="muted">—</span>}</td>
-                        <td className="nowrap">{s ? [s.career, s.level ? LEVEL_TEXT[s.level] || s.level : ""].filter(Boolean).join(" · ") || "—" : "—"}</td>
+                        <td className="nowrap">{s ? [s.career, s.level ? LEVEL_TEXT[s.level] || s.level : ""].filter(Boolean).join(", ") || "—" : "—"}</td>
                         <td className="c-num num">{num(p.posture_score) ?? "—"}</td>
                         <td className="c-num num">{num(p.content_score) ?? "—"}</td>
                         <td className="c-num"><b className="num">{num(p.total_score) ?? "—"}</b>{g && <span className={"grade grade-" + g.cls}>{g.label}</span>}</td>

@@ -42,7 +42,7 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
 
   return (
     <section className="home-sec" aria-labelledby="recommended-jobs-title">
-      <SectionHeader id="recommended-jobs-title" title="추천 채용공고" meta={job ? `${job}${sub ? " · " + sub : ""} 기준` : ""} action="전체 공고" onAction={onBrowse} />
+      <SectionHeader id="recommended-jobs-title" title="추천 채용공고" meta={job ? `${job}${sub ? ", " + sub : ""} 기준` : ""} action="전체 공고" onAction={onBrowse} />
 
       {err ? (
         quiet ? <div className="home-quiet" aria-hidden="true" /> : <HomeNotice text="공고를 불러오지 못했어요" onRetry={() => setReload((n) => n + 1)} />
@@ -65,7 +65,7 @@ export default function JobPostings({ api, job, sub, career, companies, onPracti
         </ul>
       )}
 
-      {!err && <p className="t-caption src-note">출처: {data ? data.source : "잡알리오"} · 2시간마다 갱신 · 지원 전 원문 공고를 꼭 확인하세요</p>}
+      {!err && <p className="t-caption src-note">출처: {data ? data.source : "잡알리오"}, 2시간마다 갱신, 지원 전 원문 공고를 꼭 확인하세요</p>}
     </section>
   );
 }

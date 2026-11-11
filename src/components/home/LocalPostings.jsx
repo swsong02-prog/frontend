@@ -44,42 +44,37 @@ export default function LocalPostings({ api, job, onBrowse, onPractice, onStatus
 
   return (
     <section className="local-sec" aria-labelledby="local-title">
-      <div className="sec-h">
-        <h2 id="local-title">대전, 충청 지역인재 대상 공고 <small>{st.byJob ? `${job} 기준` : "전체 직무"}</small></h2>
-        <button type="button" className="btn btn-text btn-sm" onClick={onBrowse}>{d ? `전체 ${total}건` : "전체 공고"}</button>
+      <div className="lc-head">
+        <div>
+          <h2 id="local-title">대전, 충청 지역인재 대상 공고{d && <span className="num">{total}건</span>}</h2>
+          <p>대전대 졸업생과 졸업예정자는 아래 기관의 신규 채용에서 지역인재로 인정돼요. {st.byJob ? `${job} 직무에 맞는 공고부터 보여 드려요.` : "마감이 가까운 순서예요."}</p>
+        </div>
+        <button type="button" className="lnk" onClick={onBrowse}>{d ? `${total}건 모두 보기` : "공고 모두 보기"}</button>
       </div>
       {st.err ? (
         quiet ? <div className="home-quiet" aria-hidden="true" />
-          : <p className="loop-err" role="alert"><span>공고를 불러오지 못했습니다.</span><button type="button" className="btn btn-text btn-sm" onClick={() => setReload((n) => n + 1)}>다시 시도</button></p>
+          : <p className="loop-err" role="alert"><span>공고를 불러오지 못했어요.</span><button type="button" className="btn btn-text btn-sm" onClick={() => setReload((n) => n + 1)}>다시 시도</button></p>
       ) : !d ? (
         <div className="loop-skel" aria-hidden="true"><span className="skel" /><span className="skel" /><span className="skel" /></div>
+      ) : items.length === 0 ? (
+        <p className="lc-empty">지금은 마감 전인 지역인재 공고가 없어요. <button type="button" className="lnk" onClick={onBrowse}>다른 공고 둘러보기</button></p>
       ) : (
-        <div className="local">
-          <div className="local-l">
-            <b>지역인재 전형</b>
-            <div className="big num">{total}<span> 건</span></div>
-            <p className="xs c2">{AREAS} 대학 졸업(예정)자는 이전 공공기관 신규 채용에서 지역인재로 인정됩니다.</p>
-          </div>
-          {items.length === 0 ? (
-            <p className="local-empty">지금 마감 전인 지역인재 대상 공고 없음 <button type="button" className="btn btn-text btn-sm" onClick={onBrowse}>공고 둘러보기</button></p>
-          ) : (
-            <ul className="local-r">
-              {items.slice(0, 4).map((p) => {
-                const dd = typeof p.dday === "number" ? (p.dday === 0 ? "D-day" : `D-${p.dday}`) : "상시";
-                return (
-                  <li key={p.id}>
-                    <b className="sm local-inst">{p.inst}</b>
-                    <button type="button" className="sm local-title" title="이 기관으로 면접 연습"
-                      onClick={() => onPractice && onPractice({ company: p.inst, job: p.suggest_job || job, sub: p.suggest_sub || "" })}>{p.title}</button>
-                    <span className={"dd num" + (typeof p.dday === "number" && p.dday <= 7 ? " hot" : "")}>{dd}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+        <ul className="lc-list">
+          {items.slice(0, 5).map((p) => {
+            const dd = typeof p.dday === "number" ? (p.dday === 0 ? "오늘 마감" : `D-${p.dday}`) : "상시";
+            const go = () => onPractice && onPractice({ company: p.inst, job: p.suggest_job || job, sub: p.suggest_sub || "" });
+            return (
+              <li key={p.id}>
+                <b className="lc-inst">{p.inst}</b>
+                <span className="lc-title">{p.title}</span>
+                <span className={"dd num" + (typeof p.dday === "number" && p.dday <= 7 ? " hot" : "")}>{dd}</span>
+                <button type="button" className="lc-try" onClick={go}>이 공고로 연습</button>
+              </li>
+            );
+          })}
+        </ul>
       )}
-      {d && !st.err && <p className="xs c3 local-src">출처 {d.source || "잡알리오"}, 지역인재 기준 대전광역시</p>}
+      {d && !st.err && <p className="lc-src">출처 {d.source || "잡알리오"}, 지역인재 기준은 대전광역시 공고를 따랐어요.</p>}
     </section>
   );
 }

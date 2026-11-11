@@ -1,6 +1,6 @@
 import { IconCheck } from "../../ui";
 
-/* 홈 '다음 연습' 아래 연습 현황 한 줄: 이번 주 · 최근 점수(화면에서 파랑을 쓰는 유일한 숫자) · 총 연습 · 준비 항목
+/* 홈 '다음 연습' 아래 연습 현황 한 줄: 이번 주, 최근 점수(화면에서 파랑을 쓰는 유일한 숫자), 총 연습, 준비 항목
    quiet: 페이지 상단 공통 오류가 떠 있을 때 — 숫자 자리만 비워 둔다 */
 export default function PreparationProgress({ savedResume, selectedJob, companies, count, weeklyCount, weekGoal = 3, lastScore, lastDate, loading, unknown, onSelectJob, onResume, onInterview }) {
   const milestones = [

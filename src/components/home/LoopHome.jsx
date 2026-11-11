@@ -209,7 +209,7 @@ export function AchievementFeed({ token, job, reloadKey, onOpen }) {
         : st.error ? <LoopError error={st.error} what="소식" onRetry={retry} />
           : tab === "posts" ? (
             posts.length === 0 ? (
-              <p className="feed-empty">아직 올라온 달성 소식 없음. 목표를 달성하면 첫 소식을 남길 수 있습니다. <button type="button" className="btn btn-text btn-sm" onClick={onOpen}>내 목표 보기</button></p>
+              <p className="feed-empty">아직 올라온 달성 소식 없음. 목표를 달성하면 첫 소식을 남길 수 있어요. <button type="button" className="btn btn-text btn-sm" onClick={onOpen}>내 목표 보기</button></p>
             ) : (
               <ul className="feed-list">
                 {posts.map((p) => (
@@ -262,5 +262,41 @@ export function QuickMenu({ onWarmup, onPlanner, onJobs, onResume }) {
         </button>
       ))}
     </nav>
+  );
+}
+
+/* ---------- v6 홈 "내 준비" 상자용 한 줄 부품 (11/10) ---------- */
+/* 이번 주 기록을 막대 3개 대신 한 문장으로 */
+export function WeekLine({ token, reloadKey }) {
+  const [st] = useLoad(() => getProgress(token), [token, reloadKey]);
+  const p = st.data;
+  if (st.loading && !p) return <p className="prep-week"><span className="skel" style={{ width: "80%" }} /></p>;
+  if (st.error || !p) return <p className="prep-week">이번 주 기록을 불러오지 못했어요.</p>;
+  const { interviews = 0, plans_done = 0 } = p.week || {};
+  if (!interviews && !plans_done && !p.streak_days) return <p className="prep-week">첫 면접을 마치면 이번 주 기록이 여기에 모여요.</p>;
+  return (
+    <p className="prep-week">
+      이번 주 면접 <b className="num">{interviews}</b>회, 할 일 <b className="num">{plans_done}</b>개 끝냈어요.
+      {p.streak_days > 0 && <> <b className="num">{p.streak_days}</b>일째 이어 가는 중이에요.</>}
+    </p>
+  );
+}
+
+/* 가장 가까운 목표 하나 */
+export function TopGoal({ token, reloadKey, onOpen }) {
+  const [st] = useLoad(() => listGoals(token), [token, reloadKey]);
+  if (st.loading || st.error) return null;
+  const active = (st.data || []).filter((g) => !g.achieved_at)
+    .sort((a, b) => (dDay(a.due_date) ?? 9999) - (dDay(b.due_date) ?? 9999));
+  if (!active.length) {
+    return <p className="prep-goal"><span className="c3">정해 둔 목표가 없어요.</span><button type="button" className="lnk" onClick={onOpen}>목표 정하기</button></p>;
+  }
+  const g = active[0];
+  const n = dDay(g.due_date);
+  return (
+    <p className="prep-goal">
+      <button type="button" className="prep-goal-t" onClick={onOpen} title="목표와 플래너 열기">{g.title}{active.length > 1 && <span className="c3"> 외 {active.length - 1}개</span>}</button>
+      <span className={"dd num" + (n != null && n <= 7 ? " hot" : "")}>{dDayLabel(g.due_date) || "기한 없음"}</span>
+    </p>
   );
 }

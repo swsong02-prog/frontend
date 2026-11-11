@@ -36,8 +36,8 @@ const regionText = region => String(region || "").split(",").length >= 4 ? "전�
 function PostingInfo({ posting }) {
   return <div className="jb-info">
     <span className="jb-tags">{posting.local_talent && <span className="jb-local-tag" title="대전·세종·충북·충남 소재 대학 졸업(예정)자를 일정 비율 이상 뽑아야 하는 기관">지역인재 대상</span>}{(posting.jobs || []).map(job => <span key={job}>{job}</span>)}</span>
-    <span className="jb-meta">{[regionText(posting.region), posting.hire, posting.se, posting.nope != null && `${posting.nope}명 채용`].filter(Boolean).join(" · ")}</span>
-    <span className="jb-period">접수 {dateText(posting.start)} ~ {dateText(posting.end)}{posting.acbg ? ` · ${posting.acbg}` : ""}</span>
+    <span className="jb-meta">{[regionText(posting.region), posting.hire, posting.se, posting.nope != null && `${posting.nope}명 채용`].filter(Boolean).join(", ")}</span>
+    <span className="jb-period">접수 {dateText(posting.start)} ~ {dateText(posting.end)}{posting.acbg ? `, ${posting.acbg}` : ""}</span>
   </div>;
 }
 function OriginalLink({ posting }) {
@@ -147,7 +147,7 @@ export default function JobsBrowse({ api, jobData, jobNames, initialJob, career,
     </fieldset>)}
     <fieldset><legend>마감 임박</legend><div className="jb-closing">{["", "3", "7", "14"].map(value => <label key={value}><input type="radio" name="jb-closing" value={value} checked={filters.closing === value} onChange={() => update({ closing: value })} />{value ? `${value}일` : "전체"}</label>)}</div></fieldset>
     <button type="button" className="btn btn-text btn-sm jb-reset" onClick={reset}>필터 전체 해제</button>
-    <button type="button" className="btn btn-primary btn-block jb-apply" onClick={closeFilters}>공고 보기{data ? ` · ${data.total}건` : ""}</button>
+    <button type="button" className="btn btn-primary btn-block jb-apply" onClick={closeFilters}>공고 보기{data ? `, ${data.total}건` : ""}</button>
   </>;
 
   return <div className="jobs-browse">
@@ -178,7 +178,7 @@ export default function JobsBrowse({ api, jobData, jobNames, initialJob, career,
           <div className="jb-row-actions" onClick={event => event.stopPropagation()}><button type="button" className="btn btn-secondary btn-sm" onClick={() => practice(posting)}>면접 연습</button><OriginalLink posting={posting} /></div>
         </li>)}</ul>}
         {data?.available && !error && data.total > 0 && <nav className="jb-pagination" aria-label="공고 페이지"><button type="button" aria-label="이전 페이지" disabled={currentPage <= 1 || loading} onClick={() => { update({ page: currentPage - 1 }); resultsRef.current?.scrollIntoView({ block: "start" }); }}><ChevronLeft size={16} /></button>{pageNumbers.map(page => <button type="button" key={page} disabled={loading} aria-current={page === currentPage ? "page" : undefined} onClick={() => { update({ page }); resultsRef.current?.scrollIntoView({ block: "start" }); }}>{page}</button>)}<button type="button" aria-label="다음 페이지" disabled={currentPage >= pages || loading} onClick={() => { update({ page: currentPage + 1 }); resultsRef.current?.scrollIntoView({ block: "start" }); }}><ChevronRight size={16} /></button><small>{currentPage} / {pages}</small></nav>}
-        <p className="jb-source">출처: {data?.source || "잡알리오"} · 지원 전 원문 공고를 꼭 확인하세요.</p>
+        <p className="jb-source">출처: {data?.source || "잡알리오"}, 지원 전 원문 공고를 꼭 확인하세요.</p>
       </section>
       {selected && <><div className="jb-detail-backdrop" onClick={closeDetail} aria-hidden="true" /><aside className="jb-detail" ref={detailRef} role="dialog" aria-label="채용공고 상세" tabIndex={-1}>
         <div className="jb-detail-heading"><span>공고 자세히 보기</span><button type="button" aria-label="상세 닫기" onClick={closeDetail}><X size={20} /></button></div>

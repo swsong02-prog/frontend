@@ -14,7 +14,7 @@ export default function TodayPreparation({ hasHistory, tips, checklist, checks, 
       </div>
       <Meter value={done} max={all} label="오늘의 준비 진행" />
       <div className="today-tip">
-        <span className="today-tip-label">{hasHistory ? "지난 면접에서 · 오늘의 핵심 Tip" : "오늘의 핵심 Tip"}</span>
+        <span className="today-tip-label">{hasHistory ? "지난 면접에서, 오늘의 핵심 Tip" : "오늘의 핵심 Tip"}</span>
         <p>{tips[0]}</p>
         {hasHistory && <button type="button" className="btn btn-text btn-sm" onClick={onFeedback}>개선 포인트 보기</button>}
       </div>

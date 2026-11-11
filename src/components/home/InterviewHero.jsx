@@ -2,7 +2,7 @@ import { Play } from "lucide-react";
 import { Button } from "../../ds";
 
 /* 홈 상단: 다음 연습
-   1단계 직무 · 세부직무(가장 크게, 그 자리에서 바로 바꿈) → 2단계 조건 한 줄 → 3단계 보조 한 줄 → 화면에서 가장 강한 CTA */
+   1단계 직무, 세부직무(가장 크게, 그 자리에서 바로 바꿈) → 2단계 조건 한 줄 → 3단계 보조 한 줄 → 화면에서 가장 강한 CTA */
 export default function InterviewHero({ jobPicker, career, level, company, ready, onStart, onEdit, onGuide, guideRef, children }) {
   return (
     <section className="hero" aria-labelledby="hero-title">

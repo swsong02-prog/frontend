@@ -278,7 +278,7 @@ export function LineChart({ points, series, goal = 80, goalLabel = "우수 80", 
         <line x1={x(hover)} y1={PT} x2={x(hover)} y2={PT + ih} stroke="var(--c-ink-3)" strokeOpacity="0.5" strokeWidth="1" strokeDasharray="3 3" />
         <rect x={tx} y={ty} width={tw} height={th} rx="4" fill="#FFFFFF" stroke="var(--c-line-strong)" />
         <text x={tx + 12} y={ty + 16} fontSize="11.5" fontWeight="700" fill="var(--muted)">
-          {p.round}회차{p.created_at ? ` · ${fmtMD(p.created_at)}` : ""}
+          {p.round}회차{p.created_at ? `, ${fmtMD(p.created_at)}` : ""}
         </text>
         {rows.map((s, i) => (
           <g key={s.key}>

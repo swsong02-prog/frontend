@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 function Pick({ label, value, disabled, onChange, placeholder, options }) {
   return (
     <label className={"hj-pick" + (value ? "" : " is-empty")}>
-      <span className="sr-only">{label}</span>
+      <span className="hj-label">{label}</span>
       <select value={value || ""} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={label}>
         {placeholder != null && <option value="">{placeholder}</option>}
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -20,16 +20,15 @@ export default function JobSelector({ data, value, subValue, onSelect, onSub, er
     if (error && !quiet) return errorSlot || null;
     return (
       <div className="home-job" aria-busy={!error}>
-        <Pick label="연습할 직무" disabled placeholder={error ? "직무" : "직무 불러오는 중…"} options={[]} onChange={() => {}} />
+        <Pick label="직무" disabled placeholder={error ? "직무" : "직무 불러오는 중…"} options={[]} onChange={() => {}} />
       </div>
     );
   }
   const subs = value && data[value] ? data[value].subs || [] : [];
   return (
     <div className="home-job">
-      <Pick label="연습할 직무" value={value} onChange={onSelect} placeholder="직무 선택" options={Object.keys(data)} />
-      <span className="hj-sep" aria-hidden="true">·</span>
-      <Pick label="연습할 세부 직무" value={subValue} disabled={!subs.length} onChange={onSub}
+      <Pick label="직무" value={value} onChange={onSelect} placeholder="직무 선택" options={Object.keys(data)} />
+      <Pick label="세부 직무" value={subValue} disabled={!subs.length} onChange={onSub}
         placeholder={!subs.length ? "세부 직무" : subValue && subs.includes(subValue) ? null : "세부 직무 선택"} options={subs} />
     </div>
   );

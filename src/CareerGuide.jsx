@@ -77,7 +77,7 @@ export default function CareerGuide({ onPractice }) {
             <select className="select cg-dept-select" aria-label="학과 선택" value={dept.name} onChange={e => pickDept(e.target.value)}>
               {COLLEGES.map(col => <optgroup key={col} label={col}>{DEPARTMENTS.filter(d => d.college === col).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}</optgroup>)}
             </select>
-            <span className="t-caption">{dept.college} · 62개 학과</span>
+            <span className="t-caption">{dept.college}, 62개 학과</span>
             <div className="cg-search">
               <Search size={16} aria-hidden="true" />
               <input value={query} placeholder="학과 이름으로 검색" aria-label="학과 검색" onChange={e => setQuery(e.target.value)} />
@@ -177,7 +177,7 @@ export default function CareerGuide({ onPractice }) {
           <aside className="cg-side">
             <div className="cg-side-box">
               <span className="t-caption">이 직무로 연습하기</span>
-              <strong>{career.job} · {career.sub}</strong>
+              <strong>{career.job}, {career.sub}</strong>
               <p className="t-sub">이 직무에 맞는 질문으로 모의면접을 바로 시작해요.</p>
               <button type="button" className="btn btn-primary btn-block" onClick={practice}>이 직무로 면접 연습</button>
             </div>

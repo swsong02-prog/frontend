@@ -12,7 +12,7 @@ function endText(end) {
   return m ? `${Number(m[2])}.${m[3]}` : "";
 }
 
-/* 추천 채용공고 한 줄: 회사 · 직무(공고 제목) · 지역 · 마감일 · [면접 연습](외곽선) · 공고 보기(글자 링크) */
+/* 추천 채용공고 한 줄: 회사, 직무(공고 제목), 지역, 마감일, [면접 연습](외곽선), 공고 보기(글자 링크) */
 export default function JobPostingCard({ posting, onPractice }) {
   const soon = posting.dday != null && posting.dday >= 0 && posting.dday <= 3;
   const region = posting.region && posting.region.split(",").length > 3 ? "전국" : posting.region;
@@ -22,7 +22,7 @@ export default function JobPostingCard({ posting, onPractice }) {
       <span className="post-inst">{posting.inst}</span>
       <div className="post-main">
         <span className="post-title">{posting.title}</span>
-        <span className="post-meta">{[posting.hire, posting.se].filter(Boolean).join(" · ")}</span>
+        <span className="post-meta">{[posting.hire, posting.se].filter(Boolean).join(", ")}</span>
       </div>
       <span className="post-region">{region || "—"}</span>
       <span className="post-dday">

@@ -54,9 +54,9 @@ export default function WarmupPanel({ qIndex, answer, hasResume, noneGenerated =
     body = <p className="wu-note">도움 없이 말하는 단계입니다. 앞에서 연습한 흐름대로 답해 보세요.</p>;
   } else if (!answer || !answer.text) {
     // 답안이 하나도 없으면 생성 실패(워커 꺼짐, 옛 워커 등), 일부만 없으면 근거 부족으로 구분
-    const msg = !hasResume ? "자소서 없이 시작해 답안 틀이 없습니다"
-      : noneGenerated ? "이번 면접은 모범답안을 만들지 못했습니다. 분석 서버 상태를 확인한 뒤 다시 시작해 보세요."
-      : "자소서에 이 질문에 쓸 경험이 없습니다";
+    const msg = !hasResume ? "자소서 없이 시작해 답안 틀이 없어요"
+      : noneGenerated ? "이번 면접은 모범답안을 만들지 못했어요. 분석 서버 상태를 확인한 뒤 다시 시작해 보세요."
+      : "자소서에 이 질문에 쓸 경험이 없어요";
     body = <p className="wu-note">{msg}</p>;
   } else if (stage.key === "full") {
     body = <p className="wu-text">{answer.text}</p>;

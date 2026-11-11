@@ -40,7 +40,7 @@ export default function Auth({ onLogin }) {
         });
         const data = await res.json();
         if (!res.ok) {
-          setMsg(data.detail || "회원가입에 실패했습니다. 다시 시도해주세요.");
+          setMsg(data.detail || "회원가입에 실패했어요. 다시 시도해주세요.");
           setBusy(false);
           return;
         }
@@ -55,14 +55,14 @@ export default function Auth({ onLogin }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setMsg(data.detail || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
+        setMsg(data.detail || "로그인에 실패했어요. 이메일과 비밀번호를 확인해주세요.");
         setBusy(false);
         return;
       }
       // 3) 로그인 성공 → 토큰을 부모(App)에게 넘김
       onLogin(data.access_token, email, data.name || (mode === "signup" ? name.trim() : ""));
     } catch (e) {
-      setMsg("일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      setMsg("일시적으로 서비스에 연결할 수 없어요. 잠시 후 다시 시도해주세요.");
       setBusy(false);
     }
   }
@@ -73,9 +73,9 @@ export default function Auth({ onLogin }) {
         <AuthIntro />
 
         <div className="auth-form">
-          <h2 className="t-page">{mode === "login" ? "면접 연습 이어가기" : "새 계정 만들기"}</h2>
+          <h2 className="t-page">{mode === "login" ? "로그인" : "회원가입"}</h2>
           <p className="t-sub">
-            {mode === "login" ? "로그인하고 지난 면접 기록을 이어서 확인하세요." : "이메일로 가입하면 바로 시작할 수 있어요."}
+            {mode === "login" ? "지난 면접 기록에서 이어서 연습해요." : "이메일만 있으면 돼요. 가입하면 바로 시작할 수 있어요."}
           </p>
 
           {/* 로그인/회원가입 전환 */}
@@ -103,7 +103,7 @@ export default function Auth({ onLogin }) {
                   id="auth-name"
                   type="text"
                   autoComplete="name"
-                  placeholder="이름 (예: 송경원)"
+                  placeholder="예: 홍길동"
                   maxLength={20}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -116,7 +116,7 @@ export default function Auth({ onLogin }) {
               id="auth-email"
               type="email"
               autoComplete="email"
-              placeholder="이메일"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input"

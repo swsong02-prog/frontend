@@ -39,10 +39,10 @@ async function call(token, method, path, body) {
 /* 화면에 보여 줄 오류 한 줄 (404 = 서버 준비 전) */
 export function loopErrorText(e, what = "정보") {
   if (!e) return "";
-  if (e.status === 404 || e.status === 405) return `서버에 ${what} 기능이 아직 열리지 않았습니다.`;
-  if (e.status === 0) return `서버에 연결하지 못해 ${what}를 불러오지 못했습니다.`;
+  if (e.status === 404 || e.status === 405) return `서버에 ${what} 기능이 아직 열리지 않았어요.`;
+  if (e.status === 0) return `서버에 연결하지 못해 ${what}를 불러오지 못했어요.`;
   if (e.detail && e.detail !== "network") return e.detail;
-  return `${what}를 불러오지 못했습니다.`;
+  return `${what}를 불러오지 못했어요.`;
 }
 
 /* ---------- 날짜 (KST 기준 YYYY-MM-DD) ---------- */
@@ -135,5 +135,5 @@ export async function getProgress(token) {
 /* 달성 소식 문장 틀 */
 export function feedTemplate(goal) {
   const job = goal.job ? `${goal.job} 준비 중, ` : "";
-  return `${job}"${goal.title}" 목표를 달성했습니다.`;
+  return `${job}"${goal.title}" 목표를 달성했어요.`;
 }
