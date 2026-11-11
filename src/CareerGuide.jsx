@@ -70,17 +70,17 @@ export default function CareerGuide({ onPractice }) {
     <div className="career-guide">
       <PageHeader title="진로 탐색" desc="학과를 고르면 갈 수 있는 직무와 준비할 것을 보여 드려요. 마음에 드는 직무로 바로 면접을 연습해 보세요." />
 
-      <section className="cg-pick" aria-label="학과와 진로 선택">
+      <section className="cg-pick panel" aria-label="학과와 진로 선택">
         <div className="cg-dept">
           <span className="field-label">학과</span>
           <div className="cg-dept-row">
             <select className="select cg-dept-select" aria-label="학과 선택" value={dept.name} onChange={e => pickDept(e.target.value)}>
               {COLLEGES.map(col => <optgroup key={col} label={col}>{DEPARTMENTS.filter(d => d.college === col).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}</optgroup>)}
             </select>
-            <span className="t-caption">{dept.college}, 62개 학과</span>
+            <span className="t-caption">{dept.college}</span>
             <div className="cg-search">
               <Search size={16} aria-hidden="true" />
-              <input value={query} placeholder="학과 이름으로 검색" aria-label="학과 검색" onChange={e => setQuery(e.target.value)} />
+              <input value={query} placeholder="다른 학과 이름으로 찾기" aria-label="학과 검색" onChange={e => setQuery(e.target.value)} />
               {results.length > 0 && <ul className="cg-search-list" role="listbox" aria-label="학과 검색 결과">
                 {results.map(d => <li key={d.name} role="option" aria-selected={false} onMouseDown={e => e.preventDefault()} onClick={() => pickDept(d.name)}>{d.name}<small>{d.college}</small></li>)}
               </ul>}
@@ -88,7 +88,7 @@ export default function CareerGuide({ onPractice }) {
           </div>
         </div>
         <div className="cg-careers">
-          <span className="field-label">{dept.name} 선배들의 주요 진로</span>
+          <span className="field-label">{dept.name}에서 많이 가는 진로</span>
           <div className="chips">{dept.careers.map(c => (
             <button type="button" key={c.label} className={"chip" + (c.label === career.label ? " on" : "")} aria-pressed={c.label === career.label} onClick={() => setCareerLabel(c.label)}>
               {c.label}{CAREER_INFO && !CAREER_INFO[c.label] && <small>준비 중</small>}
@@ -105,23 +105,23 @@ export default function CareerGuide({ onPractice }) {
         </div>
       ) : (
         <div className="cg-layout">
-          <article className="cg-main">
+          <article className="cg-main panel">
             <header className="cg-title">
-              <h2 className="t-page">{career.label}</h2>
-              {info.ncs && <p className="t-sub">NCS 분류: {info.ncs}</p>}
+              <h2 className="cg-name">{career.label}</h2>
+              {info.ncs && <p className="t-sub">NCS 분류로는 {info.ncs}에 해당해요.</p>}
             </header>
 
-            <section className="cg-sec">
+            <section className="cg-sec" id="cg-does">
               <h3 className="cg-h3">하는 일</h3>
               <ul className="cg-list">{info.does.map(t => <li key={t}>{t}</li>)}</ul>
             </section>
 
-            <section className="cg-sec">
+            <section className="cg-sec" id="cg-skills">
               <h3 className="cg-h3">필요한 역량</h3>
-              <div className="chips">{info.skills.map(t => <span key={t} className="chip chip-static">{t}</span>)}</div>
+              <ul className="cg-list cg-cols">{info.skills.map(t => <li key={t}>{t}</li>)}</ul>
             </section>
 
-            <section className="cg-sec">
+            <section className="cg-sec" id="cg-certs">
               <h3 className="cg-h3">추천 자격증</h3>
               {info.certs.length ? <table className="cg-table">
                 <thead><tr><th>자격증</th><th>발급 기관</th><th>구분</th></tr></thead>
@@ -140,15 +140,15 @@ export default function CareerGuide({ onPractice }) {
               <ul className="cg-list">{info.projectRole.map(t => <li key={t}>{t}</li>)}</ul>
             </section>
 
-            <section className="cg-sec">
+            <section className="cg-sec" id="cg-checks">
               <h3 className="cg-h3">준비 체크리스트</h3>
               <div className="cg-checks">
-                {checklist("quant", "정량 준비 (숫자로 보이는 것)", info.quant)}
-                {checklist("qual", "정성 준비 (경험으로 보이는 것)", info.qual)}
+                {checklist("quant", "숫자로 보이는 준비", info.quant)}
+                {checklist("qual", "경험으로 보이는 준비", info.qual)}
               </div>
             </section>
 
-            <section className="cg-sec">
+            <section className="cg-sec" id="cg-resume">
               <h3 className="cg-h3">자기소개서, 이렇게 써 보세요</h3>
               <p className="t-sub cg-lead">완성된 예문 대신 양식을 드려요. 빈칸에 내 경험을 넣어 보면서 순서를 잡으면 돼요.</p>
               <div className="cg-points">
@@ -158,7 +158,7 @@ export default function CareerGuide({ onPractice }) {
               <div className="cg-forms">
                 {RESUME_FORMS.map((f, i) => (
                   <details key={f.title} className="cg-form" open={i === 0}>
-                    <summary><span className="num">{String(i + 1).padStart(2, "0")}</span>{f.title}</summary>
+                    <summary><span className="num">{i + 1}</span>{f.title}<span className="cg-fold" aria-hidden="true" /></summary>
                     <ol className="cg-steps">{f.steps.map(s => <li key={s.label}><b>{s.label}</b><p><FrameText text={s.frame} /></p></li>)}</ol>
                     {f.tip && <p className="cg-tip">{f.tip}</p>}
                     {i === 1 && info.projectRole?.length > 0 && <p className="cg-tip">{career.label}라면 이런 경험이 잘 맞아요: {info.projectRole.join(", ")}</p>}
@@ -175,20 +175,26 @@ export default function CareerGuide({ onPractice }) {
           </article>
 
           <aside className="cg-side">
-            <div className="cg-side-box">
-              <span className="t-caption">이 직무로 연습하기</span>
-              <strong>{career.job}, {career.sub}</strong>
-              <p className="t-sub">이 직무에 맞는 질문으로 모의면접을 바로 시작해요.</p>
+            <div className="cg-side-box panel">
+              <strong>{career.label} 면접 연습</strong>
+              <p className="t-sub">{career.job}, {career.sub} 직무에 맞는 질문으로 바로 시작해요.</p>
               <button type="button" className="btn btn-primary btn-block" onClick={practice}>이 직무로 면접 연습</button>
             </div>
-            <div className="cg-side-box">
-              <span className="t-caption">준비 현황</span>
+            <div className="cg-side-box panel">
               {(() => {
                 const all = [...info.quant.map((_, i) => checkKey("quant", i)), ...info.qual.map((_, i) => checkKey("qual", i))];
                 const done = all.filter(k => checks[k]).length;
-                return <><strong className="num">{done} / {all.length}</strong><div className="meter"><span style={{ width: (all.length ? done / all.length * 100 : 0) + "%" }} /></div><p className="t-caption">체크한 내용은 이 기기에만 저장돼요.</p></>;
+                return <><strong>준비 체크리스트</strong>
+                  <p className="t-sub">{all.length}개 중 <b className="num">{done}개</b>를 챙겼어요.</p>
+                  <div className="meter"><span style={{ width: (all.length ? done / all.length * 100 : 0) + "%" }} /></div>
+                  <p className="t-caption">체크한 내용은 이 기기에만 저장돼요.</p></>;
               })()}
             </div>
+            <nav className="cg-toc" aria-label="이 화면에서 바로 가기">
+              {[["cg-does", "하는 일"], ["cg-skills", "필요한 역량"], ["cg-certs", "추천 자격증"], ["cg-checks", "준비 체크리스트"], ["cg-resume", "자기소개서 양식"]].map(([id, label]) => (
+                <button type="button" key={id} onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{label}</button>
+              ))}
+            </nav>
           </aside>
         </div>
       )}

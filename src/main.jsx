@@ -10,6 +10,7 @@ import './styles/loop.css'
 import './styles/calm.css'
 import './styles/v6.css'
 import './styles/v6b.css'
+import './styles/v6c.css'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(

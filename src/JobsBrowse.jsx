@@ -31,13 +31,18 @@ const dateText = value => {
   const raw = String(value || "").replace(/\D/g, "");
   return raw.length >= 8 ? `${raw.slice(0, 4)}.${raw.slice(4, 6)}.${raw.slice(6, 8)}` : "미정";
 };
+const periodText = posting => {
+  const start = dateText(posting.start), end = dateText(posting.end);
+  const period = start !== "미정" && end !== "미정" ? `접수 ${start} ~ ${end}` : end !== "미정" ? `${end}까지 접수` : start !== "미정" ? `${start}부터 접수` : "";
+  return [period, posting.acbg].filter(Boolean).join(", ");
+};
 const dayText = day => day == null ? "상시" : day < 0 ? "마감" : day === 0 ? "오늘 마감" : `D-${day}`;
 const regionText = region => String(region || "").split(",").length >= 4 ? "전국" : region;
 function PostingInfo({ posting }) {
   return <div className="jb-info">
     <span className="jb-tags">{posting.local_talent && <span className="jb-local-tag" title="대전·세종·충북·충남 소재 대학 졸업(예정)자를 일정 비율 이상 뽑아야 하는 기관">지역인재 대상</span>}{(posting.jobs || []).map(job => <span key={job}>{job}</span>)}</span>
     <span className="jb-meta">{[regionText(posting.region), posting.hire, posting.se, posting.nope != null && `${posting.nope}명 채용`].filter(Boolean).join(", ")}</span>
-    <span className="jb-period">접수 {dateText(posting.start)} ~ {dateText(posting.end)}{posting.acbg ? `, ${posting.acbg}` : ""}</span>
+    {periodText(posting) && <span className="jb-period">{periodText(posting)}</span>}
   </div>;
 }
 function OriginalLink({ posting }) {
@@ -138,47 +143,54 @@ export default function JobsBrowse({ api, jobData, jobNames, initialJob, career,
   const pageNumbers = Array.from({ length: Math.min(5, pages) }, (_, index) => pageStart + index);
   const shown = detail || selected;
 
+  const count = value => (value == null ? null : <small className="num">{value}</small>);
+
   const filterContents = <>
-    <div className="jb-filter-heading"><h2>조건 선택</h2><button type="button" className="jb-mobile-close" aria-label="필터 닫기" onClick={closeFilters}><X size={20} /></button></div>
-    <label className="jb-search-label" htmlFor="jb-search">공고 검색</label>
-    <div className="jb-search"><Search size={16} aria-hidden="true" /><input id="jb-search" value={filters.q} placeholder="기관명·제목·자격요건" onChange={event => update({ q: event.target.value })} /></div>
+    <div className="jb-filter-heading"><h2>조건</h2><button type="button" className="jb-mobile-close" aria-label="필터 닫기" onClick={closeFilters}><X size={20} /></button></div>
     {GROUPS.map(group => <fieldset key={group.key}><legend>{group.label}</legend>
-      <div className={group.key === "regions" ? "jb-region-options" : ""}>{(data?.options?.[group.key] || group.defaults).map(value => <label className="jb-check" key={value}><input type="checkbox" checked={filters[group.key].includes(value)} onChange={() => toggle(group.key, value)} /><span>{value}</span><small>{facets[group.facet]?.[value] ?? "—"}</small></label>)}</div>
+      <div className={group.key === "regions" ? "jb-region-options" : ""}>{(data?.options?.[group.key] || group.defaults).map(value => <label className="jb-check" key={value}><input type="checkbox" checked={filters[group.key].includes(value)} onChange={() => toggle(group.key, value)} /><span>{value}</span>{count(facets[group.facet]?.[value])}</label>)}</div>
     </fieldset>)}
-    <fieldset><legend>마감 임박</legend><div className="jb-closing">{["", "3", "7", "14"].map(value => <label key={value}><input type="radio" name="jb-closing" value={value} checked={filters.closing === value} onChange={() => update({ closing: value })} />{value ? `${value}일` : "전체"}</label>)}</div></fieldset>
-    <button type="button" className="btn btn-text btn-sm jb-reset" onClick={reset}>필터 전체 해제</button>
+    <fieldset><legend>마감까지 남은 날</legend><div className="jb-closing">{["", "3", "7", "14"].map(value => <label key={value}><input type="radio" name="jb-closing" value={value} checked={filters.closing === value} onChange={() => update({ closing: value })} />{value ? `${value}일 안` : "전체"}</label>)}</div></fieldset>
+    <button type="button" className="btn btn-text btn-sm jb-reset" onClick={reset}>조건 모두 지우기</button>
     <button type="button" className="btn btn-primary btn-block jb-apply" onClick={closeFilters}>공고 보기{data ? `, ${data.total}건` : ""}</button>
   </>;
 
-  return <div className="jobs-browse">
-    <PageHeader title="채용공고" desc="공공기관 공고를 직무로 좁혀 보고, 그 공고 조건으로 바로 면접을 연습하세요." actions={<span className="t-sub">진행 중 <b className="num">{data?.total_open?.toLocaleString() ?? "—"}</b>건</span>} />
-    <section className={`jb-local${filters.local ? " on" : ""}`} aria-label="지역인재 채용 대상 기관">
-      <label className="jb-local-toggle"><input type="checkbox" checked={filters.local} onChange={() => update({ local: !filters.local })} />
-        <span><b>대전·충청 지역인재 대상 기관만 보기</b><small className="num">{data?.facets?.local ?? "—"}건</small></span></label>
-      <p>대전대 졸업(예정)자는 대전·세종·충북·충남 공공기관 53곳에서 지역인재로 인정돼요. 이 기관들은 신규 채용의 일정 비율(기관에 따라 18~30%) 이상을 지역인재로 뽑아야 해요. <a href={LOCAL_SOURCE} target="_blank" rel="noopener noreferrer">출처: 대전광역시<ArrowUpRight size={12} aria-hidden="true" /></a></p>
+  return <div className="jobs-browse v6j">
+    <PageHeader title="채용공고" desc="공공기관 공고를 직무로 좁혀 보고, 마음에 드는 공고로 바로 면접을 연습해요."
+      actions={data?.total_open != null ? <span className="t-sub">지금 접수 중인 공고 <b className="num">{data.total_open.toLocaleString()}</b>건</span> : null} />
+
+    <section className="panel jb-find" aria-label="공고 찾기">
+      <div className="jb-find-top">
+        <div className="jb-search"><Search size={18} aria-hidden="true" /><input id="jb-search" aria-label="공고 검색" value={filters.q} placeholder="기관 이름, 공고 제목, 자격요건으로 찾기" onChange={event => update({ q: event.target.value })} /></div>
+        <label className={`jb-local-toggle${filters.local ? " on" : ""}`}><input type="checkbox" checked={filters.local} onChange={() => update({ local: !filters.local })} />
+          <span><b>지역인재 대상 기관만 보기</b>{count(data?.facets?.local)}</span></label>
+      </div>
+      <div className="jb-job-section" role="group" aria-label="직군과 세부직무 선택">
+        <div className="jb-section-label"><span className="field-label">직무</span><span className="t-caption">여러 개를 고를 수 있어요</span></div>
+        <div className="chips jb-job-chips"><button type="button" className={"chip" + (!filters.jobs.length ? " on" : "")} aria-pressed={!filters.jobs.length} onClick={() => update({ jobs: [], subs: [] })}>전체</button>{jobNames.map(job => <button type="button" key={job} className={"chip" + (filters.jobs.includes(job) ? " on" : "")} aria-pressed={filters.jobs.includes(job)} onClick={() => toggle("jobs", job)}>{job}{count(facets.job?.[job])}</button>)}</div>
+        {!!filters.jobs.length && <div className="chips jb-sub-chips"><span className="field-label">세부직무</span>{subNames.length ? subNames.map(sub => <button type="button" key={sub} disabled={facets.sub?.[sub] === 0 && !filters.subs.includes(sub)} aria-pressed={filters.subs.includes(sub)} className={"chip chip-sm" + (filters.subs.includes(sub) ? " on" : "")} onClick={() => toggle("subs", sub)}>{sub}{count(facets.sub?.[sub])}</button>) : <small>세부직무 정보를 불러오는 중이에요.</small>}</div>}
+      </div>
+      <p className="jb-local-note">대전대 졸업(예정)자는 대전, 세종, 충북, 충남 공공기관 53곳에서 지역인재로 인정돼요. 이 기관들은 신규 채용의 일정 비율(기관에 따라 18~30%) 이상을 지역인재로 뽑아야 해요. <a href={LOCAL_SOURCE} target="_blank" rel="noopener noreferrer">출처: 대전광역시<ArrowUpRight size={12} aria-hidden="true" /></a></p>
     </section>
-    <section className="jb-job-section" aria-label="직군과 세부직무 선택">
-      <div className="jb-section-label"><span className="field-label">직무</span><span className="t-caption">여러 개 선택할 수 있어요</span></div>
-      <div className="chips jb-job-chips"><button type="button" className={"chip" + (!filters.jobs.length ? " on" : "")} aria-pressed={!filters.jobs.length} onClick={() => update({ jobs: [], subs: [] })}>전체</button>{jobNames.map(job => <button type="button" key={job} className={"chip" + (filters.jobs.includes(job) ? " on" : "")} aria-pressed={filters.jobs.includes(job)} onClick={() => toggle("jobs", job)}>{job}<small className="num">{facets.job?.[job] ?? "—"}</small></button>)}</div>
-      {!!filters.jobs.length && <div className="chips jb-sub-chips"><span className="field-label">세부직무</span>{subNames.length ? subNames.map(sub => <button type="button" key={sub} disabled={facets.sub?.[sub] === 0 && !filters.subs.includes(sub)} aria-pressed={filters.subs.includes(sub)} className={"chip chip-sm" + (filters.subs.includes(sub) ? " on" : "")} onClick={() => toggle("subs", sub)}>{sub}<small className="num">{facets.sub?.[sub] ?? "—"}</small></button>) : <small>세부직무 정보를 불러오는 중이에요.</small>}</div>}
-    </section>
-    <div className="jb-selected" aria-label="선택한 필터"><button type="button" className="jb-filter-trigger" onClick={() => setMobileFilters(true)}><SlidersHorizontal size={16} />필터{chips.length ? ` ${chips.length}` : ""}</button>{chips.length ? <>{chips.map(chip => <button type="button" key={`${chip.key}-${chip.label}`} onClick={() => chip.value ? toggle(chip.key, chip.value) : update({ [chip.key]: "" })} aria-label={`${chip.label} 필터 해제`}>{chip.label}<X size={13} /></button>)}<button type="button" className="jb-clear" onClick={reset}>전체 해제</button></> : <span>직무와 조건을 선택해 공고를 좁혀보세요.</span>}</div>
+
     <div className={`jb-layout${selected ? " has-detail" : ""}`}>
       <aside className={`jb-filter${mobileFilters ? " is-open" : ""}`}>
         <div className="jb-filter-backdrop" onClick={closeFilters} aria-hidden="true" />
         <div className="jb-filter-panel" ref={filterRef} tabIndex={-1} role={mobileFilters ? "dialog" : undefined} aria-modal={mobileFilters ? "true" : undefined} aria-label="채용공고 필터">{filterContents}</div>
       </aside>
-      <section className="jb-results" aria-label="채용공고 목록" ref={resultsRef} aria-busy={loading}>
-        <div className="jb-results-heading"><h2>총 <strong>{data?.total?.toLocaleString() ?? "—"}</strong>건</h2><label>정렬<select value={filters.sort} onChange={event => update({ sort: event.target.value })}>{Object.entries(SORTS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label></div>
-        <div role="status" className="jb-status">{loading ? "공고를 찾고 있어요…" : error ? "공고 연결을 다시 확인해주세요." : `${data?.total ?? 0}건의 공고를 찾았어요.`}</div>
-        {error ? <div className="jb-empty"><h3>공고를 불러오지 못했어요</h3><p>잠시 후 다시 시도해주세요.</p><button type="button" onClick={() => { setLoading(true); setReload(value => value + 1); }}>다시 시도</button></div> : data?.available === false ? <div className="jb-empty"><h3>공고를 아직 불러오지 못했어요</h3><p>공고가 준비되면 이곳에서 확인할 수 있어요.</p></div> : data && !data.items.length ? <div className="jb-empty"><h3>조건에 맞는 공고가 없어요</h3><p>필터를 줄이거나 다른 직무를 선택해보세요.</p><button type="button" onClick={reset}>전체 공고 보기</button></div> : !data ? <div className="jb-empty">공고를 불러오는 중이에요.</div> : <ul className={`jb-list${loading ? " is-loading" : ""}`}>{data.items.map(posting => <li key={posting.id} className={selected?.id === posting.id ? "selected" : ""} onClick={() => openDetail(posting)}>
-          <div className="jb-row-top"><span>{posting.inst}</span><span className={`jb-dday${posting.dday != null && posting.dday >= 0 && posting.dday <= 3 ? " soon" : ""}`}>{dayText(posting.dday)}</span></div>
+      <section className="jb-results panel" aria-label="채용공고 목록" ref={resultsRef} aria-busy={loading}>
+        <div className="jb-results-heading"><h2>공고 <strong className="num">{data?.total?.toLocaleString() ?? "0"}</strong>건</h2><label>정렬<select value={filters.sort} onChange={event => update({ sort: event.target.value })}>{Object.entries(SORTS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label></div>
+        <div className={"jb-selected" + (chips.length ? "" : " is-empty")} aria-label="선택한 조건"><button type="button" className="jb-filter-trigger" onClick={() => setMobileFilters(true)}><SlidersHorizontal size={16} />조건{chips.length ? ` ${chips.length}` : ""}</button>{chips.length > 0 && <>{chips.map(chip => <button type="button" key={`${chip.key}-${chip.label}`} onClick={() => chip.value ? toggle(chip.key, chip.value) : update({ [chip.key]: chip.key === "local" ? false : "" })} aria-label={`${chip.label} 조건 지우기`}>{chip.label}<X size={13} /></button>)}<button type="button" className="jb-clear" onClick={reset}>모두 지우기</button></>}</div>
+        <div role="status" className="jb-status">{loading ? "공고를 찾고 있어요…" : error ? "공고 연결을 다시 확인해 주세요." : `${data?.total ?? 0}건의 공고를 찾았어요.`}</div>
+        {error ? <div className="jb-empty"><h3>공고를 불러오지 못했어요</h3><p>잠시 후 다시 시도해 주세요.</p><button type="button" onClick={() => { setLoading(true); setReload(value => value + 1); }}>다시 시도</button></div> : data?.available === false ? <div className="jb-empty"><h3>공고를 아직 불러오지 못했어요</h3><p>공고가 준비되면 여기에서 볼 수 있어요.</p></div> : data && !data.items.length ? <div className="jb-empty"><h3>조건에 맞는 공고가 없어요</h3><p>조건을 줄이거나 다른 직무를 골라 보세요.</p><button type="button" onClick={reset}>전체 공고 보기</button></div> : !data ? <div className="jb-empty">공고를 불러오는 중이에요.</div> : <ul className={`jb-list${loading ? " is-loading" : ""}`}>{data.items.map(posting => <li key={posting.id} className={selected?.id === posting.id ? "selected" : ""} onClick={() => openDetail(posting)}>
+          <div className="jb-row-top"><span>{posting.inst}</span></div>
           <h3><button type="button" onClick={event => { event.stopPropagation(); openDetail(posting); }} aria-expanded={selected?.id === posting.id}>{posting.title}</button></h3>
           <PostingInfo posting={posting} />
-          <div className="jb-row-actions" onClick={event => event.stopPropagation()}><button type="button" className="btn btn-secondary btn-sm" onClick={() => practice(posting)}>면접 연습</button><OriginalLink posting={posting} /></div>
+          <span className={`jb-dday num${posting.dday != null && posting.dday >= 0 && posting.dday <= 3 ? " soon" : ""}`}>{dayText(posting.dday)}</span>
+          <div className="jb-row-actions" onClick={event => event.stopPropagation()}><button type="button" className="lc-try" onClick={() => practice(posting)}>이 공고로 연습</button><OriginalLink posting={posting} /></div>
         </li>)}</ul>}
         {data?.available && !error && data.total > 0 && <nav className="jb-pagination" aria-label="공고 페이지"><button type="button" aria-label="이전 페이지" disabled={currentPage <= 1 || loading} onClick={() => { update({ page: currentPage - 1 }); resultsRef.current?.scrollIntoView({ block: "start" }); }}><ChevronLeft size={16} /></button>{pageNumbers.map(page => <button type="button" key={page} disabled={loading} aria-current={page === currentPage ? "page" : undefined} onClick={() => { update({ page }); resultsRef.current?.scrollIntoView({ block: "start" }); }}>{page}</button>)}<button type="button" aria-label="다음 페이지" disabled={currentPage >= pages || loading} onClick={() => { update({ page: currentPage + 1 }); resultsRef.current?.scrollIntoView({ block: "start" }); }}><ChevronRight size={16} /></button><small>{currentPage} / {pages}</small></nav>}
-        <p className="jb-source">출처: {data?.source || "잡알리오"}, 지원 전 원문 공고를 꼭 확인하세요.</p>
+        <p className="jb-source">출처: {data?.source || "잡알리오"}. 지원하기 전에 원문 공고를 꼭 확인하세요.</p>
       </section>
       {selected && <><div className="jb-detail-backdrop" onClick={closeDetail} aria-hidden="true" /><aside className="jb-detail" ref={detailRef} role="dialog" aria-label="채용공고 상세" tabIndex={-1}>
         <div className="jb-detail-heading"><span>공고 자세히 보기</span><button type="button" aria-label="상세 닫기" onClick={closeDetail}><X size={20} /></button></div>
